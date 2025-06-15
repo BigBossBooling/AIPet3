@@ -30,6 +30,36 @@ This document provides a high-level conceptual outline for advanced economic loo
             5.  Emits `ItemSoldFromShop` event.
 *   **Economic Impact:** Fosters a player-driven economy, encourages entrepreneurship, provides more sinks/uses for PTCN, and allows for specialized trading hubs.
 
+    #### 4. Conceptual User Interface for User Shops
+
+    The "User Shops District" in the UI Wallet will be the central hub for player-to-player commerce beyond the general marketplace.
+
+    *   **Browsing and Searching Shops (`#browse-user-shops`):**
+        *   A main view will allow users to see a list of active user shops (`#user-shop-list`), potentially with featured shops or categories.
+        *   A search bar (`#search-shops-input`) will enable finding shops by name or owner.
+        *   Each shop in the list will display its name, owner, a brief description, and a "Visit Shop" button.
+
+    *   **Viewing an Individual Shop (`#view-individual-shop`):**
+        *   Clicking "Visit Shop" will navigate the user to a dedicated view for that shop.
+        *   This view will display the shop's name (`#shop-name-display`), owner, and full description (`#shop-description-display`).
+        *   A list (`#shop-item-list`) will show all items (Pet NFTs, future game items like food/clothes/equipment) currently for sale in that shop, along with their prices.
+        *   Each item will have a "Buy Item" button, which would (conceptually) trigger the `purchase_from_shop` extrinsic. A status area (`#buy-from-shop-status`) provides feedback.
+        *   A "Back to Shop Browser" button allows users to return to the main shop list.
+
+    *   **Managing Own Shop (`#manage-my-shop`):**
+        *   This section is for users who want to become shop owners.
+        *   **Initial State:** If the user doesn't have a shop, a "Create My Shop!" button is shown.
+        *   **Shop Dashboard:** Once a shop is created, this area displays the shop's status and provides access to management functions:
+            *   "Customize Shop" button: Reveals a form (`#create-customize-shop-form`) to set/update shop name, description, and potentially other customization options (like a banner image URL). This would call an extrinsic like `create_shop` or `update_shop_metadata`.
+            *   "Manage Inventory" button: Reveals a form (`#manage-inventory-form`) where shop owners can:
+                *   Select Pet NFTs or other items from their personal inventory to list in their shop.
+                *   Set prices for these items.
+                *   Call an extrinsic like `add_item_to_shop`.
+                *   View and manage items currently listed in their shop (`#my-shop-inventory-list`), with options to delist or change prices.
+        *   Status paragraphs (`#save-shop-details-status`, `#add-item-status`, `#manage-my-shop-status`) provide feedback on shop management actions.
+
+    This UI structure aims to support discovery, browsing, purchasing, and shop management within a player-driven economy.
+
 ## 2. Advanced Blockchain Support Jobs
 
 *   **Concept:** Introduce a system for users to perform tasks beneficial to the ecosystem's health, data integrity, or community, earning PTCN or other rewards.
@@ -54,6 +84,27 @@ This document provides a high-level conceptual outline for advanced economic loo
         *   `review_job_submission_and_payout(job_id, worker_account, is_approved)`: Callable by the designated `completion_oracle` or a council. If approved, it triggers PTCN reward transfer and marks job as completed for that user.
 *   **Oracle Integration:** For jobs requiring off-chain verification (e.g., "Did user X tweet about CritterCraft?"), a trusted oracle system (could be a centralized service initially, or a decentralized oracle network later) would be needed to validate completion and trigger the `review_job_submission_and_payout` extrinsic.
 *   **Economic Impact:** Provides diverse earning opportunities beyond core gameplay, incentivizes ecosystem-beneficial activities, and allows for community-driven task fulfillment.
+
+    #### 4. Conceptual User Interface for Jobs Board
+
+    The "Jobs Board" in the UI Wallet will be the interface for users to find, apply for, and manage participation in advanced ecosystem support jobs.
+
+    *   **Browsing Available Jobs (`#available-jobs`):**
+        *   A list (`#job-list`) will display currently available jobs. Optional filters (by type, reward, duration) could be added.
+        *   Each job listing will show key details: Title, brief description, core requirements, reward (PTCN and/or item NFTs), expiry/duration, and a "View Details & Apply" button.
+
+    *   **Viewing Job Details (`#job-details-view`):**
+        *   Clicking "View Details & Apply" would show a dedicated view for a specific job with its full description, detailed requirements, reward structure, and expiry information.
+        *   An "Apply for this Job" button would allow users to (conceptually) signal their intent via an `apply_for_job` extrinsic.
+        *   If a user has already applied or been accepted for a job, this section might change to show their current status (e.g., "Application Pending," "Job In Progress").
+        *   For jobs "In Progress," a placeholder for "Submit Proof of Completion" (e.g., a text area for links/notes and a submit button) would be present, which would (conceptually) call a `submit_job_completion_proof` extrinsic.
+        *   A "Back to Jobs List" button and a status area (`#job-action-status`) for feedback.
+
+    *   **Managing Accepted Jobs (`#my-accepted-jobs`):**
+        *   A list (`#my-jobs-list`) will display jobs the user has accepted and are currently "In Progress."
+        *   Each entry would show the job title, its current status (e.g., "Proof Submitted, Awaiting Review," "Deadline Approaching"), and potentially a button to "Submit/Update Proof" if applicable.
+
+    This UI aims to create a clear and actionable interface for users to engage with various roles and tasks that support the CritterCraft ecosystem, providing them with meaningful ways to contribute and earn.
 
 ## 3. Treasure Hunts & Exploration
 
@@ -242,6 +293,13 @@ A comprehensive Pet Breeding and Genetics system is envisioned as a major future
 *   **New `pallet-breeding` (Recommended):** Given the potential complexity of genetic algorithms, compatibility rules, and managing the breeding process itself, a dedicated pallet is likely the cleanest approach. This pallet would interact heavily with `pallet-critter-nfts` (via `NftManager` or direct calls if tightly coupled) and `pallet-items`.
 *   **`pallet-items` (Future):** To manage fertility items.
 *   **UI Wallet:** Extensive new UI sections for selecting pets for breeding, viewing lineage, managing breeding cooldowns, and using fertility items.
+    *   **Viewing Lineage in Pet Details:**
+        *   When a user views the details of their individual Pet NFTs (e.g., in the "My Pet NFTs" list), basic lineage information will be displayed directly as part of the pet's attributes. This would include:
+            *   `Parent 1 ID: [ID of Parent A or N/A]`
+            *   `Parent 2 ID: [ID of Parent B or N/A]`
+            *   `(Generation: Gen X)`
+        *   A placeholder button or link, such as "[View Full Lineage Tree (Future)]", will also be present for each pet.
+        *   Clicking this would conceptually navigate to a more detailed visual pedigree view in a later implementation, allowing users to trace ancestry across multiple generations if the data is available on-chain via the `parent1_id` and `parent2_id` fields in the `PetNft` struct.
 
 The Pet Breeding & Genetics system aims to be a deeply engaging end-game activity, encouraging long-term player investment and creating a dynamic market for selectively bred Pet NFTs.
 
@@ -294,6 +352,22 @@ Pet Day Cares introduce a social and passive development mechanic to CritterCraf
 *   Adds social depth as players entrust their pets to others or rely on the skills of specific caregiver pets.
 
 The Pet Day Care system, especially with pet caregivers, offers a unique blend of passive development, social interaction, and economic activity, further enriching the CritterCraft world.
+
+[end of ADVANCED_FEATURES.md]
+
+[end of ADVANCED_FEATURES.md]
+
+[end of ADVANCED_FEATURES.md]
+
+[end of ADVANCED_FEATURES.md]
+
+[end of ADVANCED_FEATURES.md]
+
+[end of ADVANCED_FEATURES.md]
+
+[end of ADVANCED_FEATURES.md]
+
+[end of ADVANCED_FEATURES.md]
 
 [end of ADVANCED_FEATURES.md]
 

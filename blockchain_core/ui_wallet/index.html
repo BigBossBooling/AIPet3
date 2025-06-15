@@ -239,6 +239,232 @@
     </div>
 
     <hr>
+    <h2>Pet Day Care Center</h2>
+    <div id="daycare-center-section">
+        <p>Board your pets for passive development or offer your services as a caregiver!</p>
+
+        <div id="find-daycare-services" style="margin-bottom: 20px;">
+            <h3>Find a Day Care Service</h3>
+            <!-- Filters for daycare services could go here (e.g., by specialty, fee) -->
+            <ul id="daycare-service-list">
+                <p id="daycare-service-list-placeholder">Loading available day care services...</p>
+                <!-- Example of a list item (to be dynamically generated):
+                <li>
+                    <strong>Operator:</strong> CareBearAlice (Pet: NurturerBot ID: 789)<br>
+                    <strong>Specialty:</strong> XP Gain Boost<br>
+                    <strong>Fee:</strong> 5 PTCN per session/day<br>
+                    <strong>Capacity:</strong> 3/5 Pets<br>
+                    <select class="pet-to-enroll-select" data-operator-id="CareBearAlice_ID">
+                        <option value="">--Select your pet to enroll--</option>
+                        <! -- User's eligible pets -->
+                    </select>
+                    <button class="enroll-daycare-button" data-operator-id="CareBearAlice_ID">Enroll Selected Pet</button>
+                </li>
+                -->
+            </ul>
+            <p id="enroll-daycare-status"></p>
+        </div>
+
+        <hr style="margin-top: 20px; margin-bottom: 20px;">
+
+        <div id="my-boarded-pets" style="margin-bottom: 20px;">
+            <h3>My Pets in Day Care</h3>
+            <ul id="boarded-pets-list">
+                <p id="boarded-pets-placeholder">You have no pets currently in day care.</p>
+                <!-- Example of a list item:
+                <li>
+                    <strong>Pet:</strong> MySparky (ID: 123) at CareBearAlice's Day Care<br>
+                    <strong>Status:</strong> Gaining XP (2 days remaining)<br>
+                    <strong>Expected Benefits:</strong> +500 XP, +1 Mood Point<br>
+                    <button class="retrieve-from-daycare-button" data-pet-id="123">Retrieve Pet</button>
+                </li>
+                -->
+            </ul>
+            <p id="retrieve-daycare-status"></p>
+        </div>
+
+        <hr style="margin-top: 20px; margin-bottom: 20px;">
+
+        <div id="manage-my-daycare" style="margin-bottom: 20px;">
+            <h3>Manage My Day Care Service (For Operators/Caregivers)</h3>
+            <div id="my-daycare-status-display">
+                <p><em>You are not currently operating a day care service.</em></p>
+                <!-- Or display details if operating:
+                <p><strong>My Day Care Status:</strong> Active</p>
+                <p><strong>Caregiver Pet:</strong> MyNurturer (ID: 999)</p>
+                <p><strong>Specialty:</strong> Mood Boost</p>
+                <p><strong>Fee:</strong> 10 PTCN / session</p>
+                <p><strong>Capacity:</strong> 2/3</p>
+                <p><strong>Boarded Pets:</strong> PetX (Owner: ...), PetY (Owner: ...)</p>
+                <p><strong>Accumulated Earnings:</strong> 120 PTCN <button id="withdrawDaycareEarnings">Withdraw Earnings</button></p>
+                -->
+            </div>
+            <div id="setup-daycare-form" style="margin-top:10px;">
+                 <!-- Placeholder for form to register/update daycare service -->
+                <button id="setupMyDaycareButton">Setup/Update My Day Care Service (Conceptual)</button>
+            </div>
+            <p id="manage-daycare-status"></p>
+        </div>
+    </div>
+
+    <hr>
+    <h2>User Shops District</h2>
+    <div id="user-shops-section">
+        <p>Explore shops created by other players or set up your own storefront!</p>
+
+        <div id="browse-user-shops" style="margin-bottom: 20px;">
+            <h3>Browse Shops</h3>
+            <input type="text" id="search-shops-input" placeholder="Search by shop name or owner...">
+            <button id="searchShopsButton">Search</button>
+            <ul id="user-shop-list">
+                <p id="user-shop-list-placeholder">Loading available user shops...</p>
+                <!-- Example of a shop list item (dynamically generated):
+                <li>
+                    <strong>Shop: Sparky's Emporium</strong> (Owner: Alice)<br>
+                    <em>Sells rare pet treats and training manuals.</em><br>
+                    <button class="view-shop-button" data-shop-id="alice_shop_id">Visit Shop</button>
+                </li>
+                -->
+            </ul>
+        </div>
+
+        <hr style="margin-top: 20px; margin-bottom: 20px;">
+
+        <div id="view-individual-shop" style="margin-bottom: 20px; display: none;"> <!-- Initially hidden -->
+            <h3 id="shop-name-display">Shop Name</h3>
+            <p>Owner: <span id="shop-owner-display"></span></p>
+            <p id="shop-description-display">Shop description goes here.</p>
+            <h4>Items for Sale:</h4>
+            <ul id="shop-item-list">
+                <p id="shop-item-list-placeholder">This shop has no items listed or is loading...</p>
+                <!-- Example of an item for sale:
+                <li>
+                    <strong>Item:</strong> Mega Treat (Pet NFT ID: 777 if it's an NFT, or Item Name if fungible/non-NFT item) <br>
+                    <strong>Price:</strong> 50 PTCN <br>
+                    <button class="buy-from-shop-button" data-item-id="item_xyz" data-shop-id="alice_shop_id">Buy Item</button>
+                </li>
+                -->
+            </ul>
+            <button id="backToShopBrowserButton">Back to Shop Browser</button>
+            <p id="buy-from-shop-status"></p>
+        </div>
+
+        <hr style="margin-top: 20px; margin-bottom: 20px;">
+
+        <div id="manage-my-shop" style="margin-bottom: 20px;">
+            <h3>Manage My Shop</h3>
+            <div id="my-shop-status-display">
+                <p><em>You do not have a shop yet.</em> <button id="createMyShopButton">Create My Shop!</button></p>
+                <!-- Or display details if shop exists:
+                <p><strong>My Shop:</strong> Sparky's Emporium</p>
+                <button id="customizeMyShopButton">Customize Shop</button>
+                <button id="manageShopInventoryButton">Manage Inventory</button>
+                <p>Total Sales (Conceptual): 500 PTCN</p>
+                -->
+            </div>
+
+            <!-- Forms for creating/customizing shop and managing inventory would be shown conditionally by JS -->
+            <div id="create-customize-shop-form" style="display: none; margin-top:10px;">
+                <h4>Create/Customize Shop</h4>
+                <label for="my-shop-name">Shop Name:</label>
+                <input type="text" id="my-shop-name"><br><br>
+                <label for="my-shop-description">Shop Description:</label>
+                <textarea id="my-shop-description" rows="3"></textarea><br><br>
+                <!-- Conceptual: <label for="my-shop-banner">Shop Banner URL:</label> <input type="text" id="my-shop-banner"><br><br> -->
+                <button id="saveShopDetailsButton">Save Shop Details</button>
+                <p id="save-shop-details-status"></p>
+            </div>
+
+            <div id="manage-inventory-form" style="display: none; margin-top:10px;">
+                <h4>Manage Shop Inventory</h4>
+                <label for="item-to-list-select">Select Item/Pet NFT to List:</label>
+                <select id="item-to-list-select">
+                    <!-- User's ownable NFTs and items (from future pallet-items) -->
+                    <option value="">-- Select from your inventory --</option>
+                </select><br><br>
+                <label for="item-list-price">Set Price (PTCN):</label>
+                <input type="number" id="item-list-price"><br><br>
+                <button id="addItemToShopButton">Add Item to Shop</button>
+                <p id="add-item-status"></p>
+                <h5>Currently Listed in My Shop:</h5>
+                <ul id="my-shop-inventory-list">
+                    <!-- Items listed by the user in their shop -->
+                </ul>
+            </div>
+            <p id="manage-my-shop-status"></p>
+        </div>
+    </div>
+
+    <hr>
+    <h2>Jobs Board</h2>
+    <div id="jobs-board-section">
+        <p>Contribute to the CritterCraft ecosystem and earn rewards by completing available jobs!</p>
+
+        <div id="available-jobs" style="margin-bottom: 20px;">
+            <h3>Available Jobs</h3>
+            <!-- Filters for jobs could go here (e.g., by type, reward) -->
+            <ul id="job-list">
+                <p id="job-list-placeholder">Loading available jobs...</p>
+                <!-- Example of a job list item (dynamically generated):
+                <li>
+                    <strong>Job Title:</strong> Community Content Moderator - Sector Alpha (ID: JOB001)<br>
+                    <strong>Description:</strong> Review and moderate user-generated content for appropriateness in Sector Alpha forums for 1 week.<br>
+                    <strong>Requirements:</strong> Account age > 3 months, Staked PTCN > 500, Passed Moderator Quiz (off-chain for now).<br>
+                    <strong>Reward:</strong> 250 PTCN + Rare Community Badge NFT<br>
+                    <strong>Expiry:</strong> In 5 days<br>
+                    <button class="view-job-details-button" data-job-id="JOB001">View Details & Apply</button>
+                </li>
+                <li>
+                    <strong>Job Title:</strong> Data Curation: Tag New Pet Species Images (ID: JOB002)<br>
+                    <strong>Description:</strong> Help tag a batch of 100 new pet images with appropriate keywords for our AI training.<br>
+                    <strong>Requirements:</strong> Attention to detail. Access to image viewing tool.<br>
+                    <strong>Reward:</strong> 100 PTCN per batch.<br>
+                    <strong>Expiry:</strong> Ongoing (batches released weekly)<br>
+                    <button class="view-job-details-button" data-job-id="JOB002">View Details & Apply</button>
+                </li>
+                -->
+            </ul>
+        </div>
+
+        <hr style="margin-top: 20px; margin-bottom: 20px;">
+
+        <div id="job-details-view" style="margin-bottom: 20px; display: none;"> <!-- Initially hidden -->
+            <h3 id="job-title-details">Job Title Details</h3>
+            <p><strong>Description:</strong> <span id="job-description-details"></span></p>
+            <p><strong>Requirements:</strong> <span id="job-requirements-details"></span></p>
+            <p><strong>Reward:</strong> <span id="job-reward-details"></span></p>
+            <p><strong>Expiry:</strong> <span id="job-expiry-details"></span></p>
+            <div id="job-actions">
+                <!-- Conditional buttons based on job status for the user -->
+                <button id="applyForJobButton" data-job-id="">Apply for this Job</button>
+                <!-- Or if applied/accepted: -->
+                <!-- <p><strong>My Status:</strong> Applied / In Progress</p> -->
+                <!-- <label for="job-proof-submission">Submit Proof of Completion:</label> -->
+                <!-- <textarea id="job-proof-submission" rows="3" placeholder="Link to work, description of completion..."></textarea><br> -->
+                <!-- <button id="submitJobProofButton" data-job-id="">Submit Proof</button> -->
+            </div>
+            <button id="backToJobBoardButton">Back to Jobs List</button>
+            <p id="job-action-status"></p>
+        </div>
+
+        <hr style="margin-top: 20px; margin-bottom: 20px;">
+
+        <div id="my-accepted-jobs" style="margin-bottom: 20px;">
+            <h3>My Accepted/In-Progress Jobs</h3>
+            <ul id="my-jobs-list">
+                <p id="my-jobs-list-placeholder">You have no accepted jobs currently.</p>
+                <!-- Example:
+                <li>
+                    <strong>Job:</strong> Data Curation Batch #5 (ID: JOB002-BATCH5)<br>
+                    <strong>Status:</strong> In Progress - Proof due in 3 days.<br>
+                    <button class="submit-my-job-button" data-my-job-id="JOB002-BATCH5">Submit/Update Proof</button>
+                </li>
+                -->
+            </ul>
+        </div>
+    </div>
+
+    <hr>
     <h2>Governance</h2>
     <div id="governance-section">
         <p>The CritterCraft on-chain governance system is currently under development. Our goal is to empower PTCN token holders to shape the future of the ecosystem.
