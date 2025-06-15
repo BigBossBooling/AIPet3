@@ -245,4 +245,58 @@ A comprehensive Pet Breeding and Genetics system is envisioned as a major future
 
 The Pet Breeding & Genetics system aims to be a deeply engaging end-game activity, encouraging long-term player investment and creating a dynamic market for selectively bred Pet NFTs.
 
+## 9. Future Feature: Pet Day Cares & Caregiver Roles
+
+Pet Day Cares introduce a social and passive development mechanic to CritterCraft, allowing pets to gain attributes or experience over time while being looked after by other players or their designated "Caregiver" pets. This feature aims to provide utility for pets not actively questing or battling and creates new service-oriented roles within the ecosystem.
+
+### 1. Core Concept: Passive Pet Development
+
+*   **Boarding Pets:** Owners can choose to place their Pet NFTs into a "Day Care" facility or service for a defined period.
+*   **Attribute/XP Gain:** While in day care, pets can passively gain:
+    *   Experience points.
+    *   Increases in specific attributes (e.g., mood, energy, or even minor skill points).
+    *   Potentially, development towards specific personality traits based on the caregiver's specialty.
+*   **Cost/Fees:** Day care services might involve a PTCN fee paid by the pet owner to the day care operator/caregiver.
+
+### 2. The Caregiver Role
+
+*   **Human Players as Operators:** Players could operate a Day Care service, setting fees, capacity, and perhaps specializing in certain types of care.
+*   **Pets as Caregivers (A Specialized "Pet Job"):**
+    *   A unique aspect where a player's own Pet NFT can take on the "Caregiver" job.
+    *   The Caregiver Pet's attributes (e.g., level, specific personality traits like "Nurturing," "Wise," or "Trainer," or a dedicated "Caregiving Skill") would directly influence the type and rate of benefits received by the boarded pets.
+    *   This makes certain pets valuable not just for their individual prowess but for their ability to nurture others.
+    *   The owner of the Caregiver Pet would earn the fees from the day care service.
+
+### 3. Pallet Interactions & On-Chain Logic
+
+*   **New `pallet-daycare` (Recommended) or extend `pallet-critter-nfts` / `pallet-jobs-board`:**
+    *   **Storage:**
+        *   `DayCareServices`: `StorageMap<OperatorAccountId, DayCareDetails { capacity: u32, fee_per_block_or_session: Balance, caregiver_pet_id: Option<PetId>, specialty: Option<CareType> }>`
+        *   `BoardedPets`: `StorageMap<PetId, BoardingRecord { owner: AccountId, caregiver_operator: AccountId, start_block: BlockNumber, accumulated_bonus_points: u32 }>`
+        *   `CaregiverPetJobs`: `StorageMap<PetId, CaregiverJobStatus { active: bool, specialty: CareType }>` (if pets are caregivers).
+    *   **Extrinsics:**
+        *   `register_daycare_service(origin, capacity, fee, caregiver_pet_id_option, specialty_option)`: For operators to list their service.
+        *   `enroll_pet_in_daycare(origin, pet_id: PetId, service_operator_id: AccountId)`: For pet owners to board their pets. This would likely involve locking the pet (via `NftManager` in `pallet-critter-nfts`) to prevent transfer/battle while boarded, and potentially an upfront fee payment or escrow.
+        *   `retrieve_pet_from_daycare(origin, pet_id: PetId)`: Owner retrieves pet. At this point, accrued benefits (XP, attribute points) are calculated and applied to the Pet NFT (via `update_pet_metadata` in `pallet-critter-nfts`). Fees are settled. Pet is unlocked.
+        *   `assign_pet_as_caregiver(origin, pet_id: PetId, specialty: CareType)`: If pets can be caregivers.
+        *   `remove_pet_from_caregiver_role(origin, pet_id: PetId)`.
+*   **`pallet-critter-nfts`:**
+    *   `update_pet_metadata` would be called by `pallet-daycare` to apply accrued attribute/XP gains when a pet is retrieved.
+    *   The `NftManager`'s lock mechanism could be used to signify a pet is "in day care."
+*   **`pallet-balances` / `Currency Trait`:** For fee payments.
+*   **`pallet-jobs-board` (Future):** The "Caregiver" role could be formally defined and managed here, with `pallet-daycare` checking a pet's job status.
+
+### 4. Economic & Social Impact
+
+*   Provides a way for pets to be productive even when their owners are offline or focused on other activities.
+*   Creates new service roles and income streams for players (operating day cares or having skilled caregiver pets).
+*   Encourages specialization of pets (e.g., breeding pets specifically for high caregiver stats).
+*   Adds social depth as players entrust their pets to others or rely on the skills of specific caregiver pets.
+
+The Pet Day Care system, especially with pet caregivers, offers a unique blend of passive development, social interaction, and economic activity, further enriching the CritterCraft world.
+
+[end of ADVANCED_FEATURES.md]
+
+[end of ADVANCED_FEATURES.md]
+
 [end of ADVANCED_FEATURES.md]

@@ -162,6 +162,83 @@
     </div>
 
     <hr>
+    <h2>Breeding Center</h2>
+    <div id="breeding-center-section">
+        <p>Select two of your compatible Pet NFTs to attempt breeding. Using certain items might improve outcomes!</p>
+
+        <div style="display: flex; justify-content: space-around; margin-bottom: 20px;">
+            <!-- Parent A Selection -->
+            <div id="parent-a-selection" style="width: 45%;">
+                <h3>Select Parent A</h3>
+                <label for="parent-a-select">Choose Pet:</label>
+                <select id="parent-a-select" name="parent-a-select" style="width: 100%;">
+                    <option value="">-- Select one of your pets --</option>
+                    <!-- Options to be dynamically populated by JavaScript -->
+                    <!-- Example: <option value="pet_id_1">Sparky (RoboDog, Lvl 10)</option> -->
+                </select>
+                <div id="parent-a-details" style="margin-top: 10px; padding: 5px; border: 1px solid #eee;">
+                    <p><em>Details for Parent A will appear here.</em></p>
+                    <!-- Example:
+                        <p>Species: RoboDog</p>
+                        <p>Level: 10</p>
+                        <p>Key Trait: High Stamina</p>
+                        <p>Breeding Cooldown: Ready</p>
+                    -->
+                </div>
+            </div>
+
+            <!-- Parent B Selection -->
+            <div id="parent-b-selection" style="width: 45%;">
+                <h3>Select Parent B</h3>
+                <label for="parent-b-select">Choose Pet:</label>
+                <select id="parent-b-select" name="parent-b-select" style="width: 100%;">
+                    <option value="">-- Select one of your pets --</option>
+                    <!-- Options to be dynamically populated by JavaScript -->
+                </select>
+                <div id="parent-b-details" style="margin-top: 10px; padding: 5px; border: 1px solid #eee;">
+                    <p><em>Details for Parent B will appear here.</em></p>
+                </div>
+            </div>
+        </div>
+
+        <div id="breeding-options" style="margin-bottom: 20px;">
+            <h3>Breeding Options</h3>
+            <label for="fertility-item-select">Use Fertility Item (Optional):</label>
+            <select id="fertility-item-select" name="fertility-item-select">
+                <option value="">-- No item --</option>
+                <!-- Placeholder for items, e.g., from a future pallet-items -->
+                <!-- Example: <option value="item_id_1">Fertility Charm (Increases success rate)</option> -->
+            </select>
+            <p><em>Note: Fertility items are conceptual and will be part of a future Items system.</em></p>
+        </div>
+
+        <div id="initiate-breeding-action">
+            <button id="initiateBreedingButton">Initiate Breeding Attempt</button>
+            <p id="breeding-status" style="margin-top: 10px;"></p>
+        </div>
+
+            <!-- Add this new subsection for Offspring/Egg Management -->
+            <hr style="margin-top: 20px; margin-bottom: 20px;">
+            <div id="offspring-management-section">
+                <h3>My Breeding Outcomes (Eggs/Newborns)</h3>
+                <ul id="offspring-list">
+                    <p id="offspring-list-placeholder">No active breeding outcomes (eggs or newborns) at the moment.</p>
+                    <!-- Example of a list item (to be dynamically generated):
+                    <li>
+                        <strong>Egg ID/New Pet ID:</strong> EGG-001 / PET-XYZ <br>
+                        <strong>Parents:</strong> Sparky (ID: 123) & Bolt (ID: 456) <br>
+                        <strong>Status:</strong> Incubating (or Newborn) <br>
+                        <strong>Est. Hatch/Maturity Time:</strong> 2 hours 30 minutes remaining (or Ready to Claim/View) <br>
+                        <button class="claim-newborn-button" data-offspring-id="EGG-001" disabled>Claim Newborn</button>
+                        <! -- Button enabled when ready -->
+                    </li>
+                    -->
+                </ul>
+            </div>
+        <!-- Lineage display will enhance the existing "My Pet NFTs" section -->
+    </div>
+
+    <hr>
     <h2>Governance</h2>
     <div id="governance-section">
         <p>The CritterCraft on-chain governance system is currently under development. Our goal is to empower PTCN token holders to shape the future of the ecosystem.
