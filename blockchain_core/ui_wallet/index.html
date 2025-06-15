@@ -194,20 +194,27 @@
     <div id="staking-section">
         <h3>Your Staking Status</h3>
         <div id="my-staking-info">
-            <p>My Nominations: <span id="my-nominations">Loading...</span></p>
+            <p>Current Era: <span id="current-era-info">Loading...</span> | Next Era In: <span id="next-era-eta">Calculating...</span></p>
+            <p>My Nominations: <span id="my-nominations">Loading...</span> <button id="changeNominationsButton" disabled>Change Nominations</button></p>
             <p>Total Staked: <span id="my-staked-amount">Loading...</span></p>
-            <p>Claimable Rewards: <span id="claimable-rewards">Loading...</span> <button id="claimRewardsButton" disabled>Claim Rewards</button></p>
-            <div id="unbonding-info">
-                <h4>Unbonding PTCN</h4>
-                <ul id="unbonding-chunks-list">
-                    <!-- Unbonding chunks will be listed here -->
-                    <p id="unbonding-chunks-placeholder">No PTCN currently unbonding.</p>
-                </ul>
-                <input type="number" id="unbond-amount" placeholder="Amount to Unbond">
-                <button id="unbondButton">Start Unbonding</button>
-                <button id="withdrawUnbondedButton" disabled>Withdraw Unbonded</button>
-                <p id="unbond-status"></p>
-            </div>
+            <p>Claimable Rewards: <span id="claimable-rewards">N/A (Use validator payout)</span> <button id="claimRewardsButton" disabled>Claim Payouts</button></p>
+            <p><em>Note: Rewards are typically paid out by validators or automated processes each era. Ensure your nominated validators are active and paying out.</em></p>
+        </div>
+        <hr>
+        <div id="unbonding-info">
+            <h4>Manage Stake & Unbonding</h4>
+            <p>Bonding Duration: <span id="bonding-duration-info">~X Eras (Y Days)</span> </p>
+            <label for="unbond-amount">Amount to Unbond:</label>
+            <input type="number" id="unbond-amount" placeholder="Amount in PTCN">
+            <button id="unbondButton">Start Unbonding</button>
+            <br><br>
+            <h5>Unbonding PTCN:</h5>
+            <ul id="unbonding-chunks-list">
+                <p id="unbonding-chunks-placeholder">No PTCN currently unbonding.</p>
+            </ul>
+            <button id="withdrawUnbondedButton" disabled>Withdraw Unbonded PTCN</button>
+            <p id="unbond-status"></p>
+            <p><em>Slashing Warning: Staked PTCN can be slashed if your nominated validators misbehave. Choose your validators carefully.</em></p>
         </div>
         <hr>
         <h3>Available Validators</h3>

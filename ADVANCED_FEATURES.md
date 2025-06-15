@@ -55,3 +55,43 @@ This document provides a high-level conceptual outline for advanced economic loo
 *   **Impact:** Blurs the lines between the virtual and real world, offering unique engagement. This is a highly speculative and long-term idea.
 
 These advanced features aim to create a deeply engaging, economically vibrant, and evolving world for CritterCraft players. Each will require careful design and phased implementation.
+
+## 6. Staking UI V2 - Enhanced Interactions (Conceptual)
+
+Building upon the initial staking UI, future enhancements will provide a more comprehensive and interactive experience, reflecting the detailed NPoS mechanics outlined in `CONSENSUS_MIGRATION.md`.
+
+### a. My Staking Dashboard Enhancements
+
+*   **Era Information:**
+    *   Display current era index.
+    *   Show estimated time until the next era (based on average block time and `SessionsPerEra` / `EpochDuration`).
+    *   Display session progress within the current era.
+*   **Nomination Management:**
+    *   **Change Nominations:** Allow users to easily change their set of nominated validators by calling `staking::nominate` with a new list.
+    *   **Stop Nomination:** UI to call `staking::chill` to stop nominating and make the user inactive in the next era (a prerequisite for full unbonding if they wish to withdraw all funds).
+*   **Staking Rewards:**
+    *   **Payout Information:** Display if nominated validators have recently triggered payouts.
+    *   **Claim Payouts Button:** If `payout_stakers` can be called by the nominator for their own rewards (or for any staker for a given validator/era), this button would trigger it. It would need to take `validator_stash` and `era` as parameters. (This depends on `pallet-staking`'s configuration and helper pallets like `staking-rewards-collector`). For now, it's a placeholder for a more active reward management if applicable.
+    *   Display historical reward points and payouts if queryable.
+*   **Bonding & Unbonding:**
+    *   **Bond More Funds:** UI to call `staking::bond_extra`.
+    *   **Unbond Funds:** The existing UI for `staking::unbond` will be maintained.
+    *   **Rebond Funds:** UI to call `staking::rebond` for funds that are currently unbonding but not yet withdrawable.
+    *   **Withdraw Unbonded:** The existing UI for `staking::withdraw_unbonded` will be maintained, clearly showing when chunks are withdrawable.
+    *   Display `BondingDuration` and `SlashDeferDuration` dynamically from chain constants.
+*   **Slashing Information:**
+    *   Display warnings about slashing risks.
+    *   (Advanced) If an account has been slashed, display information about the event and amount if available from `pallet-staking` or `pallet-offences` events.
+
+### b. Validator List Enhancements
+
+*   **Detailed Stats:** Show more detailed validator stats like era points, number of nominators, commission history, and any past offences.
+*   **Filtering & Sorting:** Allow users to sort/filter validators by commission, total stake, identity, etc.
+*   **Nomination Interface:** Improve the nomination process, perhaps allowing users to select multiple validators and submit a single `nominate` transaction.
+*   **Validator Alerts:** (Future) Allow users to subscribe to alerts if their nominated validators change commission significantly or get slashed.
+
+### c. Becoming a Validator (Informational)
+
+*   Provide more detailed information or links to guides on how to become a validator, including hardware requirements, key management, and the `validate` and `set_keys` extrinsics.
+
+These V2 UI enhancements aim to make staking more transparent, manageable, and user-friendly, empowering PTCN holders to effectively participate in network security and governance.
