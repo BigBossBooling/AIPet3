@@ -124,6 +124,52 @@
         </div>
     </div>
 
+    <hr>
+    <h2>Battle Arena</h2>
+    <div id="battle-arena-section">
+        <h3>Register Your Pet for Battle</h3>
+        <div id="register-battle-form">
+            <label for="battle-pet-id-select">Select Your Pet:</label>
+            <select id="battle-pet-id-select">
+                <option value="">--Loading your pets--</option>
+            </select><br><br>
+            <button id="registerBattleButton">Register for Battle</button>
+            <p id="register-battle-status"></p>
+        </div>
+        <hr>
+        <h3>Current Battles</h3>
+        <ul id="battle-list">
+            <p id="battle-list-placeholder">Loading battle information...</p>
+            <!-- Battles will be dynamically added here -->
+        </ul>
+    </div>
+
+    <hr>
+    <h2>Quests</h2>
+    <div id="quests-section">
+        <h3>Available Quests</h3>
+        <ul id="available-quests-list">
+            <p id="available-quests-placeholder">Loading available quests...</p>
+            <!-- Available quests will be dynamically added here -->
+        </ul>
+        <hr>
+        <h3>Completed Quests</h3>
+        <ul id="completed-quests-list">
+            <p id="completed-quests-placeholder">Loading completed quests...</p>
+            <!-- Completed quests will be dynamically added here -->
+        </ul>
+        <p id="quest-action-status"></p> <!-- For feedback on complete_quest action -->
+    </div>
+
+    <hr>
+    <h2>Governance</h2>
+    <div id="governance-section">
+        <p>The CritterCraft Governance system is currently under development.</p>
+        <p>PTCN holders will be able to participate in proposals and vote on the future of the CritterCraft ecosystem.</p>
+        <p><strong>Status:</strong> Coming Soon!</p>
+        <p><em>(Refer to GOVERNANCE.md in the project root for a conceptual outline.)</em></p>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>
