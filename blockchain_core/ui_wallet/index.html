@@ -28,6 +28,13 @@
 
     <div id="actions">
         <h2>Actions</h2>
+        <div id="daily-claim-section">
+            <h3>Daily PTCN Claim</h3>
+            <button id="claimDailyPtcnButton">Claim Daily PTCN</button>
+            <p id="claim-ptcn-status"></p>
+            <p>Next claim available after: <span id="next-claim-time">Calculating...</span></p>
+        </div>
+        <hr>
         <!-- <button id="createPetButton">Create New Pet (Mint NFT)</button> --> <!-- Replaced by section below -->
         <div id="mint-nft-section">
             <h3>Create New Pet NFT</h3>
@@ -48,6 +55,36 @@
             <button id="transferNftButton">Transfer Pet NFT</button>
             <p id="transfer-status"></p>
         </div>
+        <hr> <!-- Separator -->
+        <div id="update-pet-section">
+            <h3>Update Pet Details</h3>
+            <label for="update-pet-id">Pet ID to Update:</label>
+            <input type="number" id="update-pet-id" placeholder="Enter Pet ID"><br><br>
+
+            <label for="update-pet-name">New Name (Optional):</label>
+            <input type="text" id="update-pet-name" placeholder="Enter new name"><br><br>
+
+            <label for="update-pet-level">New Level (Optional):</label>
+            <input type="number" id="update-pet-level" placeholder="Enter new level"><br><br>
+
+            <label for="update-pet-xp">New XP (Optional):</label>
+            <input type="number" id="update-pet-xp" placeholder="Enter new XP"><br><br>
+
+            <label for="update-pet-mood">New Mood (0-255, Optional):</label>
+            <input type="number" id="update-pet-mood" placeholder="Enter new mood"><br><br>
+
+            <label for="update-pet-hunger">New Hunger (0-255, Optional):</label>
+            <input type="number" id="update-pet-hunger" placeholder="Enter new hunger"><br><br>
+
+            <label for="update-pet-energy">New Energy (0-255, Optional):</label>
+            <input type="number" id="update-pet-energy" placeholder="Enter new energy"><br><br>
+
+            <label for="update-pet-personality">Personality Traits (comma-separated, Optional):</label>
+            <input type="text" id="update-pet-personality" placeholder="e.g., Brave,Curious,Shy"><br><br>
+
+            <button id="updatePetButton">Update Pet Details</button>
+            <p id="update-pet-status"></p>
+        </div>
         <!-- More actions like send PTCN, etc. can be added here -->
     </div>
 
@@ -57,6 +94,34 @@
             <p id="event-list-placeholder">No recent activity or loading events...</p>
             <!-- Events will be listed here as <li> items -->
         </ul>
+    </div>
+
+    <hr>
+    <h2>Marketplace</h2>
+    <div id="marketplace-section">
+        <h3>Listed NFTs for Sale</h3>
+        <ul id="marketplace-nft-list">
+            <p id="marketplace-list-placeholder">Loading marketplace listings...</p>
+            <!-- Listed NFTs will be dynamically added here -->
+        </ul>
+        <hr>
+        <h3>List Your NFT for Sale</h3>
+        <div id="list-nft-form">
+            <label for="list-pet-id">Pet ID to List:</label>
+            <input type="number" id="list-pet-id" placeholder="Enter ID of your Pet"><br><br>
+            <label for="list-price">Price (in PTCN units):</label>
+            <input type="number" id="list-price" placeholder="Enter price"><br><br>
+            <button id="listNftButton">List My NFT</button>
+            <p id="list-nft-status"></p>
+        </div>
+        <hr>
+        <h3>Unlist Your NFT</h3>
+        <div id="unlist-nft-form">
+            <label for="unlist-pet-id">Pet ID to Unlist:</label>
+            <input type="number" id="unlist-pet-id" placeholder="Enter ID of your listed Pet"><br><br>
+            <button id="unlistNftButton">Unlist My NFT</button>
+            <p id="unlist-nft-status"></p>
+        </div>
     </div>
 
     <script src="app.js"></script>
