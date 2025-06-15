@@ -130,6 +130,30 @@ This document provides a high-level conceptual outline for advanced economic loo
 *   **Oracle/Off-Chain Components:** For stages requiring external verification (e.g., "Visit website X and find a code"), an oracle or a secure off-chain mechanism would be needed to confirm completion and potentially call back to the pallet.
 *   **Economic Impact:** Creates engaging, high-value player experiences, drives community interaction around solving complex puzzles, and can be used to highlight specific platform features or partners. Rewards can be significant PTCN sinks or distributors of rare NFTs.
 
+    #### 4. Conceptual User Interface for Treasure Hunts
+
+    The "Treasure Hunts" section in the UI Wallet will be the portal for players to discover, participate in, and track their progress on complex adventures.
+
+    *   **Browsing Available Hunts (`#available-hunts`):**
+        *   A list (`#hunt-list`) will display currently available treasure hunts.
+        *   Each listing will show: Hunt Title/ID, a brief description, estimated difficulty, key potential rewards (e.g., unique NFTs, large PTCN sums), and a "View Details / Start Hunt" button.
+
+    *   **Active Hunt Details & Progress (`#my-active-hunt-details`):**
+        *   Once a user starts a hunt (or clicks "View Details" on an active one), this section becomes visible.
+        *   It will display the active hunt's title (`#active-hunt-title`).
+        *   The current stage number and the clue or task for that stage (`#hunt-current-stage-clue`) will be shown.
+        *   A progress indicator (e.g., "Stage X of Y").
+        *   An input area (`#hunt-solution-submission`) for the user to submit their solution or proof of completion for the current stage. This might be a text field for answers, a place to paste a transaction hash (if an on-chain action was required), or conceptually, a file upload for off-chain proof.
+        *   A "Submit Solution" button would (conceptually) call an extrinsic like `submit_hunt_stage_solution`.
+        *   A status area (`#hunt-action-status`) for feedback on submissions.
+        *   A "Back to Hunts List" button.
+
+    *   **Viewing Completed Hunts (`#completed-hunts-section`):**
+        *   A list (`#completed-hunts-list`) will display treasure hunts the user has successfully completed.
+        *   Each entry would show the hunt title/ID, completion date, and a summary of significant rewards claimed.
+
+    This UI aims to guide players through multi-stage treasure hunts, from discovery to completion, making the process engaging and clear.
+
 ## 4. Mini-Games & Arcade
 
 *   **Concept:** A suite of on-chain or on-chain verifiable mini-games, allowing players to compete for fun and PTCN/item rewards.
@@ -152,6 +176,31 @@ This document provides a high-level conceptual outline for advanced economic loo
     *   **Leaderboards (in `pallet-arcade` or game pallet):**
         *   `GameLeaderboard`: `StorageMap<GameTypeEnum, BoundedVec<(AccountId, u32_score), MaxLeaderboardSize>>`.
 *   **Economic Impact:** Provides entertainment and social interaction, additional PTCN sinks (entry fees) and sources (prize pools), and can encourage strategic play.
+
+    #### 5. Conceptual User Interface for Mini-Games & Arcade
+
+    The "Arcade & Mini-Games" section in the UI Wallet will serve as a hub for various casual and competitive games integrated with CritterChain.
+
+    *   **Game Gallery/List (`#game-gallery`):**
+        *   A list or grid (`#game-list`) will display available mini-games.
+        *   Each entry will show: Game Title, Type (e.g., "On-Chain Turn-Based," "Off-Chain Skill-Based"), Entry Fee (if any), Potential Rewards, and a "Play Game" button.
+        *   "Play Game" buttons might either navigate to an active game area within the UI or link to an external web page/application for off-chain games.
+
+    *   **Active Game Area (`#active-game-area`):**
+        *   This section becomes visible when a user selects a game.
+        *   **For On-Chain Games:** It would contain the necessary UI elements for game interaction (e.g., buttons for choices in Rock-Paper-Scissors, input fields for guessing games). A status area (`#game-action-status` or game-specific status) provides feedback.
+        *   **For Off-Chain Games:** It might display an embedded `iframe` for web-based games, or provide clear instructions and a link to launch the game. It would also conceptually include how scores are reported back (e.g., user submits score with proof, or game server reports to an oracle).
+        *   A "Back to Games List" button allows users to exit the active game view.
+
+    *   **Leaderboards (`#leaderboards-section`):**
+        *   Users can select a game from a dropdown (`#leaderboard-game-select`) to view its leaderboard (`#leaderboard-list`).
+        *   The list would display top players and their scores or rankings.
+
+    *   **Arcade Rewards (`#arcade-rewards-section`):**
+        *   This area will display any claimable rewards the user has earned from mini-game achievements or leaderboard payouts (e.g., PTCN, Arcade Tickets - a conceptual secondary currency, or specific item NFTs).
+        *   A "Claim Rewards" button (`#claimMiniGameRewardsButton`) would (conceptually) trigger an extrinsic to claim all pending mini-game rewards.
+
+    This UI aims to provide easy access to a variety of games, manage participation, track performance, and claim earned rewards, fostering a fun and engaging aspect of the CritterCraft ecosystem.
 
 ## 5. (Future Consideration) IoT Device Integration
 
@@ -190,45 +239,48 @@ As the CritterCraft ecosystem evolves, if specific on-chain mechanics (e.g., ver
 
 Charter Attributes are fundamental to a pet's identity and will play a significant role in breeding (see Section 8: "Future Stage: Pet Breeding & Genetics"), battle strategies, and overall pet valuation.
 
-## 7. Staking UI V2 - Enhanced Interactions (Conceptual)
+    ### 7. Staking UI V2 - Enhanced Interactions (Conceptual)
 
-Building upon the initial staking UI, future enhancements will provide a more comprehensive and interactive experience, reflecting the detailed NPoS mechanics outlined in `CONSENSUS_MIGRATION.md`.
+    Building upon the initial staking UI, future enhancements will provide a more comprehensive and interactive experience, reflecting the detailed NPoS mechanics outlined in `CONSENSUS_MIGRATION.md`.
 
-### a. My Staking Dashboard Enhancements
+    #### a. Network Overview Display (`#staking-overview-info`)
+    *   **Current Era & Session:** Display current era index (`#current-era-info`), a visual progress bar or percentage for era completion (`#era-progress-info`), estimated time/blocks to next era (`#next-era-eta`), current session index within the era (e.g., "3 of 6" in `#current-session-info`), and estimated time/blocks to next session (`#next-session-eta`).
+    *   **Network Stats:** Show total PTCN staked on the network (`#total-network-stake`) and the count of active validators versus the maximum allowed (e.g., "Active Validators: 65 / 75" using `#active-validator-count` and `#max-validator-count-const`).
 
-*   **Era Information:**
-    *   Display current era index.
-    *   Show estimated time until the next era (based on average block time and `SessionsPerEra` / `EpochDuration`).
-    *   Display session progress within the current era.
-*   **Nomination Management:**
-    *   **Change Nominations:** Allow users to easily change their set of nominated validators by calling `staking::nominate` with a new list.
-    *   **Stop Nomination:** UI to call `staking::chill` to stop nominating and make the user inactive in the next era (a prerequisite for full unbonding if they wish to withdraw all funds).
-*   **Staking Rewards:**
-    *   **Payout Information:** Display if nominated validators have recently triggered payouts.
-    *   **Claim Payouts Button:** If `payout_stakers` can be called by the nominator for their own rewards (or for any staker for a given validator/era), this button would trigger it. It would need to take `validator_stash` and `era` as parameters. (This depends on `pallet-staking`'s configuration and helper pallets like `staking-rewards-collector`). For now, it's a placeholder for a more active reward management if applicable.
-    *   Display historical reward points and payouts if queryable.
-*   **Bonding & Unbonding:**
-    *   **Bond More Funds:** UI to call `staking::bond_extra`.
-    *   **Unbond Funds:** The existing UI for `staking::unbond` will be maintained.
-    *   **Rebond Funds:** UI to call `staking::rebond` for funds that are currently unbonding but not yet withdrawable.
-    *   **Withdraw Unbonded:** The existing UI for `staking::withdraw_unbonded` will be maintained, clearly showing when chunks are withdrawable.
-    *   Display `BondingDuration` and `SlashDeferDuration` dynamically from chain constants.
-*   **Slashing Information:**
-    *   Display warnings about slashing risks.
-    *   (Advanced) If an account has been slashed, display information about the event and amount if available from `pallet-staking` or `pallet-offences` events.
+    #### b. My Staking Dashboard Enhancements (`#my-staking-info`)
 
-### b. Validator List Enhancements
+    *   **Total Staked:** Clear display of the user's total active bonded PTCN (`#my-staked-amount`).
+    *   **Bond More PTCN:** An input field (`#bond-extra-amount`) and button (`#bondExtraButton`) to (conceptually) call `staking::bond_extra`.
+    *   **Nomination Management:**
+        *   Display current nominations (e.g., list of validator names/addresses in `#my-nominations-display`) and current nomination count vs max allowed (e.g., "My Nominations (3/16)" using `#nomination-count-display` and `#max-nominations-const-display`).
+        *   "Change/Set Nominations" button (`#changeNominationsButton`): Toggles visibility of a dedicated area (`#nomination-management-area`). This area would feature:
+            *   A list of all available validators (`#nomination-validator-list-area`), potentially with checkboxes or a multi-select interface, allowing users to pick up to the maximum number of nominations (text like `#max-nominations-const-form-display` indicating max).
+            *   A "Submit New Nominations" button (`#submitNewNominationsButton`) to (conceptually) call `staking::nominate`.
+            *   A "Cancel" button (`#cancelNominationChangeButton`).
+        *   "Stop Nominating (Chill)" button (`#chillNominationsButton`): (Conceptually) calls `staking::chill`. UI should provide feedback on what this means (e.g., "You will stop nominating and receiving rewards from the next active era. Your funds will remain bonded until you unbond them.").
+    *   **Rewards & Payouts:**
+        *   Display estimated time until next potential payout cycle (`#next-payout-eta-display`).
+        *   "Claimable Payouts" span (`#claimable-rewards-display`): Text might indicate "Querying...", "None pending", or "X PTCN available".
+        *   "Claim All My Payouts" button (`#claimPayoutsButton`): (Conceptual) Would trigger `payout_stakers` for all eligible past eras/validators for the user. The UI will explain standard payout mechanisms.
+        *   A scrollable list (`#historical-rewards-list`) to display recent (e.g., last 5-10) reward payouts credited to the user, showing era, validator (if applicable), and amount.
+    *   **Unbonding & Stake Management (`#unbonding-info`):**
+        *   Display `BondingDuration` (`#bonding-duration-info-display`) dynamically from chain constants if possible, or as configured.
+        *   Input (`#unbond-amount`) and button (`#unbondButton`) for `staking::unbond`.
+        *   List of `unlocking` chunks (`#unbonding-chunks-list`) with amounts and withdrawable era.
+        *   Input (`#rebond-amount`) and button (`#rebondButton`) for `staking::rebond`.
+        *   "Withdraw All Unlockable PTCN" button (`#withdrawUnbondedButton`) for `staking::withdraw_unbonded`, which becomes enabled only when withdrawable funds exist.
+        *   Status feedback in `#unbond-status`.
+        *   Clear slashing warnings with a clickable element (`#view-slashing-incidents-link`) to toggle visibility of `#slashing-info-display`.
+    *   **Slashing Information Display (`#slashing-info-display`):**
+        *   A (normally hidden) section to display details if any of the user's nominated validators were slashed, or if the user (as a validator) was slashed. Information would include era of slash, validator involved, and amount slashed.
 
-*   **Detailed Stats:** Show more detailed validator stats like era points, number of nominators, commission history, and any past offences.
-*   **Filtering & Sorting:** Allow users to sort/filter validators by commission, total stake, identity, etc.
-*   **Nomination Interface:** Improve the nomination process, perhaps allowing users to select multiple validators and submit a single `nominate` transaction.
-*   **Validator Alerts:** (Future) Allow users to subscribe to alerts if their nominated validators change commission significantly or get slashed.
+    #### c. Validator List Enhancements (`#validator-list`)
+    *   (As previously documented) Detailed stats, filtering, sorting. The nomination UI within `#nomination-management-area` would likely leverage an enhanced version of this validator list.
 
-### c. Becoming a Validator (Informational)
+    #### d. Becoming a Validator (Informational)
+    *   (As previously documented) More detailed guides and links.
 
-*   Provide more detailed information or links to guides on how to become a validator, including hardware requirements, key management, and the `validate` and `set_keys` extrinsics.
-
-These V2 UI enhancements aim to make staking more transparent, manageable, and user-friendly, empowering PTCN holders to effectively participate in network security and governance.
+    These V2 UI enhancements aim to provide a comprehensive and user-friendly interface for all common staking operations and information needs.
 
 ## 8. Future Stage: Pet Breeding & Genetics
 
@@ -351,7 +403,52 @@ Pet Day Cares introduce a social and passive development mechanic to CritterCraf
 *   Encourages specialization of pets (e.g., breeding pets specifically for high caregiver stats).
 *   Adds social depth as players entrust their pets to others or rely on the skills of specific caregiver pets.
 
-The Pet Day Care system, especially with pet caregivers, offers a unique blend of passive development, social interaction, and economic activity, further enriching the CritterCraft world.
+    #### 5. Conceptual User Interface for Pet Day Cares
+
+    The "Pet Day Care Center" in the UI Wallet will provide interfaces for both pet owners seeking day care services and players operating them.
+
+    *   **Finding & Enrolling in Day Care Services (`#find-daycare-services`):**
+        *   A list (`#daycare-service-list`) will display available day care services. Each entry would show:
+            *   Operator/Caregiver Pet details (e.g., "Operator: Alice (Caregiver Pet: NurturerBot ID: 789)").
+            *   Service specialty (e.g., "XP Gain," "Mood Boost").
+            *   Fee per session/day.
+            *   Current capacity (e.g., "3/5 Pets").
+        *   Users can select one of their eligible pets from a dropdown associated with each service.
+        *   An "Enroll Selected Pet" button would (conceptually) trigger the `enroll_pet_in_daycare` extrinsic.
+        *   A status area (`#enroll-daycare-status`) provides feedback.
+
+    *   **Managing Boarded Pets (`#my-boarded-pets`):**
+        *   A list (`#boarded-pets-list`) shows pets the user currently has enrolled in day cares.
+        *   Each entry displays:
+            *   Pet name/ID and the day care it's at.
+            *   Current status (e.g., "Gaining XP," "Session ending in X hours").
+            *   Expected benefits upon retrieval.
+            *   A "Retrieve Pet" button to (conceptually) call `retrieve_pet_from_daycare`.
+        *   A status area (`#retrieve-daycare-status`) provides feedback.
+
+    *   **Managing Own Day Care Service (`#manage-my-daycare` - For Operators/Caregivers):**
+        *   This section would display the status of the user's own day care service if they are an operator.
+        *   Information shown could include: Caregiver Pet, specialty, fee, capacity, currently boarded pets, and accumulated earnings.
+        *   Placeholders for actions like:
+            *   "Setup/Update My Day Care Service" button (to call `register_daycare_service` or a similar update extrinsic).
+            *   "Withdraw Earnings" button.
+        *   A status area (`#manage-daycare-status`) for feedback on these actions.
+
+    This UI aims to make the process of finding, using, and providing day care services intuitive and informative.
+
+[end of ADVANCED_FEATURES.md]
+
+[end of ADVANCED_FEATURES.md]
+
+[end of ADVANCED_FEATURES.md]
+
+[end of ADVANCED_FEATURES.md]
+
+[end of ADVANCED_FEATURES.md]
+
+[end of ADVANCED_FEATURES.md]
+
+[end of ADVANCED_FEATURES.md]
 
 [end of ADVANCED_FEATURES.md]
 

@@ -465,6 +465,133 @@
     </div>
 
     <hr>
+    <h2>Treasure Hunts</h2>
+    <div id="treasure-hunts-section">
+        <p>Embark on thrilling treasure hunts, solve puzzles, and discover rare rewards!</p>
+
+        <div id="available-hunts" style="margin-bottom: 20px;">
+            <h3>Available Treasure Hunts</h3>
+            <ul id="hunt-list">
+                <p id="hunt-list-placeholder">Loading available treasure hunts...</p>
+                <!-- Example of a hunt list item (dynamically generated):
+                <li>
+                    <strong>Hunt:</strong> The Lost Artifact of CritterTopia (ID: HUNT001)<br>
+                    <strong>Description:</strong> Uncover the secrets of an ancient civilization. Involves on-chain puzzles and off-chain riddles.<br>
+                    <strong>Est. Difficulty:</strong> Hard<br>
+                    <strong>Potential Rewards:</strong> Unique Ancient Pet NFT, 1000 PTCN<br>
+                    <button class="view-hunt-details-button" data-hunt-id="HUNT001">View Details / Start Hunt</button>
+                </li>
+                -->
+            </ul>
+        </div>
+
+        <hr style="margin-top: 20px; margin-bottom: 20px;">
+
+        <div id="my-active-hunt-details" style="margin-bottom: 20px; display: none;"> <!-- Initially hidden -->
+            <h3 id="active-hunt-title">My Active Hunt: [Hunt Name]</h3>
+            <p><strong>Current Stage/Clue:</strong> <span id="hunt-current-stage-clue"></span></p>
+            <p><strong>Progress:</strong> Stage X of Y</p>
+            <div id="hunt-solution-submission">
+                <label for="hunt-solution-input">Submit Solution/Proof for Current Stage:</label><br>
+                <textarea id="hunt-solution-input" rows="3" placeholder="Enter your answer, transaction hash, or link to proof..."></textarea><br>
+                <!-- Conceptual: <input type="file" id="hunt-proof-upload"><br> -->
+                <button id="submitHuntSolutionButton" data-hunt-id="" data-stage-id="">Submit Solution</button>
+            </div>
+            <button id="backToHuntsListButton">Back to Hunts List</button>
+            <p id="hunt-action-status"></p>
+        </div>
+
+        <hr style="margin-top: 20px; margin-bottom: 20px;">
+
+        <div id="completed-hunts-section" style="margin-bottom: 20px;">
+            <h3>My Completed Treasure Hunts</h3>
+            <ul id="completed-hunts-list">
+                <p id="completed-hunts-placeholder">You have not completed any treasure hunts yet.</p>
+                <!-- Example:
+                <li>
+                    <strong>Hunt:</strong> The Secret of the Whispering Cave (ID: HUNT000)<br>
+                    <strong>Completed:</strong> 2023-10-26<br>
+                    <strong>Rewards Claimed:</strong> 500 PTCN, Explorer's Badge NFT
+                </li>
+                -->
+            </ul>
+        </div>
+    </div>
+
+    <hr>
+    <h2>Arcade & Mini-Games</h2>
+    <div id="arcade-section">
+        <p>Play fun mini-games, compete on leaderboards, and earn rewards!</p>
+
+        <div id="game-gallery" style="margin-bottom: 20px;">
+            <h3>Available Games</h3>
+            <ul id="game-list">
+                <p id="game-list-placeholder">Loading available games...</p>
+                <!-- Example of a game list item (dynamically generated):
+                <li>
+                    <strong>Game:</strong> Critter-Rock-Paper-Scissors<br>
+                    <strong>Type:</strong> On-Chain Turn-Based<br>
+                    <strong>Entry Fee:</strong> 1 PTCN (Optional)<br>
+                    <strong>Potential Rewards:</strong> PTCN Prize Pool, Arcade Tickets<br>
+                    <button class="play-game-button" data-game-id="RPS001">Play Game</button>
+                </li>
+                <li>
+                    <strong>Game:</strong> Pet Jumper (Web Game)<br>
+                    <strong>Type:</strong> Off-Chain Skill-Based (Score Reported)<br>
+                    <strong>Entry Fee:</strong> None<br>
+                    <strong>Potential Rewards:</strong> Weekly PTCN for Top Scores<br>
+                    <button class="play-external-game-button" data-game-url="http://example.com/petjumper">Play Game (External Link)</button>
+                </li>
+                -->
+            </ul>
+        </div>
+
+        <hr style="margin-top: 20px; margin-bottom: 20px;">
+
+        <div id="active-game-area" style="margin-bottom: 20px; display: none;"> <!-- Initially hidden -->
+            <h3 id="active-game-title">Now Playing: [Game Name]</h3>
+            <div id="game-content-host">
+                <!-- For on-chain games, UI elements for game interaction would go here -->
+                <!-- Example for Rock-Paper-Scissors:
+                <p>Choose your move:</p>
+                <button class="rps-choice-button" data-choice="rock">Rock</button>
+                <button class="rps-choice-button" data-choice="paper">Paper</button>
+                <button class="rps-choice-button" data-choice="scissors">Scissors</button>
+                <p id="rps-game-status"></p>
+                -->
+                <!-- For off-chain games, this might be an iframe or instructions -->
+                <p><em>Game interface or link will appear here.</em></p>
+            </div>
+            <button id="backToGamesListButton">Back to Games List</button>
+            <p id="game-action-status"></p>
+        </div>
+
+        <hr style="margin-top: 20px; margin-bottom: 20px;">
+
+        <div id="leaderboards-section" style="margin-bottom: 20px;">
+            <h3>Leaderboards</h3>
+            <select id="leaderboard-game-select">
+                <option value="">-- Select Game for Leaderboard --</option>
+                <!-- Options populated with game IDs/names -->
+            </select>
+            <ul id="leaderboard-list">
+                <p id="leaderboard-list-placeholder">Select a game to view its leaderboard.</p>
+                <!-- Example:
+                <li>1. PlayerAlice - Score: 5000</li>
+                <li>2. PlayerBob - Score: 4500</li>
+                -->
+            </ul>
+        </div>
+
+        <div id="arcade-rewards-section" style="margin-bottom: 20px;">
+            <h3>My Arcade Rewards</h3>
+            <p id="my-arcade-rewards-status">Loading rewards or no rewards to claim...</p>
+            <!-- Example: <p>Claimable Arcade Tickets: 150 <button id="claimArcadeTickets">Claim Tickets</button></p> -->
+            <button id="claimMiniGameRewardsButton" disabled>Claim All Mini-Game Rewards (Conceptual)</button>
+        </div>
+    </div>
+
+    <hr>
     <h2>Governance</h2>
     <div id="governance-section">
         <p>The CritterCraft on-chain governance system is currently under development. Our goal is to empower PTCN token holders to shape the future of the ecosystem.
@@ -495,37 +622,81 @@
     <hr>
     <h2>Network Participation (Staking)</h2>
     <div id="staking-section">
-        <h3>Your Staking Status</h3>
-        <div id="my-staking-info">
-            <p>Current Era: <span id="current-era-info">Loading...</span> | Next Era In: <span id="next-era-eta">Calculating...</span></p>
-            <p>My Nominations: <span id="my-nominations">Loading...</span> <button id="changeNominationsButton" disabled>Change Nominations</button></p>
-            <p>Total Staked: <span id="my-staked-amount">Loading...</span></p>
-            <p>Claimable Rewards: <span id="claimable-rewards">N/A (Use validator payout)</span> <button id="claimRewardsButton" disabled>Claim Payouts</button></p>
-            <p><em>Note: Rewards are typically paid out by validators or automated processes each era. Ensure your nominated validators are active and paying out.</em></p>
-        </div>
-        <hr>
-        <div id="unbonding-info">
-            <h4>Manage Stake & Unbonding</h4>
-            <p>Bonding Duration: <span id="bonding-duration-info">~X Eras (Y Days)</span> </p>
-            <label for="unbond-amount">Amount to Unbond:</label>
-            <input type="number" id="unbond-amount" placeholder="Amount in PTCN">
-            <button id="unbondButton">Start Unbonding</button>
-            <br><br>
-            <h5>Unbonding PTCN:</h5>
-            <ul id="unbonding-chunks-list">
-                <p id="unbonding-chunks-placeholder">No PTCN currently unbonding.</p>
+            <!-- Existing introductory paragraph if any -->
+
+            <div id="staking-overview-info" style="margin-bottom:15px; padding:10px; background-color:#f0f0f0;">
+                <h4>Network Overview</h4>
+                <p>Current Era: <span id="current-era-info">Loading...</span> (Progress: <span id="era-progress-info">--%</span>, Ends in: <span id="next-era-eta">Calculating...</span>)</p>
+                <p>Current Session: <span id="current-session-info">X</span> of Y (Ends in: <span id="next-session-eta">Calculating...</span>)</p>
+                <p>Total PTCN Staked on Network: <span id="total-network-stake">Loading...</span></p>
+                <p>Active Validators: <span id="active-validator-count">Loading...</span> / <span id="max-validator-count-const">Y</span></p> <!-- Changed ID for clarity -->
+            </div>
+
+            <h3>Your Staking Dashboard</h3>
+            <div id="my-staking-info" style="margin-bottom:15px; padding:10px; border: 1px solid #ddd;">
+                <p>Total Staked: <span id="my-staked-amount">Loading...</span> PTCN</p>
+                <div style="margin-bottom:10px;">
+                    <label for="bond-extra-amount">Bond More PTCN:</label>
+                    <input type="number" id="bond-extra-amount" placeholder="Amount to bond">
+                    <button id="bondExtraButton">Bond Extra</button>
+                </div>
+                <p>My Nominations (<span id="nomination-count-display">0</span>/<span id="max-nominations-const-display">16</span>): <span id="my-nominations-display">Loading...</span> <!-- Changed IDs for clarity -->
+                    <button id="changeNominationsButton">Change/Set Nominations</button>
+                    <button id="chillNominationsButton" style="margin-left:5px;">Stop Nominating (Chill)</button>
+                </p>
+                <div id="nomination-management-area" style="display:none; margin-left:20px; margin-bottom:10px; padding:10px; background-color:#f9f9f9;">
+                    <p><em>Select up to <span id="max-nominations-const-form-display">16</span> validators to nominate:</em></p> <!-- Changed ID -->
+                    <div id="nomination-validator-list-area" style="max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 5px; margin-bottom: 10px;">
+                        <p><em>Validator list for nomination will appear here... (e.g., checkboxes next to validator names)</em></p>
+                    </div>
+                    <button id="submitNewNominationsButton">Submit New Nominations</button>
+                    <button id="cancelNominationChangeButton">Cancel</button>
+                </div>
+
+                <h4>Rewards & Payouts</h4>
+                <p>Estimated Next Payout In (for current era): <span id="next-payout-eta-display">Calculating...</span></p> <!-- Changed ID -->
+                <p>Claimable Payouts (for past eras): <span id="claimable-rewards-display">Querying...</span> <!-- Changed ID -->
+                    <button id="claimPayoutsButton" disabled>Claim All My Payouts</button>
+                </p>
+                <p><small><em>Note: Rewards are typically distributed per validator for each past era. You or anyone can trigger payouts for validators you've nominated if they haven't been paid out yet. Some validators may pay out automatically.</em></small></p>
+                <div id="historical-rewards-list" style="max-height:150px; overflow-y:auto; border:1px solid #eee; padding:5px; margin-bottom:10px;">
+                    <p><em>Historical reward payouts (last 5-10) will appear here...</em></p>
+                    <!-- Example: <li>Era 123 - Validator Alice - Rewarded X PTCN</li> -->
+                </div>
+            </div>
+
+            <div id="unbonding-info" style="padding:10px; border: 1px solid #ddd;">
+                <h4>Manage Unbonding PTCN</h4>
+                <p>Bonding Duration: <span id="bonding-duration-info-display">~X Eras (Y Days)</span></p> <!-- Changed ID -->
+                <div style="margin-bottom:10px;">
+                    <label for="unbond-amount">Amount to Unbond:</label>
+                    <input type="number" id="unbond-amount" placeholder="Amount in PTCN"> <!-- Kept original ID as it's unique -->
+                    <button id="unbondButton">Start Unbonding</button>
+                </div>
+                <h5>Currently Unbonding PTCN:</h5>
+                <ul id="unbonding-chunks-list">
+                    <p id="unbonding-chunks-placeholder">No PTCN currently unbonding.</p>
+                </ul>
+                <div style="margin-bottom:10px;">
+                    <label for="rebond-amount">Rebond Amount (from unbonding):</label>
+                    <input type="number" id="rebond-amount" placeholder="Amount to rebond">
+                    <button id="rebondButton">Rebond This Amount</button>
+                </div>
+                <button id="withdrawUnbondedButton" disabled>Withdraw All Unlockable PTCN</button>
+                <p id="unbond-status"></p>
+                <p style="color:red;"><em>Slashing Warning: Staked PTCN can be slashed if your nominated validators misbehave. Choose validators carefully. <span id="view-slashing-incidents-link" style="text-decoration:underline; cursor:pointer;">View potential slashing incidents.</span></em></p> <!-- Changed ID -->
+            </div>
+
+            <div id="slashing-info-display" style="margin-top:15px; padding:10px; border:1px dashed red; display:none;">
+                <h4>Slashing Incidents Affecting You (Conceptual)</h4>
+                <p><em>If any of your nominated validators were slashed, or if you were slashed as a validator, details would appear here.</em></p>
+            </div>
+            <hr>
+            <h3>Available Validators</h3>
+            <ul id="validator-list"> <!-- Ensured this ul exists for clarity, was implied before -->
+                 <p id="validator-list-placeholder">Loading validator information...</p>
             </ul>
-            <button id="withdrawUnbondedButton" disabled>Withdraw Unbonded PTCN</button>
-            <p id="unbond-status"></p>
-            <p><em>Slashing Warning: Staked PTCN can be slashed if your nominated validators misbehave. Choose your validators carefully.</em></p>
-        </div>
-        <hr>
-        <h3>Available Validators</h3>
-        <ul id="validator-list">
-            <p id="validator-list-placeholder">Loading validator information...</p>
-            <!-- Validators will be dynamically added here -->
-        </ul>
-        <p id="staking-action-status"></p> <!-- For feedback on staking actions -->
+            <p id="staking-action-status"></p>
     </div>
 
     <hr>
