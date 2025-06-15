@@ -58,3 +58,63 @@ The community could potentially vote on:
     *   Gradual expansion to more complex on-chain parameter changes and treasury management.
 
 This governance model aims to empower the CritterCraft community and ensure the platform's sustainable and decentralized evolution.
+
+## 6. Key FRAME Pallets for Full Governance
+
+To implement the full decentralized governance vision for CritterChain, the following standard FRAME pallets are planned for integration:
+
+### a. `pallet-democracy`
+
+*   **Role:** Enables public referenda, allowing all PTCN holders to vote on proposals. This is the primary mechanism for community-wide decision-making.
+*   **Key Features & Configuration Considerations:**
+    *   **Public Proposals:** PTCN holders can propose referenda (potentially requiring a bond or minimum stake).
+    *   **Voting Mechanism:** Token-weighted voting (1 PTCN = 1 vote, or conviction voting where locking tokens for longer grants more voting power).
+    *   **Referendum Lifecycle:** Defined periods for proposal submission, voting, enactment delays, and emergency proposals.
+    *   **Launch Period:** Initial period for referenda to be submitted at a faster rate.
+    *   **Minimum Deposit for Proposals:** To prevent spam.
+    *   **Voting Period:** Duration for which voting is open.
+    *   **Enactment Period:** Delay between a referendum passing and its execution, allowing for preparation or objection.
+    *   **Cooloff Period:** Minimum time between identical proposals.
+    *   **Vote Locking:** PTCN used for voting is typically locked for at least the duration of the vote.
+    *   **Integration with Council:** Proposals can be fast-tracked or vetoed by a technical council (see `pallet-collective`).
+
+### b. `pallet-collective` (The Council)
+
+*   **Role:** Establishes one or more collective bodies, such as a Technical Council or Community Council. These bodies can have special privileges, like proposing referenda, fast-tracking proposals, vetoing malicious proposals, or even acting as an "AdminOrigin" for certain pallet extrinsics.
+*   **Key Features & Configuration Considerations:**
+    *   **Membership:** Defines how members are elected or appointed (often via `pallet-elections-phragmen` or a simpler `EnsureProportion` origin).
+    *   **Instance Configuration:** Can configure multiple instances of `pallet-collective` for different bodies with different roles (e.g., a Technical Council focused on upgrades, a Community Council focused on treasury proposals for ecosystem growth).
+    *   **Proposal Submission:** Council members can submit proposals to the collective.
+    *   **Voting within the Collective:** Defines how council members vote on proposals (e.g., simple majority).
+    *   **Dispatching Calls:** Approved council proposals can dispatch calls, either as the collective's origin or as Root (if configured).
+    *   **Prime Member:** Optionally, a prime member can be designated to break ties or act as a default proposer.
+
+### c. `pallet-treasury`
+
+*   **Role:** Manages an on-chain treasury funded by various sources (e.g., a portion of transaction fees, marketplace fees, slashing penalties, or direct contributions). PTCN holders (via `pallet-democracy`) or the Council (via `pallet-collective`) can propose to spend these funds.
+*   **Key Features & Configuration Considerations:**
+    *   **Proposal Submission:** Spenders (typically the Council) can propose to allocate treasury funds for specific purposes (e.g., development grants, marketing, bug bounties, community events).
+    *   **Bonding for Proposals:** Proposals usually require a bond, which is returned if the proposal is approved or slashed if rejected (to discourage spam).
+    *   **Approval Process:** Proposals are typically approved or rejected by the Council. There might be a delay period for public scrutiny.
+    *   **Payouts:** Approved proposals result in funds being paid out from the treasury.
+    *   **Burn Mechanism:** A portion of unspent treasury funds can be burned periodically to manage token supply.
+    *   **Funding Sources:** The runtime needs to be configured to direct funds (e.g., from transaction fees) into the treasury account.
+
+### d. `pallet-elections-phragmen` (or similar)
+
+*   **Role:** Manages the election of council members for `pallet-collective`. It uses Phragmén's algorithm or similar methods to ensure proportional representation.
+*   **Key Features & Configuration Considerations:**
+    *   **Candidacy Submission:** PTCN holders can declare themselves as candidates for council.
+    *   **Voting for Candidates:** PTCN holders vote for their preferred candidates.
+    *   **Election Process:** Periodically, an election is run to determine the new set of council members based on votes.
+    *   **Term Durations:** Defines how long council members serve.
+
+## 7. Integration and Interaction
+
+These pallets are designed to work together:
+*   `pallet-democracy` can have its proposals vetoed or fast-tracked by `pallet-collective`.
+*   `pallet-collective` (as the Council) can submit proposals to `pallet-democracy` for community vote or directly propose spending from `pallet-treasury`.
+*   `pallet-treasury` proposals are typically managed and approved/rejected by `pallet-collective`.
+*   `pallet-elections-phragmen` populates the members of `pallet-collective`.
+
+The specific origins (e.g., who can submit certain proposals, who can approve treasury spends) will be carefully configured in the runtime to establish the desired governance balance for CritterChain.

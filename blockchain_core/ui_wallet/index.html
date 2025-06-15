@@ -164,10 +164,100 @@
     <hr>
     <h2>Governance</h2>
     <div id="governance-section">
-        <p>The CritterCraft Governance system is currently under development.</p>
-        <p>PTCN holders will be able to participate in proposals and vote on the future of the CritterCraft ecosystem.</p>
+        <p>The CritterCraft on-chain governance system is currently under development. Our goal is to empower PTCN token holders to shape the future of the ecosystem.
+        Refer to <a href="../../GOVERNANCE.md" target="_blank">GOVERNANCE.md</a> for full details.</p>
+
+        <h4>Planned Governance Features:</h4>
+        <ul>
+            <li>
+                <strong>Public Referenda (via `pallet-democracy`):</strong>
+                All PTCN holders will be able to propose and vote on referenda for key decisions.
+                This includes voting with PTCN, potentially with conviction voting options to give more weight to long-term holders.
+            </li>
+            <li>
+                <strong>CritterCraft Council (via `pallet-collective` & elections):</strong>
+                An elected council will help guide the ecosystem, propose referenda, potentially fast-track urgent proposals, or act as a technical committee.
+                Council members will be elected by PTCN holders.
+            </li>
+            <li>
+                <strong>On-Chain Treasury (via `pallet-treasury`):</strong>
+                A portion of network fees or other revenue streams may be directed to an on-chain treasury.
+                Proposals to spend treasury funds (e.g., for development grants, community initiatives, marketing) will be submitted and voted upon via the governance system (typically by the Council or through public referenda).
+            </li>
+        </ul>
+        <p><strong>Current Status:</strong> Foundational work in progress. Interactive governance features will be rolled out in future updates.</p>
+        <p>Your participation will be crucial for a truly decentralized CritterCraft!</p>
+    </div>
+
+    <hr>
+    <h2>Network Participation (Staking)</h2>
+    <div id="staking-section">
+        <h3>Your Staking Status</h3>
+        <div id="my-staking-info">
+            <p>My Nominations: <span id="my-nominations">Loading...</span></p>
+            <p>Total Staked: <span id="my-staked-amount">Loading...</span></p>
+            <p>Claimable Rewards: <span id="claimable-rewards">Loading...</span> <button id="claimRewardsButton" disabled>Claim Rewards</button></p>
+            <div id="unbonding-info">
+                <h4>Unbonding PTCN</h4>
+                <ul id="unbonding-chunks-list">
+                    <!-- Unbonding chunks will be listed here -->
+                    <p id="unbonding-chunks-placeholder">No PTCN currently unbonding.</p>
+                </ul>
+                <input type="number" id="unbond-amount" placeholder="Amount to Unbond">
+                <button id="unbondButton">Start Unbonding</button>
+                <button id="withdrawUnbondedButton" disabled>Withdraw Unbonded</button>
+                <p id="unbond-status"></p>
+            </div>
+        </div>
+        <hr>
+        <h3>Available Validators</h3>
+        <ul id="validator-list">
+            <p id="validator-list-placeholder">Loading validator information...</p>
+            <!-- Validators will be dynamically added here -->
+        </ul>
+        <p id="staking-action-status"></p> <!-- For feedback on staking actions -->
+    </div>
+
+    <hr>
+    <div id="network-info-section">
+        <h3>Network Architecture & Future</h3>
+        <p>CritterChain is designed with future scalability in mind. (See <a href="../../SCALABILITY_PLAN.md" target="_blank">SCALABILITY_PLAN.md</a> for details on our parachain and sharding strategy).</p>
+        <p>Future interoperability with other blockchains is planned. (See <a href="../../INTEROPERABILITY.md" target="_blank">INTEROPERABILITY.md</a> for details on XCM and bridging).</p>
+    </div>
+
+    <hr>
+    <h2>Bridge Assets</h2>
+    <div id="bridge-section">
+        <p>Cross-chain asset bridging is planned for future updates, allowing you to move PTCN and Pet NFTs to other networks.</p>
         <p><strong>Status:</strong> Coming Soon!</p>
-        <p><em>(Refer to GOVERNANCE.md in the project root for a conceptual outline.)</em></p>
+    </div>
+
+    <hr>
+    <h2>Coming Soon: Advanced Features!</h2>
+    <p><em>(Refer to ADVANCED_FEATURES.md in the project root for more conceptual details.)</em></p>
+    <br>
+
+    <div id="user-shops-placeholder-section">
+        <h3>User Shops</h3>
+        <p>Create your own shop and trade with other players! (Coming in a future update)</p>
+    </div>
+    <br>
+
+    <div id="advanced-jobs-placeholder-section">
+        <h3>Advanced Blockchain Jobs</h3>
+        <p>Take on new roles and contribute to the ecosystem for greater rewards! (Coming in a future update)</p>
+    </div>
+    <br>
+
+    <div id="treasure-hunts-placeholder-section">
+        <h3>Treasure Hunts & Exploration</h3>
+        <p>Embark on exciting adventures and discover rare rewards! (Coming in a future update)</p>
+    </div>
+    <br>
+
+    <div id="minigames-placeholder-section">
+        <h3>Arcade & Mini-Games</h3>
+        <p>Play fun mini-games and compete for prizes! (Coming in a future update)</p>
     </div>
 
     <script src="app.js"></script>
