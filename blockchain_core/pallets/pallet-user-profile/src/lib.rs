@@ -20,34 +20,35 @@ pub mod pallet {
     pub type ScoreValue = u64; // Generic score value type
     // pub type PetId = u32; // Example, if needed by specific score logic
 
-    /// Struct to hold various user scores and reputation metrics.
+    /// Struct to hold various user scores and reputation metrics. (Simplified for MVP)
     #[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Default)]
-    pub struct UserProfile<BlockNumber> { // Made generic for BlockNumber
+    pub struct UserProfile<BlockNumber> {
+        // MVP Core Metrics:
         pub total_pet_levels_sum: ScoreValue,
         pub quests_completed_count: u32,
         pub battles_won_count: u32,
-        pub successful_trades_count: u32,    // e.g., from marketplace
-        pub community_contributions_score: ScoreValue, // e.g., from future governance participation or job system
-        pub overall_progress_score: ScoreValue, // Could be a weighted combination of other scores
-        pub trade_reputation_score: i32, // Can go up/down based on trade feedback (future)
+        pub overall_progress_score: ScoreValue, // Derived from the above
         pub last_active_block: BlockNumber,
+        // Deferred for Post-MVP:
+        // pub successful_trades_count: u32,
+        // pub community_contributions_score: ScoreValue,
+        // pub trade_reputation_score: i32,
     }
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-        // No direct currency needed if this pallet only aggregates scores.
-        // Dependencies on other pallets for score updates will be via direct calls or a trait system.
 
-        // Constants for calculating overall_progress_score (weights)
+        // MVP Score Weights:
         #[pallet::constant]
         type PetLevelScoreWeight: Get<ScoreValue>;
         #[pallet::constant]
         type QuestScoreWeight: Get<ScoreValue>;
         #[pallet::constant]
         type BattleWinScoreWeight: Get<ScoreValue>;
-        #[pallet::constant]
-        type TradeScoreWeight: Get<ScoreValue>;
+        // Deferred for Post-MVP:
+        // #[pallet::constant] type TradeScoreWeight: Get<ScoreValue>;
+        // #[pallet::constant] type CommunityContributionScoreWeight: Get<ScoreValue>;
     }
 
     #[pallet::pallet]
@@ -70,8 +71,8 @@ pub mod pallet {
     pub enum Event<T: Config> {
         /// A user's profile has been updated. [user, new_overall_score]
         UserProfileUpdated { user: T::AccountId, new_overall_score: ScoreValue },
-        /// Trade reputation for a user changed. [user, new_reputation, change_delta]
-        TradeReputationChanged { user: T::AccountId, new_reputation: i32, change_delta: i32 },
+        // TradeReputationChanged event removed for MVP as trade_reputation_score is deferred.
+        // TradeReputationChanged { user: T::AccountId, new_reputation: i32, change_delta: i32 },
     }
 
     #[pallet::error]
@@ -161,64 +162,56 @@ pub mod pallet {
             Ok(())
         }
 
-        /// Called by pallet-marketplace or pallet-user-shops for successful trades.
-        pub fn record_successful_trade(user: &T::AccountId) -> DispatchResult {
-            Self::update_profile_and_recalculate(user, |profile| {
-                profile.successful_trades_count = profile.successful_trades_count.saturating_add(1);
-            });
-            Ok(())
-        }
+        // /// Called by pallet-marketplace or pallet-user-shops for successful trades. (Deferred for MVP)
+        // pub fn record_successful_trade(user: &T::AccountId) -> DispatchResult {
+        //     Self::update_profile_and_recalculate(user, |profile| {
+        //         profile.successful_trades_count = profile.successful_trades_count.saturating_add(1);
+        //     });
+        //     Ok(())
+        // }
 
-        /// Called by a feedback system (future) or dispute resolution for trades.
-        pub fn update_trade_reputation(user: &T::AccountId, reputation_change: i32) -> DispatchResult {
-            UserProfiles::<T>::mutate(user, |profile| { // Mutate directly as it doesn't affect overall score by default
-                profile.trade_reputation_score = profile.trade_reputation_score.saturating_add(reputation_change);
-                profile.last_active_block = frame_system::Pallet::<T>::block_number();
-            });
-            Self::deposit_event(Event::TradeReputationChanged {
-                user: user.clone(),
-                new_reputation: UserProfiles::<T>::get(user).trade_reputation_score,
-                change_delta: reputation_change,
-            });
-            Ok(())
-        }
+        // /// Called by a feedback system (future) or dispute resolution for trades. (Deferred for MVP)
+        // pub fn update_trade_reputation(user: &T::AccountId, reputation_change: i32) -> DispatchResult {
+        //     UserProfiles::<T>::mutate(user, |profile| {
+        //         profile.trade_reputation_score = profile.trade_reputation_score.saturating_add(reputation_change);
+        //         profile.last_active_block = frame_system::Pallet::<T>::block_number();
+        //     });
+        //     Self::deposit_event(Event::TradeReputationChanged {
+        //         user: user.clone(),
+        //         new_reputation: UserProfiles::<T>::get(user).trade_reputation_score,
+        //         change_delta: reputation_change,
+        //     });
+        //     Ok(())
+        // }
 
-        /// Called by governance or job system for community contributions.
-        pub fn record_community_contribution(user: &T::AccountId, contribution_score_increase: ScoreValue) -> DispatchResult {
-            Self::update_profile_and_recalculate(user, |profile| {
-                profile.community_contributions_score = profile.community_contributions_score.saturating_add(contribution_score_increase);
-                // Conceptual: Cap individual contribution types or total community score contribution
-            });
-            Ok(())
-        }
+        // /// Called by governance or job system for community contributions. (Deferred for MVP)
+        // pub fn record_community_contribution(user: &T::AccountId, contribution_score_increase: ScoreValue) -> DispatchResult {
+        //     Self::update_profile_and_recalculate(user, |profile| {
+        //         profile.community_contributions_score = profile.community_contributions_score.saturating_add(contribution_score_increase);
+        //     });
+        //     Ok(())
+        // }
 
 
-        // Internal helper to recalculate the overall progress score
+        // Internal helper to recalculate the overall progress score (Simplified for MVP)
         fn recalculate_overall_score(profile: &mut UserProfile<BlockNumberFor<T>>) {
-            // Example weighted formula:
-            let pet_score = profile.total_pet_levels_sum.saturating_mul(T::PetLevelScoreWeight::get());
+            let pet_score = profile.total_pet_levels_sum
+                .saturating_mul(T::PetLevelScoreWeight::get());
 
-            // Quests: Apply a cap or diminishing returns conceptually for very high counts
-            let capped_quests_count = profile.quests_completed_count.min(500) as ScoreValue; // Example cap at 500 for scoring
-            let quest_score = capped_quests_count.saturating_mul(T::QuestScoreWeight::get());
+            const QUEST_COUNT_SCORE_CAP: u32 = 500; // Example cap, can be moved to Config if needed
+            let effective_quests_count = profile.quests_completed_count.min(QUEST_COUNT_SCORE_CAP) as ScoreValue;
+            let quest_score = effective_quests_count
+                .saturating_mul(T::QuestScoreWeight::get());
 
-            // Battles: Apply a cap or diminishing returns conceptually
-            let capped_battles_won = profile.battles_won_count.min(1000) as ScoreValue; // Example cap at 1000 for scoring
-            let battle_score = capped_battles_won.saturating_mul(T::BattleWinScoreWeight::get());
+            const BATTLE_WINS_SCORE_CAP: u32 = 1000; // Example cap
+            let effective_battles_won = profile.battles_won_count.min(BATTLE_WINS_SCORE_CAP) as ScoreValue;
+            let battle_score = effective_battles_won
+                .saturating_mul(T::BattleWinScoreWeight::get());
 
-            // Trades: Apply a cap or diminishing returns conceptually
-            let capped_trades_count = profile.successful_trades_count.min(200) as ScoreValue; // Example cap at 200 for scoring
-            let trade_activity_score = capped_trades_count.saturating_mul(T::TradeScoreWeight::get());
-
-            // Community contributions score is added directly, could also have its own weight or cap.
+            // Deferred scores (trade_activity_score, community_contributions_score) are removed from calculation for MVP.
             profile.overall_progress_score = pet_score
                 .saturating_add(quest_score)
-                .saturating_add(battle_score)
-                .saturating_add(trade_activity_score)
-                .saturating_add(profile.community_contributions_score);
-
-            // Overall Score Cap (Conceptual):
-            // profile.overall_progress_score = profile.overall_progress_score.min(MAX_OVERALL_SCORE_POSSIBLE);
+                .saturating_add(battle_score);
         }
     }
 }

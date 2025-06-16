@@ -28,6 +28,26 @@ This document outlines the core architectural principles and strategies that gui
 *   When considering upgrades or new major features, the default approach will be to analyze if existing systems can be enhanced or if it's better to introduce new, specialized pallets.
 *   This principle supports breaking down complex problems into smaller, manageable components, aligning with modularity.
 
+### f. Simplicity and Iterative Complexity (MVP Focus)
+
+*   **Minimum Viable Product (MVP) Approach:** For the initial launch and subsequent major feature rollouts, CritterCraft will prioritize implementing the core, most valuable functions of each system first. This MVP approach allows for faster delivery of value, earlier community feedback, and more focused initial development and testing.
+*   **Deferring Complexity:** Features or mechanics that add significant on-chain complexity, require extensive state management, or depend on immature external systems (e.g., highly nuanced temporary item buffs with on-chain duration tracking, complex AI-driven personality evolution fully on-chain, intricate escrow systems for all P2P interactions) will be considered for deferral to later iterations or will be initially implemented with simpler on-chain logic supported by off-chain simulations where appropriate.
+*   **Iterative Enhancement:** Complexity and depth will be added iteratively based on:
+    *   Community feedback and observed user behavior.
+    *   The maturity and stability of foundational systems.
+    *   The overall strategic direction guided by decentralized governance.
+*   **Application in Stage 11 Review:** This principle was applied during the "System Simplification & Core Focus Review" (Stage 11) to refine the conceptual designs of:
+    *   **`pallet-critter-nfts`:** Simplified on-chain management of dynamic pet stats (hunger, energy) by relying more on off-chain calculations based on on-chain timestamps of key interactions.
+    *   **`pallet-items`:** Focused item effects on more direct, manageable on-chain outcomes for MVP, deferring complex temporary buff systems with on-chain duration management.
+    *   **`pallet-battles`:** Streamlined the on-chain data requirements for the off-chain battle simulation for MVP.
+    *   **`pallet-breeding`:** Simplified the core genetic algorithm for MVP, focusing on species and DNA hash determination, with `pallet-critter-nfts` deriving detailed stats. Deferred complex breeding scores and most genetic-influencing fertility items.
+    *   **`pallet-quests`:** Reduced the scope of on-chain verification criteria for initial quests.
+    *   **`pallet-user-profile`:** Focused on fewer core metrics for the overall progress score in its MVP version.
+    *   **Economic Systems:** Adopted simpler fee structures (e.g., fixed or zero fees for marketplace MVP) and deferred complex mechanisms for User Shops and Day Cares.
+*   **Balance:** The aim is to strike a balance between delivering a feature-rich experience and maintaining a manageable, secure, and efficient on-chain footprint, especially in early stages.
+
+This iterative approach to complexity ensures that CritterCraft can launch with a robust core and evolve sophisticatedly over time.
+
 ## 2. Application to CritterCraft's Design
 
 *   **Current Pallet Structure:** The current conceptual division into `pallet-critter-nfts`, `pallet-marketplace`, `pallet-battles`, and `pallet-quests` reflects this modular approach. Each handles a distinct domain.

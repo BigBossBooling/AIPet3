@@ -40,19 +40,15 @@ pub mod pallet {
     #[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Default)]
     // Ensure ElementType is correctly pathed or made generic if defined elsewhere and not imported.
     // For this conceptual outline, we assume pallet_critter_nfts::ElementType is accessible.
+    // Simplified for MVP: pallet-breeding determines DNA and species.
+    // pallet-critter-nfts derives actual base stats from this DNA upon minting.
     pub struct OffspringDetails<AccountId, BlockNumber, PetDnaHash> {
         pub parents: (PetId, PetId),
         pub breeder: AccountId, // Account that initiated breeding & can claim
         pub birth_block: BlockNumber,
         pub ready_at_block: BlockNumber,
-        // Determined genetic makeup for the new PetNFT
-        pub determined_dna_hash: PetDnaHash, // Should be [u8;16]
-        pub determined_species: Vec<u8>,
-        pub determined_base_strength: u8,
-        pub determined_base_agility: u8,
-        pub determined_base_intelligence: u8,
-        pub determined_base_vitality: u8,
-        pub determined_elemental_affinity: Option<pallet_critter_nfts::ElementType>,
+        pub determined_dna_hash: PetDnaHash, // Key output for new pet's genetics, e.g., [u8;16]
+        pub determined_species: Vec<u8>,     // Key output for new pet's species
     }
 
 
@@ -73,11 +69,14 @@ pub mod pallet {
         type TimeProvider: Time; // For incubation periods and cooldowns
         type RandomnessSource: Randomness<Self::Hash, Self::BlockNumber>; // For genetic algorithm
 
-        /// Handler for interacting with Pet NFTs (checking ownership, minting new ones).
-        /// Assumes pallet_critter_nfts implements a trait like this.
-        type NftHandler: pallet_critter_nfts::NftManager<Self::AccountId, PetId>;
+        /// Handler for interacting with Pet NFTs.
+        /// Needs methods for:
+        /// - Checking ownership.
+        /// - Getting pet details relevant for breeding (species, DNA hash).
+        /// - Minting a new pet from breeding results (species, DNA hash, parent IDs).
+        type NftHandler: NftBreedingHandler<Self::AccountId, PetId, DispatchResult>; // Using the new conceptual trait
 
-        // /// Handler for interacting with Items (e.g., fertility items). Placeholder.
+        // /// Handler for interacting with Items (e.g., fertility items). Placeholder for MVP.
         // type ItemHandler: super::ItemManager<Self::AccountId, u32, DispatchResult>; // Assuming ItemId is u32
 
         #[pallet::constant]
@@ -87,12 +86,10 @@ pub mod pallet {
         #[pallet::constant]
         type MaxPendingOffspringPerAccount: Get<u32>; // Limit pending claims
 
-        // SYNERGY: Economic Logic - Breeding Fee
-        // #[pallet::constant]
-        // type BreedingFee: Get<BalanceOf<Self>>; // Optional fee to initiate breeding
-        // type BreedingFeeDestination: OnUnbalanced<NegativeImbalanceOf<Self>>; // Where breeding fees go (e.g., Treasury)
-        // Or, if simpler, an AccountId to transfer fees to:
-        // type BreedingFeeCollectorAccountId: Get<Self::AccountId>;
+        // SYNERGY: Economic Logic - Breeding Fee (Can be set to 0 for MVP in runtime config)
+        #[pallet::constant]
+        type BreedingFee: Get<BalanceOf<Self>>;
+        type BreedingFeeDestination: OnUnbalanced<NegativeImbalanceOf<T>>; // Where fees go (e.g., Treasury) if fee > 0
     }
 
     #[pallet::pallet]
@@ -117,8 +114,7 @@ pub mod pallet {
         _,
         Blake2_128Concat,
         OffspringId,
-        // Update struct generics to match definition: AccountId, BlockNumber, PetDnaHash
-        OffspringDetails<T::AccountId, BlockNumberFor<T>, [u8;16]>,
+        OffspringDetails<T::AccountId, BlockNumberFor<T>, [u8;16]>, // [u8;16] is assumed DNA Hash type
     >;
 
     #[pallet::storage]
@@ -178,16 +174,15 @@ pub mod pallet {
             ensure!(parent1_id != parent2_id, Error::<T>::ParentsMustBeDifferentPets);
 
             // SYNERGY: Take breeding fee
-            // let fee = T::BreedingFee::get();
-            // if fee > BalanceOf::<T>::zero() {
-            //    // Example using a FeeCollectorAccountId:
-            //    // T::Currency::transfer(&breeder, &T::BreedingFeeCollectorAccountId::get(), fee, ExistenceRequirement::KeepAlive)
-            //    //     .map_err(|_| Error::<T>::BreedingFeeTransferFailed)?; // Add new error
-            //    // Example using OnUnbalanced:
-            //    // let (imbalance, _) = T::Currency::slash(&breeder, fee); // Ensure slash handles KeepAlive if needed, or use withdraw.
-            //    // T::BreedingFeeDestination::on_unbalanced(imbalance);
-            //    // This conceptual step notes the fee is taken.
-            // }
+            // For MVP, if T::BreedingFee::get() is zero, this logic will be skipped.
+            let fee = T::BreedingFee::get();
+            if fee > BalanceOf::<T>::from(0u32) {
+               // Conceptual fee collection logic (e.g., transfer to a fee collector or treasury).
+               // Example:
+               // let imbalance = T::Currency::withdraw(&breeder, fee, WithdrawReasons::FEE, ExistenceRequirement::KeepAlive)?;
+               // T::BreedingFeeDestination::on_unbalanced(imbalance);
+               // For this conceptual pass, we assume this step succeeds if fee > 0.
+            }
 
             // --- Verification Phase ---
             // 1. Check ownership of parent1 and parent2 by breeder via T::NftHandler
@@ -216,68 +211,54 @@ pub mod pallet {
             //    This data includes on-chain charter attributes (base_strength, etc.) and dna_hash.
             //    (e.g., `let parent1_data = T::NftHandler::get_pet_details(&parent1_id).ok_or(Error::<T>::ParentPetDataNotFound)?;`)
             //    (e.g., `let parent2_data = T::NftHandler::get_pet_details(&parent2_id).ok_or(Error::<T>::ParentPetDataNotFound)?;`)
-            //    (This implies NftManager trait needs a `get_pet_details` or similar function returning the PetNft struct).
+            //    (This implies NftBreedingHandler trait needs a `get_pet_simple_genetics` or similar function).
+            //    `let parent1_data = T::NftHandler::get_pet_simple_genetics(&parent1_id).ok_or(Error::<T>::ParentDataNotFound)?;` // Add Error
+            //    `let parent2_data = T::NftHandler::get_pet_simple_genetics(&parent2_id).ok_or(Error::<T>::ParentDataNotFound)?;`
 
-            // b. Determine Fertility Boost (if item used)
-            //    let fertility_boost_factor: u8 = if let Some(item_id) = fertility_item_id {
-            //        // T::ItemHandler::get_item_fertility_boost(&item_id).unwrap_or(0) // Assumes ItemHandler trait and pallet-items
-            //        5 // Placeholder: e.g., 5% boost
-            //    } else { 0 };
+            // b. Determine Offspring Species (Simplified MVP):
+            //    - If parent1_data.species == parent2_data.species, offspring_species = parent1_data.species.
+            //    - If different (and cross-breeding is allowed for MVP via a Config const like AllowCrossSpeciesBreeding):
+            //        - Use T::RandomnessSource: 50% chance of parent1's species, 50% chance of parent2's species.
+            //        - No new hybrid species for MVP.
+            //    `let determined_species = if parent1_data.species == parent2_data.species { parent1_data.species.clone() } else { ... logic ... };`
+            let determined_species: Vec<u8> = Vec::new(); // Placeholder, e.g., from parent1_data.species
 
-            // c. Determine Offspring Species:
-            //    - If same species parents: Offspring is same species.
-            //    - If cross-species (conceptual, if allowed by future rules):
-            //        - Could be 50/50 chance of either parent's species.
-            //        - Could result in a specific "hybrid" species if defined.
-            //        - Fertility items might influence this.
-            //    (e.g., `let offspring_species = Self::determine_offspring_species(&parent1_data, &parent2_data, fertility_boost_factor);`)
-            let determined_species: Vec<u8> = Vec::new(); // Placeholder, e.g., parent1_data.initial_species
-
-            // d. Generate new Offspring DNA Hash:
-            //    - Combine parts of parent DNA hashes.
-            //    - Introduce randomness from T::RandomnessSource for variation.
-            //    - Example: Take first 8 bytes from parent1.dna_hash, next 8 from parent2.dna_hash.
-            //      Then, XOR with a random [u8;16] from T::RandomnessSource.
-            //    (e.g., `let offspring_dna_hash = Self::generate_offspring_dna(&parent1_data.dna_hash, &parent2_data.dna_hash, &T::RandomnessSource::random_seed().0);`)
+            // c. Generate new Offspring DNA Hash (Simplified MVP):
+            //    - Combine parent DNA hashes with randomness.
+            //    - Example: `offspring_dna_hash[i] = (parent1_data.dna_hash[i].wrapping_add(parent2_data.dna_hash[i])) / 2 ^ random_bytes[i];`
+            //    `let random_seed_bytes = T::RandomnessSource::random_seed().0.expose();` // Get raw random bytes
+            //    `let mut determined_dna_hash: [u8; 16] = Default::default();`
+            //    `for i in 0..16 { determined_dna_hash[i] = (parent1_data.dna_hash[i].wrapping_add(parent2_data.dna_hash[i])) / 2 ^ random_seed_bytes[i % random_seed_bytes.len()]; }`
             let determined_dna_hash: [u8; 16] = Default::default(); // Placeholder
 
-            // e. Determine Offspring Charter Attributes (base_strength, base_agility, etc.):
-            //    For each charter attribute:
-            //    - Take average of parents' corresponding base attribute.
-            //    - Add/subtract a small random value (from T::RandomnessSource, scaled).
-            //    - Apply a small percentage boost if fertility_boost_factor > 0.
-            //    - Ensure result is within min/max caps (e.g., 1-25 for base stats if max is higher than 5-20 range).
-            //    - The new `dna_hash` should ideally be the ultimate source for these, but for direct inheritance:
-            //    (e.g., `let mut offspring_base_strength = (parent1_data.base_strength + parent2_data.base_strength) / 2;`)
-            //    (e.g., `let random_factor_str = (T::RandomnessSource::random_seed().0[0] % 5) as i8 - 2; // -2 to +2`)
-            //    (e.g., `offspring_base_strength = (offspring_base_strength as i8 + random_factor_str).max(1).min(25) as u8;`)
-            //    (e.g., `if fertility_boost_factor > 0 { offspring_base_strength = offspring_base_strength.saturating_add( (offspring_base_strength * fertility_boost_factor) / 100 ); }`)
-            //    This process is repeated for agility, intelligence, vitality.
-            let determined_base_strength: u8 = 10; // Placeholder
-            let determined_base_agility: u8 = 10; // Placeholder
-            let determined_base_intelligence: u8 = 10; // Placeholder
-            let determined_base_vitality: u8 = 10; // Placeholder
+            // d. Defer complex Breeding Scores and most Fertility Item effects on genetics for MVP.
+            //    A simple fertility item might just be a prerequisite or reduce cooldown (handled by T::NftHandler or ItemHandler).
 
-            // f. Determine Offspring Elemental Affinity:
-            //    - Chance to inherit from either parent.
-            //    - Small chance of mutating to a different element or None (Neutral).
-            //    - Fertility items might influence this.
-            //    (e.g., `let offspring_affinity = Self::determine_offspring_affinity(&parent1_data.primary_elemental_affinity, &parent2_data.primary_elemental_affinity, &T::RandomnessSource::random_seed().0, fertility_boost_factor);`)
-            let determined_elemental_affinity: Option<pallet_critter_nfts::ElementType> = None; // Placeholder
-
-            // g. Store these determined (but not yet final/minted) attributes for the offspring.
-            //    The `OffspringDetails` struct (updated to include all these fields) would store these.
-            //    When `claim_offspring` is called, these attributes are used to mint the new Pet NFT
-            //    via a (potentially new/modified) function in T::NftHandler that accepts pre-determined charter stats.
-            //    E.g., T::NftHandler::mint_with_genetics(owner, species, name, dna_hash, base_stats, affinity)
+            // e. Create OffspringDetails with determined_dna_hash and determined_species.
+            //    The actual base stats (strength, agility, etc.) and elemental affinity
+            //    will be derived by pallet-critter-nfts when this offspring_dna_hash is used for minting,
+            //    based on its internal DNA derivation logic.
+            //    This simplifies pallet-breeding's responsibility to just generating the core genetic blueprint.
 
             // --- Record Keeping & Event ---
-            // let offspring_id = NextOffspringId::<T>::try_mutate(...)?;
-            // let current_block = T::TimeProvider::now(); // Or frame_system::Pallet::<T>::block_number();
+            // let offspring_id = NextOffspringId::<T>::try_mutate(|id| -> Result<OffspringId, DispatchError> {
+            //     let current_id = *id;
+            //     *id = id.checked_add(1).ok_or(Error::<T>::OffspringIdOverflow)?;
+            //     Ok(current_id)
+            // })?;
+            // let current_block = frame_system::Pallet::<T>::block_number(); // Use frame_system for block number
             // let ready_at_block = current_block.saturating_add(T::IncubationDuration::get());
-            // let new_offspring_details = OffspringDetails { ... };
+            //
+            // let new_offspring_details = OffspringDetails {
+            //     parents: (parent1_id, parent2_id),
+            //     breeder: breeder.clone(),
+            //     birth_block: current_block,
+            //     ready_at_block,
+            //     determined_dna_hash, // From step c
+            //     determined_species,  // From step b
+            // };
             // PendingOffspring::<T>::insert(offspring_id, new_offspring_details);
-            // AccountPendingOffspringCount::<T>::mutate(&breeder, |count| *count += 1);
+            // AccountPendingOffspringCount::<T>::mutate(&breeder, |count| *count = count.saturating_add(1));
 
             // Set cooldowns for parents
             // let cooldown_end = current_block.saturating_add(T::BreedingCooldownDuration::get());
@@ -306,35 +287,61 @@ pub mod pallet {
             //    ensure!(current_block >= offspring_details.ready_at_block, Error::<T>::OffspringNotReadyYet);
 
             // 3. Verify claimer (breeder) is the one to claim.
-            //    (Need to store breeder/owner with OffspringDetails or link OffspringId to breeder)
-            //    For now, assume breeder stored in OffspringDetails or implicitly known.
+            //    (Need to store breeder with OffspringDetails - which it does now).
             //    ensure!(offspring_details.breeder == claimer, Error::<T>::CannotClaimOthersOffspring);
 
-            // 4. Mint the new Pet NFT using T::NftHandler::mint_nft(...)
-            //    This would take species, name (e.g., "Newborn <Species>"), dna_hash, etc.
-            //    `let new_pet_id = T::NftHandler::mint_nft(&claimer, offspring_details.determined_species, initial_name, offspring_details.determined_dna_hash, ...)?;`
-            //    This `mint_nft` function would need to be part of the NftManager trait, or NftHandler provides a more general mint.
-            //    `pallet-critter-nfts`'s `mint_pet_nft` extrinsic takes species and name. We need to adapt.
-            //    Let's assume NftHandler is extended or critter_nfts_pallet provides a suitable internal mint function.
-            //    This implies `NftManager` trait might need a `mint_new_pet(owner, species, name, determined_dna_hash, determined_base_strength, ..., determined_elemental_affinity)`
-            //    or `pallet-critter-nfts::mint_pet_nft` could take an Option<[u8;16]> for dna_override,
-            //    and if Some, it uses that for stat derivation instead of generating a new random one.
+            // 4. Mint the new Pet NFT using T::NftHandler.
+            //    The NftBreedingHandler trait needs a method like `mint_pet_from_breeding`.
+            //    This method in pallet-critter-nfts will use the provided DNA and species,
+            //    derive all other charter stats (base_strength, etc.) from this DNA,
+            //    and link parents.
+            //    `let new_pet_id = T::NftHandler::mint_pet_from_breeding(`
+            //        `&claimer,`
+            //        `offspring_details.determined_species.clone(),`
+            //        `offspring_details.determined_dna_hash,`
+            //        `offspring_details.parents.0,`
+            //        `offspring_details.parents.1`
+            //        // Initial name (e.g., "Newborn <Species>") and other defaults (level 1, XP 0, mood, timestamps)
+            //        // would be handled by the `mint_pet_from_breeding` implementation in pallet-critter-nfts.
+            //    `)?;`
 
             // 5. Clean up: Remove from PendingOffspring, decrement AccountPendingOffspringCount.
             //    PendingOffspring::<T>::remove(offspring_id);
-            //    AccountPendingOffspringCount::<T>::mutate(&claimer, |count| *count -= 1);
+            //    AccountPendingOffspringCount::<T>::mutate(&claimer, |count| *count = count.saturating_sub(1));
 
-            // Self::deposit_event(Event::OffspringClaimed { ... });
+            // Self::deposit_event(Event::OffspringClaimed { claimer, offspring_id, new_pet_id });
 
             // For subtask, return Ok(())
             Ok(())
         }
 
-        // Helper function (conceptual)
-        // fn is_pet_eligible_for_breeding(pet_id: &PetId) -> bool { true }
-        // fn calculate_genetics(dna1: [u8;16], dna2: [u8;16], boost: Option<u32>) -> ([u8;16], Vec<u8>) {
-        //    // Complex logic here...
-        //    (Default::default(), Vec::new())
-        // }
     }
+}
+
+// Conceptual trait definition for NftHandler interactions specific to breeding
+// This trait would be implemented by pallet-critter-nfts.
+pub trait NftBreedingHandler<AccountId, PetId, DispatchResultType> {
+    /// Gets minimal genetic material (DNA hash, species) from a parent pet.
+    fn get_pet_simple_genetics(pet_id: &PetId) -> Option<SimpleGeneticInfo>;
+
+    /// Mints a new pet based on breeding results.
+    /// pallet-critter-nfts handles deriving base stats from the given dna_hash.
+    fn mint_pet_from_breeding(
+        owner: &AccountId,
+        species: Vec<u8>,
+        dna_hash: [u8;16], // The DNA determined by pallet-breeding
+        parent1_id: PetId,
+        parent2_id: PetId,
+    ) -> Result<PetId, DispatchResultType>; // Returns the new PetId
+
+    // Potentially, methods to check pet eligibility or apply breeding cooldowns if not managed here
+    // fn check_breeding_eligibility(pet_id: &PetId) -> bool;
+    // fn apply_breeding_cooldown(pet_id: &PetId, cooldown_until: BlockNumber) -> DispatchResultType;
+}
+
+// Conceptual struct for returning parent genetic info
+#[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Default)]
+pub struct SimpleGeneticInfo {
+    pub dna_hash: [u8;16],
+    pub species: Vec<u8>,
 }

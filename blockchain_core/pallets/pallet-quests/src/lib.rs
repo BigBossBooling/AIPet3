@@ -2,32 +2,29 @@
 
 pub use pallet::*;
 
-// --- Conceptual Handler Traits (What pallet-quests needs from other pallets) ---
-// These would typically be defined in the respective pallets (critter_nfts, items, user-profile)
-// and then pallet-quests would depend on those pallets via its Config trait.
-// For this conceptual outline, we define them here to show what pallet-quests expects.
+// --- Conceptual Handler Traits (Simplified for MVP) ---
 
-// From pallet-critter-nfts (subset of NftManager or a new specific trait)
-pub trait QuestNftRequirementChecker<AccountId, PetId, PetSpeciesType> {
+// From pallet-critter-nfts
+pub trait QuestNftRequirementChecker<AccountId, PetId> { // Removed PetSpeciesType for MVP
     fn get_pet_owner(pet_id: &PetId) -> Option<AccountId>;
     fn get_pet_level(pet_id: &PetId) -> Option<u32>;
-    fn get_pet_species(pet_id: &PetId) -> Option<PetSpeciesType>; // PetSpeciesType is Vec<u8>
+    // fn get_pet_species(pet_id: &PetId) -> Option<PetSpeciesType>; // Deferred for MVP
 }
 
-// From pallet-items (conceptual)
+// From pallet-items
 pub trait QuestItemRequirementChecker<AccountId, ItemId> {
     fn check_and_consume_item(
         user: &AccountId,
         item_id: &ItemId,
         quantity: u32,
+        consume: bool, // New parameter to control consumption based on quest.consume_item_on_completion
     ) -> frame_support::dispatch::DispatchResult;
 }
 
-// From pallet-user-profile (conceptual)
-pub trait QuestUserProfileRequirementChecker<AccountId, ScoreValue> {
+// From pallet-user-profile
+pub trait QuestUserProfileRequirementChecker<AccountId> { // Removed ScoreValue for MVP as only u32 is used
     fn get_battles_won(user: &AccountId) -> Option<u32>;
-    fn get_trade_reputation(user: &AccountId) -> Option<i32>;
-    // Add other specific score getters if needed by quests
+    // fn get_trade_reputation(user: &AccountId) -> Option<i32>; // Deferred for MVP
 }
 // --- End of Conceptual Handler Traits ---
 
@@ -49,25 +46,21 @@ pub mod pallet {
     // Type Aliases (assuming these are defined or made available appropriately)
     pub type PetId = u32;
     pub type ItemId = u32;
-    pub type PetSpeciesType = Vec<u8>;
-    pub type ScoreValue = u64; // Placeholder
+    // PetSpeciesType removed for MVP from local alias
+    // ScoreValue removed for MVP from local alias
 
     type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
     #[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Default)]
     pub struct Quest<Balance> {
-        pub description: Vec<u8>,
+        pub description: Vec<u8>, // Consider BoundedVec<u8, T::MaxDescriptionLength>
         pub reward_ptcn: Balance,
-        // New fields for advanced criteria (all Optional)
-        pub required_pet_level: Option<u32>,
-        pub required_pet_id_for_level_check: Option<PetId>,
-        pub required_pet_species: Option<PetSpeciesType>,
-        pub required_pet_id_for_species_check: Option<PetId>,
+        // Simplified MVP Criteria (all Optional)
+        pub required_pet_level: Option<u32>, // User must specify which pet meets this when completing
         pub required_item_id: Option<ItemId>,
         pub required_item_quantity: Option<u32>,
         pub consume_item_on_completion: bool,
         pub min_battles_won_for_user: Option<u32>,
-        pub min_trade_reputation_for_user: Option<i32>,
     }
 
     #[pallet::config]
@@ -79,10 +72,10 @@ pub mod pallet {
         #[pallet::constant]
         type MaxDescriptionLength: Get<u32>;
 
-        // Handlers for interacting with other pallets
-        type NftChecker: QuestNftRequirementChecker<Self::AccountId, PetId, PetSpeciesType>;
+        // Handlers for interacting with other pallets (Simplified for MVP)
+        type NftChecker: QuestNftRequirementChecker<Self::AccountId, PetId>; // PetSpeciesType removed
         type ItemChecker: QuestItemRequirementChecker<Self::AccountId, ItemId>;
-        type UserProfileChecker: QuestUserProfileRequirementChecker<Self::AccountId, ScoreValue>;
+        type UserProfileChecker: QuestUserProfileRequirementChecker<Self::AccountId>; // ScoreValue removed
     }
 
     #[pallet::pallet]
@@ -127,17 +120,16 @@ pub mod pallet {
         RewardDistributionFailed, // Placeholder for currency interaction issues
         QuestIdOverflow,
         DescriptionTooLong,
-        // SYNERGY & ADVANCED CRITERIA: New Error variants
-        QuestCriteriaRequiresPetSelection, // If user needs to specify which pet meets criteria
-        CriteriaPetNotFound,        // If specified PetID for criteria check doesn't exist
-        CriteriaPetNotOwned,        // If user doesn't own the specified PetID
+        QuestCriteriaRequiresPetSelection,
+        CriteriaPetNotFound,
+        CriteriaPetNotOwned,
         PetLevelTooLow,
-        IncorrectPetSpecies,
-        RequiredItemNotFoundOrInsufficient, // Covers both missing item or not enough quantity
-        UserProfileDataUnavailable,     // If profile data can't be fetched
+        // IncorrectPetSpecies, // Deferred for MVP
+        RequiredItemNotFoundOrInsufficient,
+        UserProfileDataUnavailable,
         NotEnoughBattlesWon,
-        TradeReputationTooLow,
-        QuestPrerequisitesNotMet,     // Generic for other types of checks
+        // TradeReputationTooLow, // Deferred for MVP
+        QuestPrerequisitesNotMet,
     }
 
     #[pallet::genesis_config]
@@ -181,16 +173,12 @@ pub mod pallet {
             origin: OriginFor<T>,
             description: Vec<u8>,
             reward_ptcn: BalanceOf<T>,
-            // New optional parameters for criteria
+            // Simplified MVP criteria
             required_pet_level: Option<u32>,
-            required_pet_id_for_level_check: Option<PetId>,
-            required_pet_species: Option<PetSpeciesType>,
-            required_pet_id_for_species_check: Option<PetId>,
             required_item_id: Option<ItemId>,
             required_item_quantity: Option<u32>,
-            consume_item_on_completion: Option<bool>,
+            consume_item_on_completion: Option<bool>, // True if item should be consumed, false if only checked
             min_battles_won_for_user: Option<u32>,
-            min_trade_reputation_for_user: Option<i32>,
         ) -> DispatchResultWithPostInfo {
             ensure_root(origin)?;
             ensure!(description.len() <= T::MaxDescriptionLength::get() as usize, Error::<T>::DescriptionTooLong);
@@ -205,14 +193,10 @@ pub mod pallet {
                 description: description.clone(),
                 reward_ptcn,
                 required_pet_level,
-                required_pet_id_for_level_check,
-                required_pet_species,
-                required_pet_id_for_species_check,
                 required_item_id,
                 required_item_quantity,
-                consume_item_on_completion: consume_item_on_completion.unwrap_or(if required_item_id.is_some() { true } else { false }),
+                consume_item_on_completion: consume_item_on_completion.unwrap_or(required_item_id.is_some()), // Default to true if item is required
                 min_battles_won_for_user,
-                min_trade_reputation_for_user,
             };
 
             AvailableQuests::<T>::insert(quest_id, new_quest);
@@ -232,48 +216,34 @@ pub mod pallet {
             let quest = AvailableQuests::<T>::get(&quest_id).ok_or(Error::<T>::QuestNotFound)?;
             ensure!(!CompletedQuests::<T>::contains_key((&account, &quest_id)), Error::<T>::QuestAlreadyCompleted);
 
-            // --- Advanced Criteria Verification (Conceptual Logic) ---
+            // --- Simplified MVP Criteria Verification ---
             if let Some(req_level) = quest.required_pet_level {
-                let pet_id_to_check = quest.required_pet_id_for_level_check.or(maybe_target_pet_id)
-                                         .ok_or(Error::<T>::QuestCriteriaRequiresPetSelection)?;
+                let pet_id_to_check = maybe_target_pet_id.ok_or(Error::<T>::QuestCriteriaRequiresPetSelection)?;
                 ensure!(T::NftChecker::get_pet_owner(&pet_id_to_check) == Some(account.clone()), Error::<T>::CriteriaPetNotOwned);
                 let pet_level = T::NftChecker::get_pet_level(&pet_id_to_check).ok_or(Error::<T>::CriteriaPetNotFound)?;
                 ensure!(pet_level >= req_level, Error::<T>::PetLevelTooLow);
             }
 
-            if let Some(ref req_species) = quest.required_pet_species {
-                let pet_id_to_check = quest.required_pet_id_for_species_check.or(maybe_target_pet_id)
-                                         .ok_or(Error::<T>::QuestCriteriaRequiresPetSelection)?;
-                ensure!(T::NftChecker::get_pet_owner(&pet_id_to_check) == Some(account.clone()), Error::<T>::CriteriaPetNotOwned);
-                let pet_species = T::NftChecker::get_pet_species(&pet_id_to_check).ok_or(Error::<T>::CriteriaPetNotFound)?;
-                ensure!(pet_species == *req_species, Error::<T>::IncorrectPetSpecies);
-            }
+            // Pet Species Check Deferred for MVP
 
             if let (Some(item_id), Some(req_quantity)) = (quest.required_item_id, quest.required_item_quantity) {
                 if req_quantity > 0 {
-                    T::ItemChecker::check_and_consume_item(&account, &item_id, req_quantity)
+                    // Pass the consume_item_on_completion flag from the quest struct to the ItemChecker method.
+                    T::ItemChecker::check_and_consume_item(&account, &item_id, req_quantity, quest.consume_item_on_completion)
                         .map_err(|_| Error::<T>::RequiredItemNotFoundOrInsufficient)?;
-                        // Assumes check_and_consume_item correctly uses consume_item_on_completion from quest struct
-                        // or the flag is passed to it if it's a separate parameter in the trait method.
-                        // If consume_item_on_completion is true, this method consumes. If false, it only checks.
-                        // For simplicity, assume check_and_consume_item handles the consume_item_on_completion logic.
                 }
             }
 
             if let Some(req_battles_won) = quest.min_battles_won_for_user {
                let battles_won = T::UserProfileChecker::get_battles_won(&account)
-                                     .ok_or(Error::<T>::UserProfileDataUnavailable)?;
+                                     .ok_or(Error::<T>::UserProfileDataUnavailable)?; // Ensure UserProfileChecker handles Option correctly
                ensure!(battles_won >= req_battles_won, Error::<T>::NotEnoughBattlesWon);
             }
 
-            if let Some(req_trade_rep) = quest.min_trade_reputation_for_user {
-                let trade_rep = T::UserProfileChecker::get_trade_reputation(&account)
-                                      .ok_or(Error::<T>::UserProfileDataUnavailable)?;
-                ensure!(trade_rep >= req_trade_rep, Error::<T>::TradeReputationTooLow);
-            }
+            // Trade Reputation Check Deferred for MVP
             // --- End of Criteria Verification ---
 
-            // Distribute reward (simplified, as in other pallets)
+            // Distribute reward
             if quest.reward_ptcn > BalanceOf::<T>::from(0u32) {
                 // Using deposit_creating with same caveats as daily claim / battle rewards.
                 // Assumes this pallet has a way to source/mint these funds.

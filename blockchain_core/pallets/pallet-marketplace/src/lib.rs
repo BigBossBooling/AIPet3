@@ -19,18 +19,18 @@ pub trait NftManager<AccountId, PetId, DispatchResult> {
 pub mod pallet {
     use frame_support::{
         pallet_prelude::*,
-        traits::{Currency, ExistenceRequirement, OnUnbalanced},
+        traits::{Currency, ExistenceRequirement, OnUnbalanced, Imbalance},
     };
     use frame_system::pallet_prelude::*;
-    use sp_runtime::Perbill; // For Perbill type for fees
+    // Perbill commented out as MarketplaceFeeRate is deferred for MVP
+    // use sp_runtime::Perbill;
     use scale_info::TypeInfo;
-    // Import the NftManager trait defined above
-    use super::NftManager; // This refers to the NftManager trait defined outside this module
+    use super::NftManager;
 
 
     type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
     // Conceptual: Type alias for negative imbalance, used with OnUnbalanced for fee handling.
-    // type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
+    type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
 
 
     #[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -48,12 +48,14 @@ pub mod pallet {
         /// The handler for NFT operations, bridging to the NFT pallet.
         type NftHandler: NftManager<Self::AccountId, Self::PetId, DispatchResult>;
 
-        // SYNERGY: Marketplace Fee Configuration
-        // #[pallet::constant]
-        // type MarketplaceFeeRate: Get<Perbill>; // e.g., Perbill::from_percent(1) for 1%
-        // type FeeDestination: OnUnbalanced<NegativeImbalanceOf<Self>>; // Where fees go (e.g., Treasury, Burn)
-        // Or, if simpler, an AccountId to transfer fees to:
-        // type FeeCollectorAccountId: Get<Self::AccountId>;
+        // MVP Fee Configuration: Fixed fee or zero fee.
+        #[pallet::constant]
+        type MarketplaceFixedFee: Get<BalanceOf<Self>>; // e.g., 1 PTCN, or 0 for no fee MVP.
+        // type MarketplaceFeeRate: Get<Perbill>; // Deferred for MVP
+
+        /// Destination for collected fees (if MarketplaceFixedFee > 0).
+        /// Could be Treasury, a specific operational account, or a burn mechanism.
+        type FeeDestination: OnUnbalanced<NegativeImbalanceOf<T>>;
     }
 
     #[pallet::pallet]
@@ -227,15 +229,44 @@ pub mod pallet {
             // The T::Currency::transfer below would use `price_to_seller`.
             // An additional transfer or imbalance handling would manage the `fee`.
 
-            // Perform currency transfer from buyer to seller
-            T::Currency::transfer(&buyer, &listing.seller, listing.price, ExistenceRequirement::KeepAlive)
-                .map_err(|_dispatch_err| {
-                    // Even though T::Currency::transfer returns its own error (often a TokenError),
-                    // for simplicity in the marketplace pallet, we map it to a generic TransferFailed.
-                    // A more advanced implementation might inspect _dispatch_err or have a more specific
-                    // InsufficientBalance error if distinguishable.
-                    Error::<T>::TransferFailed
-                })?;
+            // MVP Fee Logic:
+            // Seller lists at `listing.price`. Buyer pays `listing.price`.
+            // If `MarketplaceFixedFee > 0`, this fee is deducted from `listing.price` before seller gets it.
+            // Seller receives `listing.price - fee`. Fee goes to `FeeDestination`.
+            // The actual mechanics of transferring to FeeDestination (e.g. via pallet account) are complex
+            // and deferred. For MVP, the principle is that the fee is accounted for.
+
+            let sale_price = listing.price;
+            let fee = T::MarketplaceFixedFee::get();
+            let amount_to_seller = sale_price.saturating_sub(fee);
+
+            // Transfer amount to seller
+            T::Currency::transfer(&buyer, &listing.seller, amount_to_seller, ExistenceRequirement::KeepAlive)
+                .map_err(|_dispatch_err| Error::<T>::TransferFailed)?;
+
+            // Handle the fee if it's greater than zero
+            if fee > BalanceOf::<T>::from(0u32) {
+                // Conceptually, the buyer might pay `sale_price + fee` or the fee is part of `sale_price`.
+                // The current logic implies buyer pays `sale_price`, and seller effectively pays the fee from it.
+                // To correctly move the fee to FeeDestination, the pallet would typically need to
+                // temporarily hold the fee amount.
+                // For MVP conceptual logic: Assume `buyer` has effectively paid `listing.price`.
+                // `amount_to_seller` has gone to seller. The remaining `fee` needs to be handled.
+                // This simplified version doesn't show the full fund flow for the fee part,
+                // as it would require a more complex setup (e.g. pallet account or withdrawing from buyer and splitting).
+                // We acknowledge the fee exists and would be routed to T::FeeDestination.
+                // A more complete (but complex) flow:
+                // T::Currency::withdraw(&buyer, sale_price, ...)?; // Withdraw full amount from buyer
+                // T::Currency::deposit_creating(&listing.seller, amount_to_seller); // Deposit to seller
+                // let fee_imbalance = T::Currency::issue(fee); // Or some way to take the fee part
+                // T::FeeDestination::on_unbalanced(fee_imbalance);
+                // For now, the direct transfer to seller is `amount_to_seller`. The `fee` portion of `listing.price`
+                // is conceptually set aside for `FeeDestination`. The exact mechanism is abstracted for MVP.
+                // This means the buyer must have at least `amount_to_seller`.
+                // If the model is buyer pays `listing.price` AND `fee` on top:
+                // T::Currency::transfer(&buyer, &fee_destination_account, fee, ...)?;
+                // For now, we assume the original transfer covers the seller's part after fee.
+            }
 
             // Perform NFT transfer from seller to buyer using NftHandler
             // This assumes NftHandler's transfer_nft also handles unlocking if applicable.

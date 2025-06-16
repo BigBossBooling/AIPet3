@@ -31,11 +31,12 @@ This document provides a high-level conceptual outline for advanced economic loo
 *   **Economic Model & Impact:**
     *   Fosters a player-driven economy, encourages entrepreneurship, and allows for specialized trading hubs.
     *   **PTCN Sink:** Provides more sinks/uses for PTCN through various fees.
-    *   **Shop Creation/Maintenance Fees (Conceptual):** Creating a User Shop (perhaps by minting a 'Shopfront NFT') might incur a one-time PTCN fee. Alternatively, a small periodic rental fee could apply to keep a shop active, contributing to PTCN sinks.
-    *   **Seller-Set Fees (Conceptual):** Shop owners might have the option to add a small additional percentage fee on their sales, on top of any platform-wide marketplace fee, allowing them to earn directly from their shop's transaction volume.
-    *   **Platform Fees:**
-        *   Sales through User Shops might also be subject to a general platform fee if they leverage common settlement infrastructure, or User Shops could have their own distinct fee structure.
-        *   If a general `pallet-marketplace` is used, a configurable percentage-based transaction fee (`MarketplaceFeeRate`) may be applied to each sale. This fee will be directed to a designated `FeeDestination` (e.g., the on-chain Treasury or a burn address), as defined conceptually in `pallet-marketplace::Config`.
+    *   **Shop Creation/Maintenance Fees (MVP Simplification):** For an initial MVP, User Shop creation could be **free**, meaning no 'Shopfront NFT' minting fee or periodic rental fees. This lowers the barrier to entry for users to participate in the economy. These fees can be introduced post-MVP.
+    *   **Seller-Set Fees (Deferred for Post-MVP):** The ability for shop owners to add their own percentage fees on top of platform fees is deferred.
+    *   **Platform Fees (MVP Simplification):**
+        *   Sales through User Shops, like the general `pallet-marketplace`, will adhere to a simplified fee structure for MVP. This means either **zero transaction fees** or a **small, fixed flat fee** (`MarketplaceFixedFee` from `pallet-marketplace::Config`) per sale. Percentage-based fees (`MarketplaceFeeRate`) are deferred.
+        *   If a fixed fee is applied, it is ideally deducted from the sale price before the seller receives funds, with the fee directed to a `FeeDestination` (e.g., Treasury or burn address) as configured in `pallet-marketplace`. This maintains consistency and reduces complexity for MVP.
+        *   **General Marketplace Fees (MVP):** As above, the general `pallet-marketplace` (if distinct from user shops or used as a fallback) will also use either **zero fees or a small, fixed flat fee (`MarketplaceFixedFee`)** for MVP, deferring percentage-based fees.
 
     #### 4. Conceptual User Interface for User Shops
 
@@ -117,53 +118,36 @@ This document provides a high-level conceptual outline for advanced economic loo
 
 *   **Concept:** `pallet-quests` manages the creation, availability, and completion of in-game quests, providing players with objectives and rewards. This system will be enhanced with advanced on-chain verification criteria.
 *   **Pallet Interactions (Enhanced):**
-    *   **`pallet-critter-nfts` (via `T::NftChecker` trait):** To verify pet-related quest criteria (level, species, ownership).
-    *   **`pallet-items` (via `T::ItemChecker` trait):** To verify and consume items required for quests.
-    *   **`pallet-user-profile` (via `T::UserProfileChecker` trait):** To verify user-specific stats (e.g., battles won, reputation) as prerequisites.
+    *   **`pallet-critter-nfts` (via `T::NftChecker` trait):** To verify pet-related quest criteria (level, species, ownership). The `QuestNftRequirementChecker` trait (conceptually defined in `pallet-quests` or a shared trait crate) would be implemented by `pallet-critter-nfts` and would need to expose methods like `get_pet_owner`, `get_pet_level`, and `get_pet_species`.
+    *   **`pallet-items` (via `T::ItemChecker` trait):** To verify and consume items required for quests. The `QuestItemRequirementChecker` trait would be implemented by `pallet-items` and needs a method like `check_and_consume_item`.
+    *   **`pallet-user-profile` (via `T::UserProfileChecker` trait):** To verify user-specific stats (e.g., battles won, reputation) as prerequisites. The `QuestUserProfileRequirementChecker` trait would be implemented by `pallet-user-profile` and needs methods like `get_battles_won` and `get_trade_reputation`.
     *   **`pallet-balances` (via `Currency` trait):** For disbursing PTCN quest rewards.
 *   **Core On-Chain Logic/Data (Enhancements):**
     *   **`Quest` Struct & Advanced Criteria:**
-        *   The `Quest` struct will be enhanced to include optional fields for defining diverse on-chain verifiable completion criteria:
-            *   `description: Vec<u8>`, `reward_ptcn: BalanceOf<T>` (existing)
-            *   **Pet-Specific Criteria:**
-                *   `required_pet_level: Option<u32>` (e.g., "Target Pet must be level 10").
-                *   `required_pet_id_for_level_check: Option<PetId>` (Specifies which pet if quest is about a particular one. If `None`, the user might need to specify an eligible pet they own when attempting completion via `maybe_target_pet_id` in `complete_quest`).
-                *   `required_pet_species: Option<PetSpeciesType>` (e.g., "Must use a RoboDog for this task").
-                *   `required_pet_id_for_species_check: Option<PetId>`.
-            *   **Item-Specific Criteria (interacts with `pallet-items`):**
-                *   `required_item_id: Option<ItemId>`.
-                *   `required_item_quantity: Option<u32>`.
-                *   `consume_item_on_completion: bool` (determines if the item is taken from inventory).
-            *   **User Profile Criteria (interacts with `pallet-user-profile`):**
-                *   `min_battles_won_for_user: Option<u32>`.
-                *   `min_trade_reputation_for_user: Option<i32>`.
-        *   Not all quests will use all criteria; many can remain simple "task completion" quests.
+        *   The `Quest` struct in `pallet-quests` is enhanced to include several optional fields for defining diverse on-chain verifiable completion criteria:
+            *   `description: Vec<u8>`, `reward_ptcn: BalanceOf<T>` (existing).
+            *   **Pet-Specific Criteria:** `required_pet_level: Option<u32>`, `required_pet_id_for_level_check: Option<PetId>`, `required_pet_species: Option<PetSpeciesType>`, `required_pet_id_for_species_check: Option<PetId>`. These allow quests to demand, for instance, that a user's specific pet (or any one of their pets if the ID field is `None` and user supplies one via `maybe_target_pet_id`) has reached a certain level or is of a particular species.
+            *   **Item-Specific Criteria:** `required_item_id: Option<ItemId>`, `required_item_quantity: Option<u32>`, `consume_item_on_completion: bool`. Quests can require users to possess certain items, and optionally consume them upon completion.
+            *   **User Profile Criteria:** `min_battles_won_for_user: Option<u32>`, `min_trade_reputation_for_user: Option<i32>`. These link quest eligibility to a user's broader achievements and standing in the ecosystem.
+        *   The flexibility of `Option` fields means not all quests need to use all criteria; many can remain simple.
     *   **Extrinsic Updates & Verification Logic:**
-        *   **`add_quest` (Admin):** Will be updated to allow setting these new optional criteria fields when defining a quest.
+        *   **`add_quest` (Admin):** The signature is updated to include all new optional criteria fields (e.g., `required_pet_level`, `required_item_id`, `min_battles_won_for_user`, etc.), allowing administrators to define complex quests. The `consume_item_on_completion` field defaults appropriately if not specified.
         *   **`complete_quest` (User):**
-            *   The user might pass an optional `maybe_target_pet_id` if the quest requires action with one of their pets but doesn't specify *which* one in its own definition.
-            *   Before distributing rewards, the extrinsic will fetch the `Quest` details and perform **On-Chain Verification** by calling handler traits:
-                *   `T::NftChecker` (implemented by `pallet-critter-nfts`): To verify ownership, level, and species of the relevant pet.
-                *   `T::ItemChecker` (implemented by `pallet-items`): To verify the user possesses required items and to consume them if necessary (based on `consume_item_on_completion` flag).
-                *   `T::UserProfileChecker` (implemented by `pallet-user-profile`): To verify user statistics like battle wins or trade reputation.
-            *   Only if all defined criteria for that specific quest are met will the completion proceed.
-            *   Appropriate error messages (e.g., `PetLevelTooLow`, `RequiredItemMissing`, `NotEnoughBattlesWon`) will guide the user if criteria are not met.
-            *   Upon successful completion, it will also call the `record_quest_completion` function in `pallet-user-profile` to update the user's profile score.
+            *   The user can now optionally pass `maybe_target_pet_id` if the quest has pet-related criteria but doesn't hardcode a specific pet ID in its definition, allowing the user to nominate which of their pets fulfills the requirement.
+            *   Before distributing rewards, the extrinsic performs **On-Chain Verification** by calling methods on the handler traits defined in its `Config`:
+                *   `T::NftChecker::get_pet_owner`, `T::NftChecker::get_pet_level`, `T::NftChecker::get_pet_species` are used for pet criteria.
+                *   `T::ItemChecker::check_and_consume_item` is used for item criteria (this method itself would handle the `consume_item_on_completion` logic based on the quest's flag).
+                *   `T::UserProfileChecker::get_battles_won`, `T::UserProfileChecker::get_trade_reputation` are used for user profile criteria.
+            *   If any criterion is not met, the extrinsic fails with a specific error (e.g., `PetLevelTooLow`, `RequiredItemNotFoundOrInsufficient`, `NotEnoughBattlesWon`).
+            *   Upon successful verification of all criteria, the quest reward is distributed, the quest is marked as completed for the user, and `pallet-user-profile::Pallet::<T>::record_quest_completion(&account)` is called to update the user's profile score.
 *   **Economic Impact:** Quests serve as a primary mechanism for PTCN distribution (rewards) and can also act as item sinks if `consume_item_on_completion` is true. Complex quests requiring rare items or high pet/user stats can drive demand for those prerequisites.
 
     This makes quests more integrated with other systems and allows for more varied and challenging objectives.
 
-## 3. Treasure Hunts & Exploration
-    // Re-numbering this to keep its original content but adjust its position if necessary.
-    // For this diff, we assume the Quest System replaces the old Treasure Hunts placeholder,
-    // and Treasure Hunts might become a specialized type of quest or a separate feature later.
-    // If Treasure Hunts is meant to be kept as a distinct H2, this diff needs adjustment.
-    // For now, this effectively replaces the old H2 "3. Treasure Hunts & Exploration"
-    // with the detailed "3. Quest System (`pallet-quests`)".
-    // The original "Treasure Hunts & Exploration" content will be removed by this search/replace.
-    // If that's not desired, the search block needs to be more specific.
-    // Based on the prompt, we are updating the "Quest System", and the old section 3 was "Treasure Hunts".
-    // This implies Section 3 is being repurposed for the detailed Quest System.
+## 4. Treasure Hunts & Exploration
+    // Note: The previous H2 "3. Treasure Hunts & Exploration" is being replaced by the detailed "3. Quest System".
+    // The content below is the original "Treasure Hunts & Exploration" now re-numbered as H2 "4.".
+    // If "Treasure Hunts" were to be a sub-type of "Quests", this would be structured differently.
 
 *   **Concept:** Complex, multi-stage quests or puzzles with significant rewards, potentially involving both on-chain actions and off-chain elements.
 *   **Pallet Interactions:**
@@ -286,6 +270,17 @@ The `PetNft` struct now includes the following explicit charter attributes, set 
 These attributes are algorithmically determined from the `dna_hash` (and potentially `initial_species`) during the `mint_pet_nft` extrinsic.
 A more detailed illustrative derivation algorithm (using byte pairs from `dna_hash` and scaling for base stats, and modulo operations for elemental affinity) is now conceptually outlined within the `mint_pet_nft` function in `blockchain_core/pallets/critter_nfts_pallet/src/lib.rs`.
 
+### Dynamic Attributes & Simplifications (Recap from Pet Development Lifecycle)
+
+*   **`level: u32`**, **`experience_points: u32`**: Standard dynamic attributes increased through interactions.
+*   **`mood_indicator: u8`**: Simplified on-chain mood, directly affected by `feed_pet`, `play_with_pet`, and `apply_neglect_check`. Max value defined by `T::MaxMoodValue`.
+*   **Hunger & Energy (Off-Chain Focus):** These are primarily calculated **off-chain** by UIs/game clients based on:
+    *   `last_fed_block: BlockNumberFor<T>`
+    *   `last_played_block: BlockNumberFor<T>`
+    This significantly reduces on-chain storage and transaction frequency for these rapidly changing stats.
+*   **`personality_traits: BoundedVec<BoundedVec<u8, T::MaxTraitStringLen>, T::MaxPetPersonalityTraits>`**: A bounded list of strings representing the pet's personality traits. `MaxTraitStringLen` and `MaxPetPersonalityTraits` are defined in `Config`. For MVP, these are typically set at minting or via rare items, not dynamically evolving through simple care.
+*   **`last_state_update_block: BlockNumberFor<T>`**: Timestamp of the last significant on-chain interaction or state change.
+
 ### Further Derived or Gameplay-Relevant Attributes (from `dna_hash` & On-Chain Base Stats):
 
 While the above are stored on-chain, the `dna_hash` and explicit base stats can still be used to imply or derive further nuanced attributes for off-chain game logic (e.g., in the Python MVP or a future game server) or more complex on-chain systems:
@@ -296,7 +291,7 @@ While the above are stored on-chain, the `dna_hash` and explicit base stats can 
 *   **Cosmetic Trait Predispositions:** The `dna_hash` could still influence rare base patterns or color variations not covered by dynamic cosmetics.
 *   **Breeding Values:** These on-chain charter attributes will be critical inputs for the genetic algorithm in the future Pet Breeding system, determining the potential traits of offspring.
 
-This combination of explicit on-chain charter attributes and the richer information derivable from the `dna_hash` provides a robust foundation for unique, developable, and breedable Pet NFTs.
+This combination of explicit on-chain charter attributes and the richer information derivable from the `dna_hash` provides a robust foundation for unique, developable, and breedable Pet NFTs, while the simplified handling of dynamic stats like hunger/energy streamlines on-chain operations for an MVP.
 
     ### 7. Staking UI V2 - Enhanced Interactions (Conceptual)
 
@@ -343,126 +338,128 @@ This combination of explicit on-chain charter attributes and the richer informat
 
 ## 7. Competitive Pet Battles
 
-CritterCraft will feature a robust system for competitive pet battles, where Pet NFTs engage in strategic combat. `pallet-battles` is the core on-chain component for managing battle registration, state, and outcomes.
+CritterCraft will feature a robust system for competitive pet battles, where Pet NFTs engage in strategic combat. `pallet-battles` is the core on-chain component for managing battle registration, state, and outcomes, simplified for an MVP.
 
-    ### 1. Core Concepts (Recap from pallet-battles design)
+    ### 1. Core Concepts (Recap from pallet-battles design - MVP Focus)
     *   **Registration:** Players register one of their eligible Pet NFTs for battle.
-    *   **Matchmaking:** (Conceptual) Initially, this might be a simple queue or challenge system. Future enhancements could involve ELO ratings or level-based brackets.
-    *   **Outcome Reporting:** A trusted source (e.g., player 1 in MVP, oracle, or agreed-upon off-chain simulation result) reports the winner.
-    *   **Rewards:** PTCN distributed to the winner.
+    *   **Matchmaking:** (Conceptual) For MVP, this is likely a simple queue or direct challenge system. ELO ratings or complex brackets are post-MVP.
+    *   **Outcome Reporting (Simplified for MVP):** A designated reporter (e.g., player 1, or a future trusted oracle) reports only the `winner_pet_id`. The `loser_pet_id` is inferred on-chain.
+    *   **Rewards (Simplified for MVP):** A fixed PTCN amount (`BattleRewardAmount` from `Config`) is distributed to the winner.
 
-    ### 2. Core On-Chain Logic/Data (`pallet-battles`)
+    ### 2. Core On-Chain Logic/Data (`pallet-battles` - MVP Focus)
     *   **`BattleDetails` Struct:** Stores `player1`, `pet1_id`, `player2` (Option), `pet2_id` (Option), `status` (`PendingMatch`, `Concluded`), `winner` (Option).
-    *   **`PetInBattle` Storage:** Tracks if a pet is currently in an active battle to prevent multiple registrations.
-    *   **`report_battle_outcome` Extrinsic:**
-        *   Receives the outcome (e.g., `winner_pet_id`).
+    *   **`PetInBattle` Storage:** Tracks if a pet is currently in an active battle.
+    *   **`report_battle_outcome` Extrinsic (Simplified):**
+        *   Receives only `battle_id` and `winner_pet_id` as key inputs.
+        *   The `loser_pet_id` is inferred by the pallet based on the `BattleDetails`.
+        *   Storing a `battle_log_hash` is deferred for post-MVP to simplify the reporting process.
         *   Verifies participants and battle status.
         *   Updates `BattleDetails` (status to `Concluded`, records winner).
-        *   Distributes PTCN rewards to the winner's owner via `T::Currency`.
-        *   (Future Synergy) Could mint Battle Trophy NFTs or update win/loss counters on Pet NFTs (via `T::NftHandler`) or User Profiles (via `pallet_user_profile`).
-        *   Emits `BattleConcluded` event.
+        *   Distributes the fixed PTCN reward to the winner's owner via `T::Currency`.
+        *   Emits `BattleConcluded` event including the inferred loser.
 
-    ### 3. Conceptual Battle Mechanics & Formulas (Inputs to Off-Chain Simulation / Advanced On-Chain Logic)
+    ### 3. Conceptual Battle Mechanics & Formulas (Inputs to Off-Chain Simulation - MVP Focus)
 
-    The actual battle simulation (determining the winner based on pet stats and abilities) is conceptually complex and likely performed off-chain initially, with the result submitted to `report_battle_outcome`. However, the design of on-chain pet attributes directly informs this simulation.
+    The actual battle simulation (determining the winner) is performed off-chain for MVP, with the result (`winner_pet_id`) submitted to `report_battle_outcome`. The on-chain pet attributes inform this simulation.
 
-    *   **Input Pet Data:** For each participating pet, the simulation would require:
-        *   All on-chain **Charter Attributes** from `PetNft` (`base_strength`, `base_agility`, `base_intelligence`, `base_vitality`, `primary_elemental_affinity`).
-        *   Current dynamic stats (`level`, `mood_indicator`, `energy_status` - which might influence starting HP or morale).
-        *   Current `personality_traits`.
-        *   Effects of any **equipped or consumed items** (from `pallet-items`), providing temporary or persistent boosts to attributes. This implies `pallet-critter-nfts` (via `NftHandler`) needs to expose "effective" stats or a way to query active item effects.
-    *   **Effective Combat Stats:** The simulation would calculate `effective_attack`, `effective_defense`, `effective_speed`, and `current_hp` (hit points for the battle instance, derived from vitality, level, items) for each pet based on the above inputs.
-    *   **Turn-Based Logic (Conceptual Example):**
-        *   **Attack Order:** Determined by `effective_speed`, with randomness (from a shared seed provided to the simulation) for ties.
-        *   **Actions per Turn:** (Future) Pets could have multiple abilities/moves. Initially, a basic "Attack" action.
-        *   **Hit Chance:** Based on attacker's accuracy (e.g., derived from `effective_agility` or `effective_intelligence`) vs. defender's evasion (e.g., derived from `effective_agility`). Example: `hit_chance = (attacker_accuracy / defender_evasion) * base_hit_percentage`.
-        *   **Damage Calculation:** If a hit occurs, damage could be: `(Attacker_Effective_Attack * Skill_Power_Factor) - (Defender_Effective_Defense * Mitigation_Factor)`. This is then modified by:
-            *   **Elemental Modifiers:** Based on `primary_elemental_affinity` matchups (e.g., Fire vs. Nature: Fire deals 1.5x, Nature deals 0.75x to Fire). A matrix of elemental advantages/disadvantages would be defined.
-            *   **Critical Hits:** A chance (e.g., based on `effective_agility` or a dedicated "luck" stat) to deal increased damage (e.g., 1.5x).
-            *   **Randomness:** Slight variations (e.g., +/- 10%) in final damage output.
-        *   **Personality Trait Influence:** Specific traits could provide situational bonuses/penalties (e.g., "Brave" pets getting an attack boost at low HP; "Timid" pets having a chance to "flinch" and miss a turn if hit critically).
-    *   **Winning Condition:** Battle ends when one pet's HP reaches zero. If a maximum number of turns is reached, conditions like higher remaining HP percentage could determine the winner.
-    *   **Battle Log:** The simulation should produce a detailed log of actions, damage, and random rolls. A hash of this log can be submitted with the battle outcome for potential dispute resolution or verification.
+    *   **Input Pet Data (MVP Focus):** For each participating pet, the off-chain simulation primarily considers:
+        *   **`level`**: From `PetNft`.
+        *   **Core Charter Attributes** from `PetNft`: `base_strength`, `base_agility`, `base_vitality`.
+        *   **`primary_elemental_affinity: Option<ElementType>`**: From `PetNft`.
+        *   **Deferred/Simplified for MVP Simulation:**
+            *   `base_intelligence` might be deferred if not used for special moves in MVP.
+            *   Detailed `personality_traits` influence is simplified or deferred. For MVP, a very simple trait effect (e.g. "Aggressive" = +5% attack) could be considered if essential, but complex interactions are post-MVP.
+            *   Complex item buffs active during battle are deferred. Basic equipped item stats might be considered if an "effective stats" system is simple enough in `pallet-critter-nfts`.
+            *   `mood_indicator` could provide a minor percentage buff/debuff (e.g., Happy = +5% stats, Unhappy = -5% stats) if desired for MVP.
+    *   **Effective Combat Stats (Calculated in Off-Chain Simulation):**
+        *   **Effective HP:** Derived primarily from `base_vitality` and `level` (e.g., `(base_vitality * VITALITY_HP_MULTIPLIER) + (level * LEVEL_HP_BONUS)`).
+        *   **Effective Attack:** Derived primarily from `base_strength` and `level`.
+        *   **Effective Defense:** Derived primarily from `base_vitality` (or a dedicated defense stat if added) and `level`.
+        *   **Effective Speed:** Derived primarily from `base_agility` and `level`.
+    *   **Turn-Based Logic (Conceptual Example - MVP Simplification):**
+        *   **Attack Order:** Determined by `Effective Speed`.
+        *   **Actions per Turn:** Basic "Attack" action for MVP.
+        *   **Hit Chance (Simplified):** A base hit chance (e.g., 85-90%) is used. Complex accuracy vs. evasion calculations based on agility are deferred for MVP. A simple random roll against the base chance determines hit/miss.
+            *   `if (random_value_from_seed % 100) < base_hit_chance { /* Hit */ } else { /* Miss */ }`
+        *   **Damage Calculation (Simplified):** A straightforward formula like `damage = Attacker_Effective_Attack - (Defender_Effective_Defense / 2)`. Ensure minimum damage (e.g., 1) if attack > defense part.
+        *   **Elemental Modifiers:** Retained as a core mechanic. Damage is adjusted based on `primary_elemental_affinity` matchups (e.g., Fire deals 1.5x to Nature).
+        *   **Critical Hits & Advanced Effects (Deferred for MVP):** Complex critical hit systems (beyond a simple, flat chance if desired) and multi-layered status effects are post-MVP for the simulation.
+    *   **Winning Condition:** First pet to reach 0 HP loses. If max turns are reached, higher remaining HP percentage wins.
+    *   **Battle Log (Off-Chain):** The simulation should still produce a log, but its hash is not necessarily submitted on-chain for MVP.
 
-    This detailed interaction of on-chain attributes and a robust (even if initially off-chain) simulation allows for complex and strategic battles while keeping heavy computation off the main chain. The on-chain data remains the source of truth for pet capabilities.
+    This simplified approach for MVP ensures `pallet-battles` is lean, relying on a more straightforward off-chain simulation for battle resolution, while core on-chain attributes still drive the battle's nature.
 
 ## 9. Future Stage: Pet Breeding & Genetics
 ## 9. Future Stage: Pet Breeding & Genetics
 
-A comprehensive Pet Breeding and Genetics system is envisioned as a major future stage for CritterCraft, adding significant depth to pet collection, strategy, and the in-game economy. This system will allow players to breed their Pet NFTs to create new, potentially unique offspring.
+A comprehensive Pet Breeding and Genetics system is envisioned for CritterCraft, adding depth to pet collection and strategy. For an MVP, this system is simplified, focusing on core mechanics and deferring more complex genetic influences.
 
-### 1. Core Breeding Mechanic
+### 1. Core Breeding Mechanic (MVP Focus)
 
-*   **Concept:** Owners of two compatible Pet NFTs (see "Compatibility" below) can choose to breed them together to produce a new Pet NFT (an "egg" or "newborn" pet).
-*   **Pallet Interaction/New Pallet (`pallet-breeding` or extend `pallet-critter-nfts`):**
-    *   An extrinsic like `initiate_breeding(origin, parent1_pet_id: PetId, parent2_pet_id: PetId, fertility_item_id: Option<ItemId>)` would be called.
-    *   The pallet would verify ownership of parent pets, check compatibility, consume any fertility items, and potentially place parent pets into a temporary "breeding cooldown" status.
-    *   A new Pet NFT would be minted, its charter attributes and initial state determined by the genetic inheritance logic.
-*   **Breeding Cooldowns:** Pets may have cooldown periods after breeding before they can breed again to prevent overpopulation and add strategic depth.
+*   **Concept:** Owners of two compatible Pet NFTs can breed them to produce a new Pet NFT (an "egg" or "newborn" pet).
+*   **Pallet Interaction (`pallet-breeding`):**
+    *   The `initiate_breeding(origin, parent1_pet_id, parent2_pet_id)` extrinsic is called.
+    *   The pallet verifies ownership, checks compatibility (e.g., not same pet, cooldowns met), and potentially consumes a basic prerequisite "breeding consent" item if designed.
+    *   It then generates the `OffspringDetails` (containing determined species and DNA hash) and stores it.
+    *   Parent pets are placed into a breeding cooldown.
+*   **Breeding Cooldowns:** Pets have fixed cooldown periods after breeding.
 
-### 2. Genetic Inheritance & Charter Attributes
+### 2. Genetic Inheritance & Charter Attributes (MVP Simplification)
 
-    *   **Foundation:** The explicit on-chain Charter Attributes (`base_strength`, `base_agility`, `base_intelligence`, `base_vitality`, `primary_elemental_affinity`) and the `dna_hash` of parent pets (from `pallet-critter-nfts`) will be fundamental inputs to the genetic algorithm within `pallet-breeding`.
-    *   **Algorithm (Conceptual within `initiate_breeding`):**
-        *   **Offspring Species:** Determined by a combination of parent species. For same-species parents, offspring is typically the same. For cross-species (if allowed), rules would define outcome (e.g., 50/50 chance, specific hybrid type, influenced by fertility items).
-        *   **Offspring DNA Hash:** A new, unique `dna_hash` will be generated for the offspring, algorithmically derived from the parents' `dna_hash` values and incorporating randomness via `T::RandomnessSource` to ensure uniqueness and variation.
-        *   **Offspring Charter Attributes (Base Stats & Affinity):** Each base stat (strength, agility, intelligence, vitality) for the offspring will be calculated based on an average or weighted average of the parents' corresponding base stats, with a small random variation (+/-) applied using `T::RandomnessSource`. The elemental affinity will also be inherited with chances based on parental affinities and potential for random mutation to `None` (Neutral) or another element.
-        *   **Fertility Item Influence:** Consumable fertility items (from `pallet-items`) can be used during `initiate_breeding` to provide boosts or influence probabilities within the genetic algorithm (e.g., increasing the chance of inheriting higher stats, a specific elemental affinity, or a rarer species in cross-breeds).
-    *   **Storage of Determined Traits:** The `pallet-breeding` will store these determined traits (species, DNA hash, base stats, affinity) for the pending offspring (e.g., in an `OffspringDetails` struct) until it is "claimed" or "hatched."
-    *   **Minting Offspring:** The `claim_offspring` extrinsic in `pallet-breeding` will then use these stored, pre-determined charter attributes to mint the new Pet NFT by calling a specialized minting function on `pallet-critter-nfts` (via its `NftManager` trait). This ensures the offspring's foundational traits are set according to the breeding outcome.
+    *   **Simplified Genetics in `pallet-breeding`:**
+        *   **Parental Data:** `pallet-breeding` calls `T::NftHandler::get_pet_simple_genetics(&parent_id)` (implemented by `pallet-critter-nfts`) to retrieve only the `dna_hash` and `species` of each parent.
+        *   **Offspring Species Determination:**
+            *   If parents are of the same species, the offspring inherits that species.
+            *   If parents are of different species (cross-breeding must be explicitly allowed via a `Config` flag in `pallet-breeding` for MVP): The offspring has a 50/50 chance of inheriting the species of either parent. No new hybrid species are generated in MVP.
+        *   **Offspring DNA Hash Generation:** A new, unique `determined_dna_hash` ([u8;16]) is generated by `pallet-breeding`. This is typically a combination of the parents' DNA hashes mixed with randomness from `T::RandomnessSource` (e.g., `(parent1_dna[i].wrapping_add(parent2_dna[i])) / 2 ^ random_byte[i]`).
+        *   **`OffspringDetails` Struct:** This struct, stored in `PendingOffspring` map, is simplified to only include `parents`, `breeder`, `birth_block`, `ready_at_block`, the `determined_dna_hash`, and `determined_species`. It no longer stores pre-calculated base stats or elemental affinity.
+    *   **Delegated Stat Derivation in `pallet-critter-nfts`:**
+        *   When `claim_offspring` is called in `pallet-breeding`, it triggers `T::NftHandler::mint_pet_from_breeding(&owner, determined_species, determined_dna_hash, parent1_id, parent2_id)` (implemented by `pallet-critter-nfts`).
+        *   `pallet-critter-nfts`'s `mint_pet_from_breeding` function then uses this specific `determined_dna_hash` and its existing internal DNA interpretation logic (the same logic used in its regular `mint_pet_nft` extrinsic) to derive all the base charter attributes (`base_strength`, `base_agility`, `base_intelligence`, `base_vitality`, `primary_elemental_affinity`) for the new Pet NFT. Lineage (`parent1_id`, `parent2_id`) is also recorded.
+    *   This approach significantly simplifies `pallet-breeding` by making it responsible only for generating the core genetic blueprint (species and DNA), while `pallet-critter-nfts` consistently handles the expression of that blueprint into concrete stats.
 
-### 3. Breeding Scores / Genetic Fitness
+### 3. Breeding Scores / Genetic Fitness (Deferred for Post-MVP)
 
-*   **Concept:** Each Pet NFT might have one or more "Breeding Scores" or a "Genetic Fitness" rating.
-*   **Influence:** This score could influence:
-    *   The probability of successful breeding.
-    *   The quality or rarity of offspring (e.g., higher chance of inheriting desirable traits or mutations).
-    *   The length of breeding cooldowns.
-*   **Derivation:** Breeding scores could be derived from a combination of factors: pet's level, rarity of its own charter attributes, lineage (number of successful offspring), or specific "champion" bloodlines.
+*   **Concept:** Complex systems for "Breeding Scores" or "Genetic Fitness" ratings that influence breeding success or offspring quality are deferred.
+*   **MVP Implication:** Breeding success is assumed if prerequisites (ownership, cooldowns) are met. Offspring quality is purely a result of the simplified genetic algorithm above.
 
 ### 4. Breeding Tree / Lineage Tracking
 
-*   **Concept:** The `PetNft` struct in `pallet-critter-nfts` would be extended to store lineage information.
-*   **Implementation:**
-    *   `parent1_id: Option<PetId>`
-    *   `parent2_id: Option<PetId>`
-    *   `generation_number: u32`
-*   **UI Impact:** The UI Wallet could display a visual breeding tree for each pet, allowing players to trace ancestry and identify valuable bloodlines. This adds significant collectible value.
+*   **Concept:** The `PetNft` struct in `pallet-critter-nfts` (as previously designed) would store lineage information (`parent1_id: Option<PetId>`, `parent2_id: Option<PetId>`, `generation_number: u32`).
+*   **Implementation:** This is handled by `pallet-critter-nfts`'s `mint_pet_from_breeding` function, which receives parent IDs.
+*   **UI Impact:** Remains valuable for displaying lineage.
 
-### 5. Cross-Species Breeding
+### 5. Cross-Species Breeding (MVP Scope)
 
-*   **Concept (Advanced/Exploratory):** Allow breeding between different (but perhaps related or compatible) pet species.
-*   **Outcome:**
-    *   Could result in hybrid species with unique appearances and trait combinations.
-    *   Might have lower success rates or require specific conditions/items.
-*   **Complexity:** Adds significant complexity to the genetic algorithm and species definition but offers immense variety.
+*   **Concept:** Can be allowed for MVP if a `Config` flag `AllowCrossSpeciesBreeding: Get<bool>` is set in `pallet-breeding`.
+*   **Outcome (Simplified):** As per "Offspring Species Determination" above – 50/50 chance of inheriting either parent's species. No new hybrid species.
 
-### 6. Fertility Items & Consumables
+### 6. Fertility Items & Consumables (MVP Simplification)
 
-*   **Concept:** Introduce consumable items that can influence the breeding process.
-*   **Examples (managed by a future `pallet-items`):**
-    *   **Fertility Boosters:** Increase the chance of successful breeding or reduce cooldown times.
-    *   **Trait Enhancers:** Slightly increase the chance of passing on a specific desirable trait from a parent.
-    *   **Species Compatibility Charms:** Items that might enable or improve success rates for cross-species breeding attempts.
+*   **Concept:** Most complex fertility items directly influencing genetic outcomes are deferred.
+*   **MVP Scope:**
+    *   A very basic "Fertility Consent Form" item (from `pallet-items`, category `BreedingAssist`) might be a prerequisite for initiating breeding, consumed by `pallet-breeding` via `T::ItemHandler` (if an `ItemHandler` is kept in `pallet-breeding::Config`). This is optional for MVP.
+    *   Items that simply reduce breeding cooldowns could be implemented. These would be used via `pallet-items`'s `user_apply_item_to_pet`, which calls `NftManagerForItems::apply_breeding_assist_effect_to_pet` on `pallet-critter-nfts`. `pallet-critter-nfts` would then need logic to update its cooldown storage (if it manages cooldowns directly) or call back to `pallet-breeding` if cooldowns are managed there.
+    *   **Deferral:** Items that directly boost chances of specific stats, traits, or elemental affinities in offspring are post-MVP.
 *   **Economic Model & Impact:**
-    *   **Breeding Fees:** A flat PTCN fee (`BreedingFee`), configurable conceptually in `pallet-breeding::Config`, may be required to initiate a breeding attempt. This fee could contribute to the Treasury or a specific reward pool, acting as a PTCN sink and value recirculation mechanism.
-    *   **Fertility Items:** The use of consumable fertility items (purchased from shops or earned) creates an economic sink for those items and a revenue stream for their sellers/creators, further stimulating the economy.
+    *   **Breeding Fees (MVP):** A flat PTCN fee (`BreedingFee` in `pallet-breeding::Config`) can be configured. For an MVP, this fee **can be set to zero** in the runtime configuration to encourage participation and simplify the initial economy. If a non-zero fee is used, it's a fixed flat amount, and complex tiered fees or those influenced by fertility items are deferred. The fee, if any, is directed to `BreedingFeeDestination`.
+    *   **Fertility Items (MVP Simplification):** Most complex fertility items directly influencing genetic outcomes are deferred. For MVP, basic items like "Fertility Consent Forms" (if implemented as a prerequisite for breeding, consumed via `ItemHandler`) or cooldown reduction items (used via `pallet-items` calling `NftManagerForItems::apply_breeding_assist_effect_to_pet` on `critter-nfts`) would be the primary consumables. These create minor item sinks. The economic impact of more advanced genetic-influencing items is a post-MVP consideration.
 
-### 7. Pallet & System Interactions
+### 7. Pallet & System Interactions (MVP Focus)
 
-*   **`pallet-critter-nfts`:** Core for storing pet data (including lineage, cooldowns), minting new pets, and potentially updating pet status during breeding.
-*   **New `pallet-breeding` (Recommended):** Given the potential complexity of genetic algorithms, compatibility rules, and managing the breeding process itself, a dedicated pallet is likely the cleanest approach. This pallet would interact heavily with `pallet-critter-nfts` (via `NftManager` or direct calls if tightly coupled) and `pallet-items`.
-*   **`pallet-items` (Future):** To manage fertility items.
-*   **UI Wallet:** Extensive new UI sections for selecting pets for breeding, viewing lineage, managing breeding cooldowns, and using fertility items.
-    *   **Viewing Lineage in Pet Details:**
-        *   When a user views the details of their individual Pet NFTs (e.g., in the "My Pet NFTs" list), basic lineage information will be displayed directly as part of the pet's attributes. This would include:
-            *   `Parent 1 ID: [ID of Parent A or N/A]`
-            *   `Parent 2 ID: [ID of Parent B or N/A]`
-            *   `(Generation: Gen X)`
-        *   A placeholder button or link, such as "[View Full Lineage Tree (Future)]", will also be present for each pet.
-        *   Clicking this would conceptually navigate to a more detailed visual pedigree view in a later implementation, allowing users to trace ancestry across multiple generations if the data is available on-chain via the `parent1_id` and `parent2_id` fields in the `PetNft` struct.
+*   **`pallet-critter-nfts`:**
+    *   Implements the `NftBreedingHandler` trait (defined in `pallet-breeding`'s scope).
+        *   `get_pet_simple_genetics`: Provides parent DNA and species to `pallet-breeding`.
+        *   `mint_pet_from_breeding`: Receives determined DNA and species from `pallet-breeding`, then uses its internal logic to derive all base charter stats, mints the new pet, and records lineage.
+    *   May manage breeding cooldowns internally or expose functions for `pallet-breeding` to update them if cooldowns are stored in `pallet-breeding`. (Simpler if `pallet-breeding` manages its own cooldowns based on `PetId`).
+*   **`pallet-breeding`:**
+    *   Calls `T::NftHandler` (implemented by `critter-nfts`) for parent data and final offspring minting.
+    *   Manages `OffspringDetails` and the incubation period.
+    *   Manages breeding cooldowns for Pet IDs (e.g., `PetBreedingCooldowns<T: Config> StorageMap<PetId, T::BlockNumber>`).
+*   **`pallet-items` (MVP):** Provides basic items like cooldown reducers or optional "consent" items. Interaction for cooldowns is likely: User uses item via `pallet-items` -> `pallet-items` calls `NftManagerForItems::apply_breeding_assist_effect_to_pet` on `critter-nfts` -> `critter-nfts` updates its own cooldown state or calls `pallet-breeding` to update cooldown.
+*   **UI Wallet:** UI for selecting pets, initiating breeding, viewing pending offspring (eggs), and claiming them. Lineage display remains relevant.
 
-The Pet Breeding & Genetics system aims to be a deeply engaging end-game activity, encouraging long-term player investment and creating a dynamic market for selectively bred Pet NFTs.
+This simplified Pet Breeding system for MVP focuses `pallet-breeding` on the core mechanics of parent selection, DNA/species determination, and offspring incubation, while leveraging `pallet-critter-nfts` for the actual stat derivation from DNA, ensuring consistency with normally minted pets. Advanced genetic modifiers are deferred.
 
 ## 10. Future Feature: Pet Day Cares & Caregiver Roles
 
@@ -511,9 +508,10 @@ Pet Day Cares introduce a social and passive development mechanic to CritterCraf
 *   Creates new service roles and income streams for players (operating day cares or having skilled caregiver pets).
 *   Encourages specialization of pets (e.g., breeding pets specifically for high caregiver stats).
 *   Adds social depth as players entrust their pets to others or rely on the skills of specific caregiver pets.
-    *   **Economic Model:**
-        *   **Service Fees:** Day Care operators (players or owners of Caregiver Pets) will define fees for their services. Fees could be structured per block, per session (e.g., a fixed number of blocks), or as a flat rate for a defined care duration. These fees are paid in PTCN by the pet owner to the day care operator.
-        *   **Fee Management:** `pallet-daycare` (conceptual) would manage the escrow and transfer of these fees upon successful completion of a care period (when the pet is retrieved). A small platform fee could also be deducted here.
+    *   **Economic Model (MVP Simplification):**
+        *   **Service Fees (MVP):** For an MVP, Day Care operators will set a **fixed PTCN fee for a fixed session duration** (e.g., X PTCN for Y blocks of care). This fee is paid upfront by the pet owner upon enrolling their pet. Complex per-block calculations or dynamically variable fees based on caregiver stats (beyond simple existence) are deferred to post-MVP.
+        *   **Fee Management (MVP):** `pallet-daycare` (conceptual) will manage the direct transfer of the fixed fee from the pet owner to the day care operator upon successful enrollment. More complex escrow mechanisms and settlement/payout schedules are post-MVP considerations.
+        *   **Platform Fees (MVP):** Platform fees for day care services are **deferred** for MVP to simplify the initial economic model and encourage usage.
 
     #### 5. Conceptual User Interface for Pet Day Cares
 
@@ -552,66 +550,63 @@ Pet Day Cares introduce a social and passive development mechanic to CritterCraf
 
 A dedicated Item System, likely managed by a `pallet-items`, will introduce a variety of usable and equippable objects that can affect Pet NFTs, gameplay, and the economy. These items can be earned, crafted (future), or traded.
 
-### 1. Core Item Concepts
+### 1. Core Item Concepts (MVP Simplification)
 *   **Item Definitions:** Each item type will have a definition including its name, description, category, effects, and stackability.
-*   **Item Categories (`ItemCategory` enum):**
-    *   `Consumable`: Single-use items (e.g., health potions, food providing temporary buffs, stat-increase snacks).
-    *   `Equipment`: Wearable items providing persistent bonuses while equipped (e.g., collars for defense, charms for luck). (Note: Equipping logic would be complex and might involve a separate system or `pallet-critter-nfts` extension).
-    *   `TraitModifier`: Rare items that can grant a Pet NFT a new personality trait or modify an existing one.
-    *   `FertilityBooster`: Items specifically designed to influence the Pet Breeding system (e.g., increase success rates, affect offspring traits).
-    *   `Cosmetic`: Items that change a pet's appearance (conceptual, requires visual representation).
-*   **Item Effects (`ItemEffect` enum):**
-    *   `AttributeBoost { attribute: PetAttributeType, value: i16, is_percentage: bool, is_permanent: bool, duration_blocks: Option<BlockNumberType> }`: Modifies a specified pet attribute (e.g., `ExperiencePoints`, `MoodIndicator`, `HungerStatus`, `EnergyStatus`). The `value` can be positive or negative. `is_percentage` determines if `value` is an absolute number or a percentage of the current attribute (more complex). `is_permanent` determines if the change is lasting (e.g., a permanent increase to max energy, or direct XP gain) or temporary (requiring `duration_blocks`). **Note:** Permanent changes to base charter attributes like `BaseStrength` by items would be exceptionally rare or disallowed to maintain their foundational nature.
-    *   `GrantPersonalityTrait { trait_to_grant: Vec<u8> }`: Adds a new personality trait string to the pet, if the pet doesn't already have it and hasn't reached a maximum trait limit.
-    *   `ModifyFertility { fertility_points_change: i16, cooldown_reduction_blocks: Option<BlockNumberType> }`: Specifically for breeding, this can alter a conceptual "fertility score" on a Pet NFT or reduce its breeding cooldown time. This interacts with `pallet-breeding` via effects applied to the Pet NFT.
+*   **Simplified `ItemCategory` Enum (in `pallet-items`):**
+    *   `ConsumableCare`: For basic feed/play items (e.g., "Basic Kibble," "Simple Toy"). Their direct effects (mood/XP boost) are defined in `pallet-critter-nfts::Config` and applied by `feed_pet`/`play_with_pet` extrinsics. `pallet-items` just consumes these items via `BasicCareItemConsumer` trait.
+    *   `ConsumableBoost`: For items that provide direct, often permanent or simple temporary stat boosts (e.g., "XP Potion," "Mood Candy"). These are applied by `pallet-items` calling `NftManagerForItems` trait methods on `pallet-critter-nfts`.
+    *   `QuestItem`: Key items for quests, may not have direct pet effects but are checked by `pallet-quests`.
+    *   `BreedingAssist`: E.g., fertility boosters, items influencing offspring traits. Effects are applied via `NftManagerForItems` calling specific breeding-related functions on `pallet-critter-nfts` or a dedicated breeding pallet.
+    *   `SpecialFunctional`: E.g., trait modifiers, items that unlock specific one-time events or features.
+    *   **Deferred for Post-MVP:** `Equipment` (implying persistent equipped state and passive bonuses), `Cosmetic` (implying visual changes).
+*   **Simplified `ItemEffect` Enum (in `pallet-items`):**
+    *   Focuses on effects manageable for MVP, deferring complex temporary buffs with on-chain duration tracking or direct modification of base charter stats.
+    *   Examples:
+        *   `GrantFixedXp { amount: u32 }`
+        *   `ModifyMood { amount: i16 }` (direct change to `mood_indicator`)
+        *   `GrantPersonalityTrait { trait_to_grant: Vec<u8> }`
+        *   `ModifyBreedingRelatedValue { effect_type_id: u8, value: u32 }` (for specific breeding-related effects handled by `NftManagerForItems` trait on `critter-nfts`)
+    *   **Deferred for Post-MVP:** `AttributeBoost` with complex duration/percentage, `ApplyPermanentCharterBoost` (modifying base stats like Strength - should be extremely rare if ever implemented), `ApplyCosmetic`.
 *   **User Inventories:** Each user will have an on-chain inventory tracking the quantity of each `ItemId` they own.
 
-### 2. Pallet Structure (`pallet-items` Conceptual Outline)
+### 2. Pallet Structure (`pallet-items` Conceptual Outline - MVP Focus)
 *   **`Config` Trait:**
-    *   Dependencies: `Currency` (for item costs if bought from system). Crucially, it defines an associated type `NftHandler` which must implement the `NftManagerForItems` trait. This trait (conceptually defined within `pallet-items`'s `lib.rs` scope for clarity of requirements) details functions that `pallet-critter-nfts` needs to expose.
-    *   Constants: `MaxItemNameLength`, `MaxItemDescriptionLength`, `MaxEffectsPerItem`, `MaxTraitLength`.
+    *   Dependencies: `Currency`.
+    *   Requires `type NftHandler: NftManagerForItems<...>` (implemented by `pallet-critter-nfts` for applying specific effects of `ConsumableBoost`, `SpecialFunctional`, `BreedingAssist` items).
+    *   The pallet itself implements the `BasicCareItemConsumer<AccountId, ItemId>` trait, providing the `consume_specific_item` function for `pallet-critter-nfts` to call.
+    *   Constants: `MaxItemNameLength`, `MaxItemDescriptionLength`, `MaxEffectsPerItem`, `MaxTraitStringLen`.
 *   **Storage:**
     *   `NextItemId`: Counter for unique item type IDs.
     *   `ItemDefinitions<ItemId, ItemDetails>`: Stores the properties of each defined item type.
     *   `UserItemInventory<(AccountId, ItemId), Quantity>`: Tracks how many of each item a user owns.
 *   **Events:**
     *   `ItemDefined`: When a new item type is added by an admin.
-    *   `ItemUsedOnPet`: When a user successfully applies an item to their pet.
+    *   `ItemUsedOnPet`: When a user successfully applies an item (of type `ConsumableBoost`, `SpecialFunctional`, etc.) to their pet via `user_apply_item_to_pet`.
     *   `ItemsTransferred`: When items are moved between users.
-*   **Errors:** For issues like item not found, insufficient quantity, item not applicable to target, etc.
+    *   `CareItemConsumed`: (Optional, if distinct event needed when `consume_specific_item` is called by `critter-nfts`).
+*   **Errors:** Standard errors plus `UseViaDedicatedExtrinsic` (for trying to use `ConsumableCare` items with `user_apply_item_to_pet`), `ItemCategoryMismatch`.
 *   **Extrinsics:**
-    *   `admin_add_item_definition(...)`: Admin-only extrinsic to define new item types, their categories, effects (including `is_permanent`, `is_percentage`, `duration_blocks` for attribute boosts), and stackability.
-    *   `user_apply_item_to_pet(origin, item_id, target_pet_id)`: The core extrinsic for item usage. Its logic involves:
-        1.  Verifying the `item_id` exists and the `user` (origin) possesses it in `UserItemInventory`.
-        2.  Calling `T::NftHandler::get_pet_owner(&target_pet_id)` to confirm the `user` owns the target `PetNft`.
-        3.  Determining item consumption:
-            *   If `ItemCategory::Consumable`, decrement or remove from inventory.
-            *   If stackable and not `Equipment`, decrement quantity.
-            *   `Equipment` items are not "used" via this extrinsic if they require a separate equipping mechanism. If "using" equipment implies a one-time permanent effect application, it's treated like a consumable.
-        4.  Iterating through the `item_details.effects` vector:
-            *   For `ItemEffect::AttributeBoost`, call `T::NftHandler::apply_attribute_boost_to_pet(&user, &target_pet_id, attribute, value, is_percentage, is_permanent, duration_blocks)`.
-            *   For `ItemEffect::GrantPersonalityTrait`, call `T::NftHandler::grant_personality_trait_to_pet(&user, &target_pet_id, trait_to_grant)`.
-            *   For `ItemEffect::ModifyFertility`, call relevant methods on `T::NftHandler` like `modify_pet_fertility_value` or `reduce_pet_breeding_cooldown`.
-        5.  Emitting an `ItemUsedOnPet` event with details of the effects applied.
-    *   Future extrinsics: `transfer_item`, `buy_item_from_system_shop` (if a central shop exists).
+    *   `admin_add_item_definition(...)`: Admin-only, defines new item types with their simplified categories and effects.
+    *   `user_apply_item_to_pet(origin, item_id, target_pet_id)`:
+        *   For items NOT in `ItemCategory::ConsumableCare`.
+        *   Verifies ownership of item and pet.
+        *   Consumes the item from `UserItemInventory`.
+        *   Iterates through the item's defined `effects` (e.g., `GrantFixedXp`, `ModifyMood`) and calls the corresponding simplified methods on `T::NftHandler` (implemented by `pallet-critter-nfts`).
+        *   Emits `ItemUsedOnPet`.
+    *   (Internal function, not extrinsic) `consume_specific_item(user, item_id, expected_category)`: Implements the `BasicCareItemConsumer` trait. Called by `pallet-critter-nfts`'s `feed_pet`/`play_with_pet`. Verifies item category and consumes it.
 
-### 3. Interaction with Other Systems
-*   **`pallet-critter-nfts` (implements `NftManagerForItems`):**
-    *   `get_pet_owner`: Returns the owner of the specified `PetId`.
-    *   `apply_attribute_boost_to_pet`: This is a key function. It would:
-        *   Verify the `caller` is the owner of the `pet_id`.
-        *   Match the `PetAttributeType` to the corresponding field in the `PetNft` struct.
-        *   Apply the `value` (handling `is_percentage` logic if applicable).
-        *   If `is_permanent` is true, directly modify the pet's state (e.g., `experience_points`, `mood_indicator`, `hunger_status`, `energy_status`). **Modification of base charter attributes (like `BaseStrength`) by items should be disallowed or extremely rare and controlled.**
-        *   If `is_permanent` is false and `duration_blocks` is `Some`, this implies a temporary buff/debuff system. `pallet-critter-nfts` would need additional storage to track active temporary effects on pets, their magnitudes, and expiry block numbers. The `apply_time_tick` function in `pallet-critter-nfts` would then also need to process these temporary effects.
-    *   `grant_personality_trait_to_pet`: Appends the given trait to the `PetNft.personality_traits` vector, potentially checking for duplicates or a maximum number of traits.
-    *   `modify_pet_fertility_value`: Modifies a conceptual fertility-related value on the `PetNft` (this might require adding a new field to `PetNft` or dedicated storage).
-    *   `reduce_pet_breeding_cooldown`: Interacts with `pallet-breeding` (if cooldowns are managed there) or updates a cooldown field on the `PetNft` itself if `pallet-critter-nfts` manages that aspect of breeding readiness.
-*   **Shops & Marketplace (`pallet-marketplace`, `pallet-user-shops`):** Items will be listable and tradable, creating economic activity.
-*   **Quests (`pallet-quests`):** Items can be quest objectives or rewards.
-*   **Breeding:** Fertility items will directly interact with the breeding system.
+### 3. Interaction with Other Systems (MVP Focus)
+*   **`pallet-critter-nfts`:**
+    *   **Implements `NftManagerForItems` (Simplified):** Provides methods like `grant_fixed_xp_to_pet`, `modify_mood_of_pet`, `grant_personality_trait_to_pet`, `apply_breeding_assist_effect_to_pet`. These methods are called by `pallet-items`'s `user_apply_item_to_pet` extrinsic for items like `ConsumableBoost` or `SpecialFunctional`. They directly modify the `PetNft` struct.
+    *   **Calls `BasicCareItemConsumer` (Implemented by `pallet-items`):**
+        *   Its `feed_pet` and `play_with_pet` extrinsics take a `food_item_id` or `toy_item_id`.
+        *   They call `T::ItemHandler::consume_specific_item(user, item_id, ItemCategory::ConsumableCare)` on `pallet-items` to verify and consume the item.
+        *   After successful consumption, `feed_pet`/`play_with_pet` apply their own defined mood/XP effects from `pallet-critter-nfts::Config` (e.g., `T::FeedMoodBoost`, `T::FeedXpGain`). This decouples basic care effects from item definitions in `pallet-items` for MVP.
+*   **Shops & Marketplace (`pallet-marketplace`, `pallet-user-shops`):** All item types will be listable and tradable.
+*   **Quests (`pallet-quests`):** `QuestItem` category items can be quest objectives or rewards. `pallet-quests` would interact with `pallet-items` to check/take these items.
+*   **Breeding (`pallet-breeding` or logic within `critter-nfts`):** `BreedingAssist` items have their effects applied via `NftManagerForItems::apply_breeding_assist_effect_to_pet`.
 
-The Item System will significantly enhance gameplay depth, pet customization, and economic activity within CritterCraft.
+This simplified Item System for MVP focuses on core functionalities, clear separation of concerns for basic care versus special item effects, and defers more complex mechanics like equipment and timed buffs.
 
     #### 4. Conceptual User Interface for Item System
 
@@ -628,53 +623,45 @@ The Item System will significantly enhance gameplay depth, pet customization, an
 
 ## 12. User Score & Reputation System (`pallet-user-profile`)
 
-To quantify user engagement, achievements, and trustworthiness within the CritterCraft ecosystem, a `pallet-user-profile` will be introduced. This pallet will maintain various scores for each user, derived from their on-chain activities.
+To quantify user engagement, achievements, and trustworthiness within the CritterCraft ecosystem, a `pallet-user-profile` will be introduced. This pallet will maintain various scores for each user, derived from their on-chain activities, simplified for an MVP.
 
-### 1. Core Concepts
-*   **Derived Scores:** User scores are not directly set by users but are calculated and updated by the system when users perform specific actions in other integrated pallets (e.g., completing quests, winning battles, successful trades, pet development).
-*   **Reputation & Trust:** Certain scores, like a trade reputation score, can help build trust between players in P2P interactions.
-*   **Progression & Recognition:** Scores can serve as a measure of a user's overall progress and contribution to the ecosystem, potentially unlocking perks, titles, or influencing governance weight in the future.
-*   **Activity Tracking:** The profile can also store the `last_active_block` for a user, updated whenever they interact with a system that calls this pallet.
+### 1. Core Concepts (MVP Focus)
+*   **Derived Scores:** User scores are calculated by the system when users perform specific actions in other integrated pallets (e.g., completing quests, winning battles, pet development).
+*   **Progression & Recognition:** Scores serve as a measure of a user's overall progress and contribution to the MVP ecosystem.
+*   **Activity Tracking:** The profile stores the `last_active_block` for a user.
 
-### 2. `UserProfile` Struct Components
-The core data structure, `UserProfile<BlockNumber>`, will store metrics such as:
-*   `total_pet_levels_sum: ScoreValue`: Aggregate sum of levels of all pets owned by the user.
-*   `quests_completed_count: u32`: Total number of unique quests completed.
-*   `battles_won_count: u32`: Total number of battles won.
-*   `successful_trades_count: u32`: Number of successful trades in the marketplace or user shops.
-*   `community_contributions_score: ScoreValue`: Score derived from participation in governance, validated ecosystem support jobs, or other community-benefiting activities.
-    *   `overall_progress_score: ScoreValue`: A weighted composite score. **Its calculation will involve summing weighted contributions from other scores (e.g., pet levels, quests, battles, trades, community contributions). To maintain balance, conceptual caps or diminishing returns might be applied to individual components before they are weighted and summed (e.g., the score contribution from 'quests_completed_count' might cap after 500 quests, as detailed in the `recalculate_overall_score` logic).**
-*   `trade_reputation_score: i32`: A score that can increase or decrease based on feedback from trading partners (requires a future feedback mechanism).
-    *   `last_active_block: BlockNumber`: The block number of the user's last recorded significant on-chain activity, **updated by a central helper function (`update_profile_and_recalculate`) whenever a score-affecting action occurs, or by `record_user_activity` for general actions.**
+### 2. `UserProfile` Struct Components (MVP Focus)
+The core data structure, `UserProfile<BlockNumber>`, for MVP will store:
+*   **`total_pet_levels_sum: ScoreValue`**: Aggregate sum of levels of all pets owned by the user.
+*   **`quests_completed_count: u32`**: Total number of unique quests completed.
+*   **`battles_won_count: u32`**: Total number of battles won.
+*   **`overall_progress_score: ScoreValue`**: A weighted composite score derived from the above MVP metrics.
+*   **`last_active_block: BlockNumber`**: The block number of the user's last recorded significant on-chain activity.
+*   **Deferred for Post-MVP:** `successful_trades_count`, `community_contributions_score`, `trade_reputation_score`. These systems are not part of the core MVP loop or require more complex feedback mechanisms.
 
-### 3. Pallet Structure (`pallet-user-profile` Conceptual Outline)
-*   **`Config` Trait:**
+### 3. Pallet Structure (`pallet-user-profile` Conceptual Outline - MVP Focus)
+*   **`Config` Trait (MVP):**
     *   Includes `RuntimeEvent`.
-    *   Defines constants for score weights (e.g., `PetLevelScoreWeight`, `QuestScoreWeight`, `BattleWinScoreWeight`, `TradeScoreWeight`) used in calculating the `overall_progress_score`.
+    *   Defines constants for MVP score weights: `PetLevelScoreWeight`, `QuestScoreWeight`, `BattleWinScoreWeight`. Weights for deferred scores (like `TradeScoreWeight`) are removed.
 *   **Storage:**
     *   `UserProfiles<AccountId, UserProfile<BlockNumberFor<T>>>`: Stores the profile data for each user.
-*   **Events:**
-    *   `UserProfileUpdated { user, new_overall_score }`: When a user's profile (and particularly overall score) is updated.
-    *   `TradeReputationChanged { user, new_reputation, change_delta }`.
-*   **Hooks:**
-    *   Conceptual `on_initialize` hook placeholder for potential general activity tracking.
-*   **Internal Functions (Callable by Other Pallets):**
-    *   A central private helper `update_profile_and_recalculate(user, mutator_fn)` streamlines updates. It applies the specific metric change via `mutator_fn`, updates `last_active_block`, calls `recalculate_overall_score`, and emits `UserProfileUpdated`.
-    *   Public functions like `update_pet_level_sum`, `record_quest_completion`, `record_battle_win`, `record_successful_trade`, and `record_community_contribution` use this helper.
-    *   `record_user_activity` only updates `last_active_block`.
-    *   `update_trade_reputation` directly mutates the profile for reputation and `last_active_block`, emitting its own `TradeReputationChanged` event, as it may not always directly influence the `overall_progress_score`.
-*   **Score Calculation (`recalculate_overall_score` internal function):**
-    *   This function implements the weighted formula for `overall_progress_score`.
-    *   **Example Weighting & Caps (Conceptual):**
+*   **Events (MVP):**
+    *   `UserProfileUpdated { user, new_overall_score }`. The `TradeReputationChanged` event is removed as the related score is deferred.
+*   **Internal Functions (Callable by Other Pallets - MVP Focus):**
+    *   The central private helper `update_profile_and_recalculate(user, mutator_fn)` remains.
+    *   Public functions for MVP scores: `update_pet_level_sum`, `record_quest_completion`, `record_battle_win`.
+    *   `record_user_activity` (to update `last_active_block`) also remains.
+    *   Functions related to deferred scores (e.g., `record_successful_trade`, `update_trade_reputation`, `record_community_contribution`) are removed or commented out in the pallet code.
+*   **Score Calculation (`recalculate_overall_score` internal function - MVP Focus):**
+    *   The formula is simplified to only use MVP score components:
         *   `pet_score = total_pet_levels_sum * PetLevelScoreWeight`
-        *   `quest_score = min(quests_completed_count, QUEST_COUNT_SCORE_CAP) * QuestScoreWeight` (e.g., `QUEST_COUNT_SCORE_CAP = 500`)
-        *   `battle_score = min(battles_won_count, BATTLE_WINS_SCORE_CAP) * BattleWinScoreWeight` (e.g., `BATTLE_WINS_SCORE_CAP = 1000`)
-        *   `trade_activity_score = min(successful_trades_count, TRADES_COUNT_SCORE_CAP) * TradeScoreWeight` (e.g., `TRADES_COUNT_SCORE_CAP = 200`)
-        *   `overall_score = pet_score + quest_score + battle_score + trade_activity_score + community_contributions_score` (community score might also have caps/weights).
-    *   Weights are defined in `Config`. Caps are illustrative internal constants for balancing.
-*   **Extrinsics:** Likely minimal initially; future additions could allow users to set cosmetic profile aspects.
+        *   `quest_score = min(quests_completed_count, QUEST_COUNT_SCORE_CAP) * QuestScoreWeight`
+        *   `battle_score = min(battles_won_count, BATTLE_WINS_SCORE_CAP) * BattleWinScoreWeight`
+        *   `overall_score = pet_score + quest_score + battle_score`
+    *   Terms for `trade_activity_score` and `community_contributions_score` are removed from the sum for MVP.
+*   **Extrinsics:** None are planned for the MVP of this pallet, as it's primarily service-oriented.
 
-### 4. Impact and Future Uses
+### 4. Impact and Future Uses (Retained Vision)
 *   **Gamification:** Provides clear progression metrics for users.
 *   **Access Control/Perks:** High scores or specific achievements could grant access to exclusive content, events, quests, or titles.
 *   **Governance Influence:** Could be a factor in future advanced governance models (e.g., reputation-weighted voting, eligibility for council).
@@ -706,54 +693,60 @@ The User Score & Reputation System aims to create a richer, more rewarding exper
 
 Beyond the immutable charter attributes set at minting, Pet NFTs in CritterCraft are dynamic entities that grow and change based on time, owner interactions, and experiences. This lifecycle is primarily managed within `pallet-critter-nfts`, potentially influenced by `pallet-items`.
 
-### a. Time-Based State Changes (The "Tick" Mechanic)
-*   **Concept:** Pets' core needs and states (hunger, energy, mood) change passively over time, simulating a living creature.
-*   **Implementation Idea (`apply_time_tick` internal function in `pallet-critter-nfts`):**
-    *   A conceptual internal function, `apply_time_tick(&pet_id, blocks_since_last_tick)`, would be responsible for these updates.
-    *   This function would need a `last_tick_applied_block` field (or similar) in the `PetNft` struct to calculate `blocks_since_last_tick`.
-    *   **Hunger:** Increases gradually over time (e.g., +1 point per N blocks). Reaches a maximum (e.g., 100).
-    *   **Energy:** Decreases gradually over time (e.g., -1 point per M blocks). Reaches a minimum (e.g., 0).
-    *   **Mood:** Dynamically adjusts based on hunger and energy levels. High hunger or low energy negatively impacts mood, while low hunger and high energy positively impact it. Mood could be a scale (e.g., 0-100).
-*   **Triggering Ticks:** This logic could be triggered:
-    *   When any interaction with the pet occurs (e.g., before feeding, playing).
-    *   Periodically by an off-chain worker that queries pets and submits a "tick update" extrinsic (less decentralized, more complex).
-    *   Conceptually, a future on-chain scheduler could also trigger such updates for active pets, though this has weight implications.
+### a. Time-Based State Changes & Dynamic Attribute Simplification
+*   **Concept & Simplification:** Pets' core needs (hunger, energy) are now primarily calculated **off-chain** for UI display, based on on-chain timestamps. Explicit on-chain ticking for these attributes is removed to simplify on-chain state.
+*   **On-Chain Timestamps:** The `PetNft` struct in `pallet-critter-nfts` stores:
+    *   `last_fed_block: BlockNumberFor<T>`: Updated when `feed_pet` is successfully called.
+    *   `last_played_block: BlockNumberFor<T>`: Updated when `play_with_pet` is successfully called. This also serves as a general "last care" timestamp.
+    *   `last_state_update_block: BlockNumberFor<T>`: Tracks any significant on-chain interaction.
+*   **Off-Chain Calculation:** The UI or game client will use these timestamps to estimate current hunger and energy levels. For example:
+    *   `current_hunger = (current_block - last_fed_block) * HUNGER_RATE_PER_BLOCK` (capped).
+    *   `current_energy = MAX_ENERGY - (current_block - last_played_block) * ENERGY_DECAY_RATE_PER_BLOCK` (floored at 0).
+*   **Simplified On-Chain Mood:**
+    *   `mood_indicator: u8` remains in `PetNft` (e.g., 0-Unhappy, up to `T::MaxMoodValue`).
+    *   It's primarily updated by direct interactions (`feed_pet`, `play_with_pet` provide boosts defined in `Config`).
+    *   **Neglect Check:** A simplified on-chain function `apply_neglect_check` (callable extrinsic) can be triggered (e.g., by user, or potentially an off-chain worker in the future). If `current_block - pet.last_played_block > T::NeglectThresholdBlocks::get()`, `mood_indicator` decreases by `T::NeglectMoodPenalty::get()`. This is not a continuous tick.
 
 ### b. Interaction-Driven Development (`feed_pet`, `play_with_pet`)
-*   **Concept:** Owners actively develop their pets by interacting with them, primarily through using items.
-*   **Implementation Idea (Conceptual extrinsics in `pallet-critter-nfts`):**
-    *   **Feeding and Playing:** These actions are now primarily driven by the `user_apply_item_to_pet` extrinsic in `pallet-items`.
-        *   To "feed" a pet, the user would use an item of `ItemCategory::Consumable` (e.g., "Basic Kibble") that has an `ItemEffect::AttributeBoost` targeting `PetAttributeType::HungerStatus` (e.g., value = -30, `is_permanent = true` for the hunger reduction) and potentially `PetAttributeType::MoodIndicator` (e.g., value = +5).
-        *   To "play" with a pet, the user might use a "Toy" item. This could be a durable item (not consumed, future) or a consumable "Play Treat". Its effects could include `AttributeBoost` for `MoodIndicator` (increase), `EnergyStatus` (decrease), `HungerStatus` (slight increase), and `ExperiencePoints` (increase).
-        *   The `pallet-items` extrinsic calls methods on `pallet-critter-nfts` (via `NftManagerForItems`) to apply these specific attribute changes defined by the item's `effects`.
-*   **Events:** `pallet-items` emits `ItemUsedOnPet`. `pallet-critter-nfts` would likely emit `PetNftMetadataUpdated` as its internal `PetNft` struct fields are changed by the `NftManagerForItems` trait implementation.
+*   **Concept:** Owners actively develop their pets by interacting with them, primarily by providing basic care items (food, toys).
+*   **Implementation (Simplified Extrinsics in `pallet-critter-nfts`):**
+    *   `feed_pet(origin, pet_id, food_item_id: ItemId)`:
+        *   Verifies ownership.
+        *   Calls `T::ItemHandler::consume_item_if_category(&owner, food_item_id, pallet_items::ItemCategory::Food)`. This trait, implemented by `pallet-items`, verifies the item is appropriate (e.g., is food) and consumes it from the user's inventory.
+        *   Updates `pet.last_fed_block` to the current block.
+        *   Increases `pet.mood_indicator` by `T::FeedMoodBoost::get()` (capped at `T::MaxMoodValue::get()`).
+        *   Grants `pet.experience_points` by `T::FeedXpGain::get()`.
+        *   Calls `attempt_level_up(pet)`.
+        *   Updates `pet.last_state_update_block`.
+    *   `play_with_pet(origin, pet_id, toy_item_id: ItemId)`:
+        *   Similar flow: Verifies ownership, calls `T::ItemHandler::consume_item_if_category` (for `ItemCategory::Toy`).
+        *   Updates `pet.last_played_block`.
+        *   Increases `pet.mood_indicator` by `T::PlayMoodBoost::get()`.
+        *   Grants `pet.experience_points` by `T::PlayXpGain::get()`.
+        *   Calls `attempt_level_up(pet)`.
+        *   Updates `pet.last_state_update_block`.
+*   **Complex Item Effects:** More complex stat-boosting items or items granting specific abilities would still use the more detailed `NftManagerForItems` trait, called by `pallet-items` when such an item is used, allowing for targeted effects beyond basic care.
 
 ### c. Leveling and Experience (XP)
-*   **Concept:** Pets gain Experience Points (XP) through interactions like feeding, playing, completing quests (via `pallet-quests`), and winning battles (via `pallet-battles`).
+*   **Concept:** Pets gain Experience Points (XP) through interactions like simplified feeding and playing (as above), completing quests (via `pallet-quests`), and winning battles (via `pallet-battles`).
 *   **Implementation Idea (`attempt_level_up` internal function in `pallet-critter-nfts`):**
     *   Whenever a pet gains XP, this internal function is called.
-    *   **XP Curve:** A defined XP curve (e.g., `next_level_xp = BASE_XP * (level ^ EXP_FACTOR)`) determines the XP needed for the next level. This could use constants defined in `Config`.
+    *   **XP Curve:** A defined XP curve (e.g., `next_level_xp = BASE_XP_PER_LEVEL * pet.level` or a more complex formula using `Config` constants) determines the XP needed for the next level.
     *   **Level Up:** If XP exceeds required amount:
         *   Level increases.
         *   XP is reduced by the amount needed (excess XP carries over).
-        *   **Effects of Leveling:**
-            *   This is a key area for future design. Leveling might:
-                *   Slightly increase dynamic stats (if a distinction between base charter stats and current dynamic stats is implemented beyond just level).
-                *   Increase the *potential* or cap for dynamic stats.
-                *   Unlock new abilities or slots for abilities (future system).
-                *   Grant "evolution points" or "skill points" to be spent by the owner (future system).
-            *   For the current conceptual stage, leveling primarily increases the `level` attribute itself, which can then be a factor in battle calculations, quest eligibility, etc.
-    *   An event like `PetLeveledUp` would be emitted.
+        *   **Effects of Leveling:** For MVP, leveling primarily increases the `level` attribute itself. This `level` is then a crucial input for battle calculations, quest eligibility, breeding eligibility, etc. Future enhancements could see leveling grant skill points or minor base stat increases.
+    *   An event like `PetLeveledUp { pet_id, new_level }` is emitted.
 
-### d. Personality Trait Evolution (Conceptual)
+### d. Personality Trait Evolution (Conceptual - Post-MVP)
 *   **Concept:** Beyond the initial set (if any), personality traits could evolve based on long-term pet states or specific interactions.
-*   **Implementation Ideas (Future, within `pallet-critter-nfts` or `apply_time_tick`):**
-    *   If a pet's `mood_indicator` remains very low for an extended period, it might gain a "Grumpy" or "Sad" trait.
-    *   Consistently feeding a pet specific types of "luxury" foods might lead to a "Picky" or "Refined" trait.
+*   **Implementation Ideas (Future, within `pallet-critter-nfts`):**
+    *   If a pet's `mood_indicator` (checked via `apply_neglect_check` or other interactions) remains very low for an extended period, it might gain a "Grumpy" or "Sad" trait (if `BoundedVec` for traits allows additions).
+    *   Consistently feeding a pet specific types of "luxury" foods (via `pallet-items` and `NftManagerForItems`) might lead to a "Picky" or "Refined" trait.
     *   Winning many battles could contribute to a "Brave" or "Confident" trait.
-*   **Mechanics:** This would require more sophisticated tracking of historical states or specific interaction counts, adding complexity but also depth to pet individuality.
+*   **Mechanics:** This would require more sophisticated tracking of historical states or specific interaction counts, adding complexity but also depth to pet individuality. For MVP, `personality_traits` are primarily set at minting or by specific rare items.
 
-This lifecycle ensures that Pet NFTs are not static but grow and change, reflecting their journey and the care provided by their owners, making each pet more unique over time.
+This simplified lifecycle focuses on essential on-chain updates (timestamps, mood boosts, XP) for core interactions, while enabling richer off-chain calculations for dynamic states like hunger and energy, reducing on-chain storage and transaction load for the MVP.
 
 [end of ADVANCED_FEATURES.md]
 
