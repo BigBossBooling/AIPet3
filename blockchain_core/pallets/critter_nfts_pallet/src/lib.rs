@@ -73,6 +73,8 @@ pub mod pallet {
         // pub battle_champion_eras: u32,
         // SYNERGY: For tracking if pet is equipped with items from pallet-items
         // pub equipped_item_slots: BoundedVec<Option<u32 /*ItemId from pallet-items*/>, ConstU32</*MaxEquippedItems*/>>,
+        // CONCEPTUAL: For pet development lifecycle
+        // pub last_tick_applied_block: BlockNumberFor<T>, // Requires PetNft to be generic over T or BlockNumberFor<T> to be accessible
     }
 
     // Conceptual struct for effective stats, returned by a helper
@@ -109,6 +111,10 @@ pub mod pallet {
         /// The cooldown period (in blocks) for daily claims.
         #[pallet::constant]
         type ClaimCooldownPeriod: Get<Self::BlockNumber>;
+
+        // SYNERGY: Conceptual handler for item interactions if this pallet manages them directly
+        // type ItemHandler: pallet_items::ItemManager<Self::AccountId, u32 /*ItemId*/>;
+        // Or this pallet calls pallet-items which then calls back via NftManagerForItems
     }
 
     #[pallet::pallet]
@@ -155,6 +161,10 @@ pub mod pallet {
         PetNftMetadataUpdated { owner: T::AccountId, pet_id: PetId },
         /// A user has successfully claimed their daily PTCN.
         DailyClaimMade { account: T::AccountId, amount: BalanceOf<T>, claim_time: T::BlockNumber },
+        // SYNERGY / CONCEPTUAL: Events for pet development
+        // PetFed { owner: T::AccountId, pet_id: PetId, food_item_id: u32 /*ItemId*/ },
+        // PetPlayedWith { owner: T::AccountId, pet_id: PetId, toy_item_id: u32 /*ItemId*/ },
+        // PetLeveledUp { pet_id: PetId, new_level: u32 },
     }
 
     #[pallet::error]
@@ -181,6 +191,10 @@ pub mod pallet {
         ClaimCooldownNotMet,
         /// The attempt to reward the user with PTCN failed (e.g., currency issuance error).
         ClaimRewardFailed, // This error might be too generic depending on Currency trait used.
+        // SYNERGY / CONCEPTUAL: Errors for pet development extrinsics
+        // ItemNotFood,
+        // ItemNotToy,
+        // ItemInteractionFailed, // General error for when ItemHandler calls fail
     }
 
     #[pallet::call]
@@ -207,15 +221,35 @@ pub mod pallet {
             let dna_hash_data = (dna_seed, &sender, pet_id, &species, &name).encode();
             let dna_hash = frame_support::Hashable::blake2_128(&dna_hash_data);
 
-            // Placeholder derivation for charter attributes from dna_hash
-            // In a real system, this would be a more sophisticated algorithm.
-            let base_strength = dna_hash[0] % 10 + 5; // Example: results in 5-14
-            let base_agility = dna_hash[1] % 10 + 5;
-            let base_intelligence = dna_hash[2] % 10 + 5;
-            let base_vitality = dna_hash[3] % 10 + 5;
+            // --- Charter Attribute Derivation from dna_hash ---
+            // This illustrative algorithm aims for a spread of values.
+            // Each u8 in dna_hash ranges from 0-255.
+            // Base stats range, e.g., 5-20 (16 possible values). Max u8 for stat is 255.
+            // We can use modulo and scaling.
 
-            let element_type_index = dna_hash[4] % 8; // For 8 ElementType variants including Neutral
-            let primary_elemental_affinity = match element_type_index {
+            // Example: Use pairs of bytes from dna_hash for more entropy per stat group.
+            // Strength & Agility from first 4 bytes. Intelligence & Vitality from next 4.
+            // Elemental Affinity from another byte.
+
+            // Strength (5-20): dna_hash[0] & dna_hash[1]
+            // Combine two bytes for a wider initial range (0-65535), then scale.
+            let val_s = ((dna_hash[0] as u16) << 8 | dna_hash[1] as u16) % 100; // 0-99
+            let base_strength = (5 + (val_s * 15) / 99) as u8; // Scales 0-99 to 0-15, then adds 5 -> 5-20
+
+            // Agility (5-20): dna_hash[2] & dna_hash[3]
+            let val_a = ((dna_hash[2] as u16) << 8 | dna_hash[3] as u16) % 100;
+            let base_agility = (5 + (val_a * 15) / 99) as u8;
+
+            // Intelligence (5-20): dna_hash[4] & dna_hash[5]
+            let val_i = ((dna_hash[4] as u16) << 8 | dna_hash[5] as u16) % 100;
+            let base_intelligence = (5 + (val_i * 15) / 99) as u8;
+
+            // Vitality (5-20): dna_hash[6] & dna_hash[7]
+            let val_v = ((dna_hash[6] as u16) << 8 | dna_hash[7] as u16) % 100;
+            let base_vitality = (5 + (val_v * 15) / 99) as u8;
+
+            // Primary Elemental Affinity: dna_hash[8] using Option<ElementType>
+            let primary_elemental_affinity = match dna_hash[8] % 8 { // 7 defined types + None
                 0 => Some(ElementType::Fire),
                 1 => Some(ElementType::Water),
                 2 => Some(ElementType::Earth),
@@ -223,7 +257,7 @@ pub mod pallet {
                 4 => Some(ElementType::Tech),
                 5 => Some(ElementType::Nature),
                 6 => Some(ElementType::Mystic),
-                _ => None, // Or Some(ElementType::Neutral) if None is not desired
+                _ => None, // Represents Neutral or no strong affinity
             };
 
             // Create new PetNft instance
@@ -232,19 +266,18 @@ pub mod pallet {
                 dna_hash,
                 initial_species: species.clone(),
                 current_pet_name: name.clone(),
-                // Set new charter attributes
                 base_strength,
                 base_agility,
                 base_intelligence,
                 base_vitality,
-                primary_elemental_affinity,
-                // Default dynamic attributes
+                primary_elemental_affinity, // This is the Option<ElementType> version
                 level: 1,
                 experience_points: 0,
-                mood_indicator: 1, // Neutral
-                hunger_status: 50,
-                energy_status: 50,
+                mood_indicator: 100, // Example: Start at 100 (Happy/Content)
+                hunger_status: 50,   // Example: Start at 50 (Not hungry, not full)
+                energy_status: 100,  // Example: Start at 100 (Full energy)
                 personality_traits: Vec::new(),
+                // last_tick_applied_block: frame_system::Pallet::<T>::block_number(), // Initialize tick block
             };
 
             // Store the new PetNft
@@ -438,10 +471,119 @@ pub mod pallet {
 
             Ok(())
         }
+
+        // --- Conceptual Extrinsics for Pet Development ---
+
+        // #[pallet::call_index(4)] // Ensure unique index, e.g., after claim_daily_ptcn
+        // pub fn feed_pet(origin: OriginFor<T>, pet_id: PetId, food_item_id: u32 /*ItemId*/) -> DispatchResult {
+        //     let owner = ensure_signed(origin)?;
+        //     // 1. Verify owner owns pet_id (using Self::owner_of or PetNftOwner)
+        //     //    ensure!(Self::owner_of_pet(&owner).map_or(false, |pets| pets.contains(&pet_id)), Error::<T>::NotOwner);
+        //     // 2. Call T::ItemHandler::consume_item(&owner, food_item_id, ItemCategory::Food) // ItemCategory would be part of ItemHandler trait
+        //     //    -> This would verify item ownership, type, and decrement from inventory.
+        //     //    -> It could return item_effects (e.g., hunger_reduction, mood_boost).
+        //     //    -> This requires T::Config to have an ItemHandler.
+        //     // let food_effect = T::ItemHandler::consume_food_item(&owner, food_item_id).map_err(|_| Error::<T>::ItemInteractionFailed)?;
+
+        //     // 3. Mutate PetNft:
+        //     //    PetNfts::<T>::try_mutate(&pet_id, |pet_opt| -> DispatchResult {
+        //     //        let pet = pet_opt.as_mut().ok_or(Error::<T>::PetNotFound)?;
+        //     //        pet.hunger_status = pet.hunger_status.saturating_sub(food_effect.hunger_reduction).max(0); // Assuming food_effect struct
+        //     //        pet.mood_indicator = pet.mood_indicator.saturating_add(food_effect.mood_boost).min(100);
+        //     //        pet.experience_points = pet.experience_points.saturating_add(food_effect.xp_gain);
+        //     //        Self::attempt_level_up(pet)?;
+        //     //        // (Future) Potentially add a personality trait based on food type
+        //     //        Ok(())
+        //     //    })?;
+        //     // Self::deposit_event(Event::PetFed { owner, pet_id, food_item_id });
+        //     Ok(())
+        // }
+
+        // #[pallet::call_index(5)] // Ensure unique index
+        // pub fn play_with_pet(origin: OriginFor<T>, pet_id: PetId, toy_item_id: u32 /*ItemId*/) -> DispatchResult {
+        //     let owner = ensure_signed(origin)?;
+        //     // 1. Verify owner owns pet_id
+        //     // 2. Call T::ItemHandler::use_toy_item(&owner, toy_item_id) -> returns effects
+        //     //    let toy_effect = T::ItemHandler::consume_toy_item(&owner, toy_item_id).map_err(|_| Error::<T>::ItemInteractionFailed)?;
+
+        //     // 3. Mutate PetNft:
+        //     //    PetNfts::<T>::try_mutate(&pet_id, |pet_opt| -> DispatchResult {
+        //     //        let pet = pet_opt.as_mut().ok_or(Error::<T>::PetNotFound)?;
+        //     //        pet.energy_status = pet.energy_status.saturating_sub(toy_effect.energy_cost).max(0); // Playing costs energy
+        //     //        pet.mood_indicator = pet.mood_indicator.saturating_add(toy_effect.mood_increase).min(100);
+        //     //        pet.hunger_status = pet.hunger_status.saturating_add(toy_effect.hunger_increase).min(100); // Playing makes hungry
+        //     //        pet.experience_points = pet.experience_points.saturating_add(toy_effect.xp_gain);
+        //     //        Self::attempt_level_up(pet)?;
+        //     //        // (Future) Potentially add a personality trait based on toy type or play outcome
+        //     //        Ok(())
+        //     //    })?;
+        //     // Self::deposit_event(Event::PetPlayedWith { owner, pet_id, toy_item_id });
+        //     Ok(())
+        // }
     }
 
     // SYNERGY: Public functions callable by other pallets
+    // Separate impl block for organization is fine, or merge into the one with #[pallet::call]
     impl<T: Config> Pallet<T> {
+        // --- Conceptual Internal Pet Development Functions ---
+
+        // fn attempt_level_up(pet: &mut PetNft) -> DispatchResult { // PetNft needs to be generic if used in pallet struct
+        //     // Define XP curve, e.g., next_level_xp = BASE_XP_PER_LEVEL * (pet.level ^ LEVEL_EXPONENT_FACTOR)
+        //     // const BASE_XP_PER_LEVEL: u32 = 100; // Could be T::Config constant
+        //     // const LEVEL_EXPONENT_FACTOR: f32 = 1.5; // Needs careful handling of floats or use integer math
+
+        //     // Simplified integer curve: next_level_xp = 100 * pet.level + (50 * pet.level * pet.level / 10)
+        //     let xp_needed_for_next_level = 100u32.saturating_mul(pet.level).saturating_add(
+        //         50u32.saturating_mul(pet.level).saturating_mul(pet.level) / 10
+        //     );
+
+        //     if pet.experience_points >= xp_needed_for_next_level {
+        //         pet.level = pet.level.saturating_add(1);
+        //         pet.experience_points = pet.experience_points.saturating_sub(xp_needed_for_next_level); // Carry over excess XP
+
+        //         // What happens on level up?
+        //         // - Small permanent increase to dynamic stats (conceptual, if dynamic stats have a base separate from charter)
+        //         // - OR, increase potential for dynamic stats.
+        //         // - OR, grant skill points (future system).
+        //         // - For now, just level up.
+        //         // Self::deposit_event(Event::PetLeveledUp { pet_id: pet.id, new_level: pet.level });
+        //     }
+        //     Ok(())
+        // }
+
+        // Conceptual internal function for time-based state changes
+        // fn apply_time_tick(pet_id: &PetId, blocks_since_last_tick: BlockNumberFor<T>) -> DispatchResult {
+        //     PetNfts::<T>::try_mutate(pet_id, |pet_opt| -> DispatchResult {
+        //         let pet = pet_opt.as_mut().ok_or(Error::<T>::PetNotFound)?;
+
+        //         // 1. Increase Hunger
+        //         // Example: Hunger increases by 1 point every N blocks (e.g., 100 blocks)
+        //         // let hunger_increase_rate: BlockNumberFor<T> = 100u32.into(); // Placeholder
+        //         // let hunger_points_to_add = blocks_since_last_tick / hunger_increase_rate;
+        //         // pet.hunger_status = pet.hunger_status.saturating_add(hunger_points_to_add as u8).min(100); // Max 100
+
+        //         // 2. Decrease Energy
+        //         // Example: Energy decreases by 1 point every M blocks (e.g., 50 blocks)
+        //         // let energy_decrease_rate: BlockNumberFor<T> = 50u32.into(); // Placeholder
+        //         // let energy_points_to_lose = blocks_since_last_tick / energy_decrease_rate;
+        //         // pet.energy_status = pet.energy_status.saturating_sub(energy_points_to_lose as u8);
+
+        //         // 3. Update Mood based on Hunger and Energy
+        //         // if pet.hunger_status >= 80 { pet.mood_indicator = pet.mood_indicator.saturating_sub(20); } // Very hungry, mood drops
+        //         // else if pet.hunger_status <= 20 { pet.mood_indicator = pet.mood_indicator.saturating_add(10); } // Well fed
+        //         // if pet.energy_status <= 20 { pet.mood_indicator = pet.mood_indicator.saturating_sub(20); } // Very tired
+        //         // else if pet.energy_status >= 80 { pet.mood_indicator = pet.mood_indicator.saturating_add(10); } // Energetic
+        //         // pet.mood_indicator = pet.mood_indicator.clamp(0, 100); // Mood 0-100
+
+        //         // 4. (Future) Personality Trait Evolution based on long-term state or random events
+        //         // if pet.mood_indicator < 10 for X consecutive ticks { pet.personality_traits.push("Grumpy".into()); }
+
+        //         // 5. Update Pet's last_tick_applied_block or similar to track this.
+        //         // pet.last_tick_applied_block = frame_system::Pallet::<T>::block_number();
+        //         Ok(())
+        //     })
+        // }
+
         // // SYNERGY: Function to be called by pallet-battles to update champion status
         // pub fn set_battle_champion_status(pet_id: &PetId, eras: u32) -> DispatchResult {
         //     // Ensure pet exists, then update a new field PetNft.battle_champion_eras
@@ -559,3 +701,105 @@ impl<T: Config> NftManager<T::AccountId, PetId, DispatchResult> for Pallet<T> {
         Ok(())
     }
 }
+
+// SYNERGY: Conceptual Implementation of NftManagerForItems trait (defined in pallet-items)
+// use pallet_items; // This would be an actual import if pallet-items was a dependency
+
+// impl<T: Config + pallet_items::Config> pallet_items::NftManagerForItems<
+//     T::AccountId,
+//     PetId, // Assuming PetId = u32 is consistent
+//     pallet_items::PetAttributeType, // Type defined in pallet-items
+//     Vec<u8>, // TraitType for personality_traits
+//     BlockNumberFor<T>, // BlockNumber type consistent with runtime
+//     DispatchResult
+// > for Pallet<T>
+// {
+//     fn get_pet_owner(pet_id: &PetId) -> Option<T::AccountId> {
+//         Self::pet_nft_owner(pet_id)
+//     }
+
+//     fn apply_attribute_boost_to_pet(
+//         _caller: &T::AccountId, // Ownership already verified by pallet-items before calling this
+//         pet_id: &PetId,
+//         attribute: pallet_items::PetAttributeType,
+//         value: i16,
+//         _is_percentage: bool, // Percentage logic would be more complex here
+//         is_permanent: bool,
+//         _duration_blocks: Option<BlockNumberFor<T>>, // Temporary buffs require more infrastructure
+//     ) -> DispatchResult {
+//         PetNfts::<T>::try_mutate(pet_id, |pet_opt| -> DispatchResult {
+//             let pet = pet_opt.as_mut().ok_or(Error::<T>::PetNotFound)?;
+
+//             if !is_permanent {
+//                 // CONCEPTUAL: Temporary buffs would need a new storage item like:
+//                 // TemporaryBuffs: StorageMap<(PetId, pallet_items::PetAttributeType), (value: i16, expiry_block: BlockNumberFor<T>)>
+//                 // For now, we'll only conceptualize permanent effects or direct modifications.
+//                 // return Err(Error::<T>::TemporaryEffectsNotImplementedYet.into()); // Placeholder
+//             }
+
+//             match attribute {
+//                 pallet_items::PetAttributeType::ExperiencePoints => {
+//                     if value > 0 {
+//                         pet.experience_points = pet.experience_points.saturating_add(value as u32);
+//                         // Self::attempt_level_up(pet)?; // Call internal helper
+//                     }
+//                 },
+//                 pallet_items::PetAttributeType::MoodIndicator => {
+//                     pet.mood_indicator = (pet.mood_indicator as i16).saturating_add(value).clamp(0, 100) as u8;
+//                 },
+//                 pallet_items::PetAttributeType::HungerStatus => {
+//                     pet.hunger_status = (pet.hunger_status as i16).saturating_add(value).clamp(0, 100) as u8;
+//                 },
+//                 pallet_items::PetAttributeType::EnergyStatus => {
+//                     pet.energy_status = (pet.energy_status as i16).saturating_add(value).clamp(0, 100) as u8;
+//                 },
+//                 // IMPORTANT: Modifying base charter attributes should be highly restricted or disallowed
+//                 // pallet_items::PetAttributeType::BaseStrength => if is_permanent { /* pet.base_strength = ... */ } else { /* error or temp buff */ },
+//                 // For now, assume item effects primarily target dynamic/status attributes or grant XP.
+//                 _ => { /* return Err(Error::<T>::UnsupportedItemEffectTarget.into()); */ }
+//             }
+//             // Self::deposit_event(Event::PetNftMetadataUpdated { owner: _caller.clone(), pet_id: *pet_id }); // Or a more specific event
+//             Ok(())
+//         })
+//     }
+
+//     fn grant_personality_trait_to_pet(
+//         _caller: &T::AccountId,
+//         pet_id: &PetId,
+//         trait_to_grant: Vec<u8>,
+//     ) -> DispatchResult {
+//         PetNfts::<T>::try_mutate(pet_id, |pet_opt| -> DispatchResult {
+//             let pet = pet_opt.as_mut().ok_or(Error::<T>::PetNotFound)?;
+//             // Ensure trait is not too long (e.g. T::MaxTraitLength from pallet-items if shared, or local const)
+//             // Ensure pet doesn't have too many traits (e.g. BoundedVec for pet.personality_traits)
+//             if !pet.personality_traits.contains(&trait_to_grant) {
+//                 // pet.personality_traits.try_push(trait_to_grant).map_err(|_| Error::<T>::TooManyPersonalityTraits)?; // If BoundedVec
+//                 pet.personality_traits.push(trait_to_grant); // If unbounded Vec for now
+//             }
+//             // Self::deposit_event(Event::PetNftMetadataUpdated { owner: _caller.clone(), pet_id: *pet_id });
+//             Ok(())
+//         })
+//     }
+
+//     fn modify_pet_fertility_value(
+//         _caller: &T::AccountId,
+//         _pet_id: &PetId,
+//         _fertility_points_change: i16,
+//     ) -> DispatchResult {
+//         // CONCEPTUAL: PetNft would need a `fertility_score: u8` field.
+//         // PetNfts::<T>::try_mutate(...)
+//         Ok(())
+//     }
+
+//     fn reduce_pet_breeding_cooldown(
+//         _caller: &T::AccountId,
+//         _pet_id: &PetId,
+//         _reduction_blocks: BlockNumberFor<T>,
+//     ) -> DispatchResult {
+//         // CONCEPTUAL: Requires pallet-breeding to expose a way to modify cooldowns,
+//         // or this pallet needs to manage breeding cooldowns if they are part of PetNft struct.
+//         // More likely, pallet-breeding has its own cooldown storage. This function might then
+//         // call a function in pallet-breeding.
+//         Ok(())
+//     }
+// }

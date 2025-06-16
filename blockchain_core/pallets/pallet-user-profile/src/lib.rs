@@ -111,78 +111,69 @@ pub mod pallet {
 
     // --- Public helper functions for other pallets to call ---
     impl<T: Config> Pallet<T> {
-        /// Called by other pallets to record user activity and update their last_active_block.
-        pub fn record_user_activity(user: &T::AccountId) -> DispatchResult {
-            let current_block = frame_system::Pallet::<T>::block_number();
+        /// Central function to update profile, recalculate overall score, and set last active block.
+        fn update_profile_and_recalculate(user: &T::AccountId, mutator: impl FnOnce(&mut UserProfile<BlockNumberFor<T>>)) {
             UserProfiles::<T>::mutate(user, |profile| {
-                profile.last_active_block = current_block;
+                mutator(profile); // Apply specific changes
+                profile.last_active_block = frame_system::Pallet::<T>::block_number();
+                Self::recalculate_overall_score(profile); // Recalculate after specific changes
             });
-            // Potentially emit an event if needed, or just update.
+            // Emit event after all changes are done and score is recalculated
+            Self::deposit_event(Event::UserProfileUpdated {
+                user: user.clone(),
+                new_overall_score: UserProfiles::<T>::get(user).overall_progress_score,
+            });
+        }
+
+        /// Called by other pallets to simply record user activity if no specific score changes.
+        pub fn record_user_activity(user: &T::AccountId) -> DispatchResult {
+            UserProfiles::<T>::mutate(user, |profile| {
+                profile.last_active_block = frame_system::Pallet::<T>::block_number();
+            });
+            // No UserProfileUpdated event here unless overall score changes, which it doesn't.
+            // Could have a generic ActivityRecorded event if useful.
             Ok(())
         }
 
-        /// Called by pallet-critter-nfts when a pet levels up or total levels change.
+        /// Called by pallet-critter-nfts when a pet levels up or total levels change for a user.
         pub fn update_pet_level_sum(user: &T::AccountId, new_total_level_sum: ScoreValue) -> DispatchResult {
-            UserProfiles::<T>::mutate(user, |profile| {
+            Self::update_profile_and_recalculate(user, |profile| {
                 profile.total_pet_levels_sum = new_total_level_sum;
-                Self::recalculate_overall_score(profile);
-                profile.last_active_block = frame_system::Pallet::<T>::block_number();
-            });
-            Self::deposit_event(Event::UserProfileUpdated {
-                user: user.clone(),
-                new_overall_score: UserProfiles::<T>::get(user).overall_progress_score
             });
             Ok(())
         }
 
         /// Called by pallet-quests when a quest is completed.
         pub fn record_quest_completion(user: &T::AccountId) -> DispatchResult {
-            UserProfiles::<T>::mutate(user, |profile| {
+            Self::update_profile_and_recalculate(user, |profile| {
                 profile.quests_completed_count = profile.quests_completed_count.saturating_add(1);
-                Self::recalculate_overall_score(profile);
-                profile.last_active_block = frame_system::Pallet::<T>::block_number();
-            });
-            Self::deposit_event(Event::UserProfileUpdated {
-                user: user.clone(),
-                new_overall_score: UserProfiles::<T>::get(user).overall_progress_score
+                // Conceptual: Add cap for quest score contribution if desired
+                // if profile.quests_completed_count > MAX_QUEST_SCORE_CONTRIBUTION_COUNT { /* don't add more to score */ }
             });
             Ok(())
         }
 
         /// Called by pallet-battles when a battle is won.
         pub fn record_battle_win(user: &T::AccountId) -> DispatchResult {
-            UserProfiles::<T>::mutate(user, |profile| {
+            Self::update_profile_and_recalculate(user, |profile| {
                 profile.battles_won_count = profile.battles_won_count.saturating_add(1);
-                Self::recalculate_overall_score(profile);
-                profile.last_active_block = frame_system::Pallet::<T>::block_number();
-            });
-            Self::deposit_event(Event::UserProfileUpdated {
-                user: user.clone(),
-                new_overall_score: UserProfiles::<T>::get(user).overall_progress_score
             });
             Ok(())
         }
 
         /// Called by pallet-marketplace or pallet-user-shops for successful trades.
         pub fn record_successful_trade(user: &T::AccountId) -> DispatchResult {
-            UserProfiles::<T>::mutate(user, |profile| {
+            Self::update_profile_and_recalculate(user, |profile| {
                 profile.successful_trades_count = profile.successful_trades_count.saturating_add(1);
-                Self::recalculate_overall_score(profile);
-                profile.last_active_block = frame_system::Pallet::<T>::block_number();
-            });
-            Self::deposit_event(Event::UserProfileUpdated {
-                user: user.clone(),
-                new_overall_score: UserProfiles::<T>::get(user).overall_progress_score
             });
             Ok(())
         }
 
         /// Called by a feedback system (future) or dispute resolution for trades.
         pub fn update_trade_reputation(user: &T::AccountId, reputation_change: i32) -> DispatchResult {
-            UserProfiles::<T>::mutate(user, |profile| {
+            UserProfiles::<T>::mutate(user, |profile| { // Mutate directly as it doesn't affect overall score by default
                 profile.trade_reputation_score = profile.trade_reputation_score.saturating_add(reputation_change);
                 profile.last_active_block = frame_system::Pallet::<T>::block_number();
-                // Overall score might not directly depend on reputation, or it could.
             });
             Self::deposit_event(Event::TradeReputationChanged {
                 user: user.clone(),
@@ -194,27 +185,40 @@ pub mod pallet {
 
         /// Called by governance or job system for community contributions.
         pub fn record_community_contribution(user: &T::AccountId, contribution_score_increase: ScoreValue) -> DispatchResult {
-            UserProfiles::<T>::mutate(user, |profile| {
+            Self::update_profile_and_recalculate(user, |profile| {
                 profile.community_contributions_score = profile.community_contributions_score.saturating_add(contribution_score_increase);
-                Self::recalculate_overall_score(profile);
-                profile.last_active_block = frame_system::Pallet::<T>::block_number();
-            });
-             Self::deposit_event(Event::UserProfileUpdated {
-                user: user.clone(),
-                new_overall_score: UserProfiles::<T>::get(user).overall_progress_score
+                // Conceptual: Cap individual contribution types or total community score contribution
             });
             Ok(())
         }
 
 
         // Internal helper to recalculate the overall progress score
-        fn recalculate_overall_score(profile: &mut UserProfile<BlockNumberFor<T>>) { // Ensure generic matches
-            profile.overall_progress_score =
-                profile.total_pet_levels_sum.saturating_mul(T::PetLevelScoreWeight::get()) +
-                (profile.quests_completed_count as ScoreValue).saturating_mul(T::QuestScoreWeight::get()) +
-                (profile.battles_won_count as ScoreValue).saturating_mul(T::BattleWinScoreWeight::get()) +
-                (profile.successful_trades_count as ScoreValue).saturating_mul(T::TradeScoreWeight::get()) +
-                profile.community_contributions_score; // Community score added directly for now
+        fn recalculate_overall_score(profile: &mut UserProfile<BlockNumberFor<T>>) {
+            // Example weighted formula:
+            let pet_score = profile.total_pet_levels_sum.saturating_mul(T::PetLevelScoreWeight::get());
+
+            // Quests: Apply a cap or diminishing returns conceptually for very high counts
+            let capped_quests_count = profile.quests_completed_count.min(500) as ScoreValue; // Example cap at 500 for scoring
+            let quest_score = capped_quests_count.saturating_mul(T::QuestScoreWeight::get());
+
+            // Battles: Apply a cap or diminishing returns conceptually
+            let capped_battles_won = profile.battles_won_count.min(1000) as ScoreValue; // Example cap at 1000 for scoring
+            let battle_score = capped_battles_won.saturating_mul(T::BattleWinScoreWeight::get());
+
+            // Trades: Apply a cap or diminishing returns conceptually
+            let capped_trades_count = profile.successful_trades_count.min(200) as ScoreValue; // Example cap at 200 for scoring
+            let trade_activity_score = capped_trades_count.saturating_mul(T::TradeScoreWeight::get());
+
+            // Community contributions score is added directly, could also have its own weight or cap.
+            profile.overall_progress_score = pet_score
+                .saturating_add(quest_score)
+                .saturating_add(battle_score)
+                .saturating_add(trade_activity_score)
+                .saturating_add(profile.community_contributions_score);
+
+            // Overall Score Cap (Conceptual):
+            // profile.overall_progress_score = profile.overall_progress_score.min(MAX_OVERALL_SCORE_POSSIBLE);
         }
     }
 }

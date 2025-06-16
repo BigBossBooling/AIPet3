@@ -38,14 +38,23 @@ pub mod pallet {
 
     /// Details of a pending offspring.
     #[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Default)]
-    pub struct OffspringDetails<BlockNumber, PetDnaHash> { // PetDnaHash is [u8;16] from critter_nfts
+    // Ensure ElementType is correctly pathed or made generic if defined elsewhere and not imported.
+    // For this conceptual outline, we assume pallet_critter_nfts::ElementType is accessible.
+    pub struct OffspringDetails<AccountId, BlockNumber, PetDnaHash> {
         pub parents: (PetId, PetId),
-        pub birth_block: BlockNumber, // Block when breeding was initiated
-        pub ready_at_block: BlockNumber, // Block when offspring can be claimed/hatched
-        pub determined_dna_hash: PetDnaHash, // Result of genetic combination
-        pub determined_species: Vec<u8>, // Result of species combination logic
-        // Potentially other determined charter attributes if not solely from DNA
+        pub breeder: AccountId, // Account that initiated breeding & can claim
+        pub birth_block: BlockNumber,
+        pub ready_at_block: BlockNumber,
+        // Determined genetic makeup for the new PetNFT
+        pub determined_dna_hash: PetDnaHash, // Should be [u8;16]
+        pub determined_species: Vec<u8>,
+        pub determined_base_strength: u8,
+        pub determined_base_agility: u8,
+        pub determined_base_intelligence: u8,
+        pub determined_base_vitality: u8,
+        pub determined_elemental_affinity: Option<pallet_critter_nfts::ElementType>,
     }
+
 
     /// Details of an ongoing breeding attempt or cooldown.
     #[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Default)]
@@ -77,6 +86,13 @@ pub mod pallet {
         type BreedingCooldownDuration: Get<Self::BlockNumber>; // Blocks a pet must wait after breeding
         #[pallet::constant]
         type MaxPendingOffspringPerAccount: Get<u32>; // Limit pending claims
+
+        // SYNERGY: Economic Logic - Breeding Fee
+        // #[pallet::constant]
+        // type BreedingFee: Get<BalanceOf<Self>>; // Optional fee to initiate breeding
+        // type BreedingFeeDestination: OnUnbalanced<NegativeImbalanceOf<Self>>; // Where breeding fees go (e.g., Treasury)
+        // Or, if simpler, an AccountId to transfer fees to:
+        // type BreedingFeeCollectorAccountId: Get<Self::AccountId>;
     }
 
     #[pallet::pallet]
@@ -101,7 +117,8 @@ pub mod pallet {
         _,
         Blake2_128Concat,
         OffspringId,
-        OffspringDetails<T::BlockNumber, [u8;16]>, // Assuming DNA hash is [u8;16]
+        // Update struct generics to match definition: AccountId, BlockNumber, PetDnaHash
+        OffspringDetails<T::AccountId, BlockNumberFor<T>, [u8;16]>,
     >;
 
     #[pallet::storage]
@@ -160,6 +177,18 @@ pub mod pallet {
             let breeder = ensure_signed(origin)?;
             ensure!(parent1_id != parent2_id, Error::<T>::ParentsMustBeDifferentPets);
 
+            // SYNERGY: Take breeding fee
+            // let fee = T::BreedingFee::get();
+            // if fee > BalanceOf::<T>::zero() {
+            //    // Example using a FeeCollectorAccountId:
+            //    // T::Currency::transfer(&breeder, &T::BreedingFeeCollectorAccountId::get(), fee, ExistenceRequirement::KeepAlive)
+            //    //     .map_err(|_| Error::<T>::BreedingFeeTransferFailed)?; // Add new error
+            //    // Example using OnUnbalanced:
+            //    // let (imbalance, _) = T::Currency::slash(&breeder, fee); // Ensure slash handles KeepAlive if needed, or use withdraw.
+            //    // T::BreedingFeeDestination::on_unbalanced(imbalance);
+            //    // This conceptual step notes the fee is taken.
+            // }
+
             // --- Verification Phase ---
             // 1. Check ownership of parent1 and parent2 by breeder via T::NftHandler
             //    ensure!(T::NftHandler::owner_of(&parent1_id) == Some(breeder.clone()), Error::<T>::PetNotOwned);
@@ -184,33 +213,63 @@ pub mod pallet {
             // --- Genetic Algorithm & Offspring Generation (Conceptual) ---
             // This part is highly complex and would involve:
             // a. Fetching full PetNft details for parent1_id and parent2_id via T::NftHandler.
-            //    This data now explicitly includes on-chain charter attributes:
-            //    `parent1_data.base_strength`, `parent1_data.primary_elemental_affinity`, etc.
-            //    `parent2_data.base_strength`, etc.
-            //
-            // b. Applying a deterministic genetic algorithm using T::RandomnessSource (for mutations).
-            //    This algorithm would determine the offspring's new dna_hash, initial_species,
-            //    and crucially, its new on-chain charter attributes (base_strength, etc.).
-            //    - Offspring's `initial_species` might be one of the parents', a hybrid, or weighted random.
-            //    - Offspring's `dna_hash` would be a new unique hash, possibly derived from parents' DNA.
-            //    - Offspring's `base_strength` (and other charter stats) would be calculated based on:
-            //        - Average of parents' base_strength.
-            //        - Min/max caps.
-            //        - Small random variation (from T::RandomnessSource).
-            //        - Influence of `parent1_data.dna_hash` and `parent2_data.dna_hash`.
-            //        - (If fertility items are used) `ItemEffect::ModifyFertility` from a conceptual
-            //          `pallet-items` could provide a boost to certain stats or increase chances of rare traits.
-            //          (e.g. `fertility_boost_factor` applied here).
-            //    - Offspring's `primary_elemental_affinity` similarly derived from parents.
-            //
-            // c. The newly minted Pet NFT (via T::NftHandler) would be created with these determined
-            //    immutable charter attributes.
-            //
-            // (e.g., `let (new_dna, new_species, new_charter_stats) = Self::calculate_genetics(parent1_data, parent2_data, fertility_boost_factor);`)
-            let determined_dna_hash: [u8;16] = Default::default(); // Placeholder
-            let determined_species: Vec<u8> = Vec::new(); // Placeholder
-            // let determined_base_strength: u8 = 0; // Placeholder
-            // ... etc. for other charter stats ...
+            //    This data includes on-chain charter attributes (base_strength, etc.) and dna_hash.
+            //    (e.g., `let parent1_data = T::NftHandler::get_pet_details(&parent1_id).ok_or(Error::<T>::ParentPetDataNotFound)?;`)
+            //    (e.g., `let parent2_data = T::NftHandler::get_pet_details(&parent2_id).ok_or(Error::<T>::ParentPetDataNotFound)?;`)
+            //    (This implies NftManager trait needs a `get_pet_details` or similar function returning the PetNft struct).
+
+            // b. Determine Fertility Boost (if item used)
+            //    let fertility_boost_factor: u8 = if let Some(item_id) = fertility_item_id {
+            //        // T::ItemHandler::get_item_fertility_boost(&item_id).unwrap_or(0) // Assumes ItemHandler trait and pallet-items
+            //        5 // Placeholder: e.g., 5% boost
+            //    } else { 0 };
+
+            // c. Determine Offspring Species:
+            //    - If same species parents: Offspring is same species.
+            //    - If cross-species (conceptual, if allowed by future rules):
+            //        - Could be 50/50 chance of either parent's species.
+            //        - Could result in a specific "hybrid" species if defined.
+            //        - Fertility items might influence this.
+            //    (e.g., `let offspring_species = Self::determine_offspring_species(&parent1_data, &parent2_data, fertility_boost_factor);`)
+            let determined_species: Vec<u8> = Vec::new(); // Placeholder, e.g., parent1_data.initial_species
+
+            // d. Generate new Offspring DNA Hash:
+            //    - Combine parts of parent DNA hashes.
+            //    - Introduce randomness from T::RandomnessSource for variation.
+            //    - Example: Take first 8 bytes from parent1.dna_hash, next 8 from parent2.dna_hash.
+            //      Then, XOR with a random [u8;16] from T::RandomnessSource.
+            //    (e.g., `let offspring_dna_hash = Self::generate_offspring_dna(&parent1_data.dna_hash, &parent2_data.dna_hash, &T::RandomnessSource::random_seed().0);`)
+            let determined_dna_hash: [u8; 16] = Default::default(); // Placeholder
+
+            // e. Determine Offspring Charter Attributes (base_strength, base_agility, etc.):
+            //    For each charter attribute:
+            //    - Take average of parents' corresponding base attribute.
+            //    - Add/subtract a small random value (from T::RandomnessSource, scaled).
+            //    - Apply a small percentage boost if fertility_boost_factor > 0.
+            //    - Ensure result is within min/max caps (e.g., 1-25 for base stats if max is higher than 5-20 range).
+            //    - The new `dna_hash` should ideally be the ultimate source for these, but for direct inheritance:
+            //    (e.g., `let mut offspring_base_strength = (parent1_data.base_strength + parent2_data.base_strength) / 2;`)
+            //    (e.g., `let random_factor_str = (T::RandomnessSource::random_seed().0[0] % 5) as i8 - 2; // -2 to +2`)
+            //    (e.g., `offspring_base_strength = (offspring_base_strength as i8 + random_factor_str).max(1).min(25) as u8;`)
+            //    (e.g., `if fertility_boost_factor > 0 { offspring_base_strength = offspring_base_strength.saturating_add( (offspring_base_strength * fertility_boost_factor) / 100 ); }`)
+            //    This process is repeated for agility, intelligence, vitality.
+            let determined_base_strength: u8 = 10; // Placeholder
+            let determined_base_agility: u8 = 10; // Placeholder
+            let determined_base_intelligence: u8 = 10; // Placeholder
+            let determined_base_vitality: u8 = 10; // Placeholder
+
+            // f. Determine Offspring Elemental Affinity:
+            //    - Chance to inherit from either parent.
+            //    - Small chance of mutating to a different element or None (Neutral).
+            //    - Fertility items might influence this.
+            //    (e.g., `let offspring_affinity = Self::determine_offspring_affinity(&parent1_data.primary_elemental_affinity, &parent2_data.primary_elemental_affinity, &T::RandomnessSource::random_seed().0, fertility_boost_factor);`)
+            let determined_elemental_affinity: Option<pallet_critter_nfts::ElementType> = None; // Placeholder
+
+            // g. Store these determined (but not yet final/minted) attributes for the offspring.
+            //    The `OffspringDetails` struct (updated to include all these fields) would store these.
+            //    When `claim_offspring` is called, these attributes are used to mint the new Pet NFT
+            //    via a (potentially new/modified) function in T::NftHandler that accepts pre-determined charter stats.
+            //    E.g., T::NftHandler::mint_with_genetics(owner, species, name, dna_hash, base_stats, affinity)
 
             // --- Record Keeping & Event ---
             // let offspring_id = NextOffspringId::<T>::try_mutate(...)?;
@@ -257,7 +316,9 @@ pub mod pallet {
             //    This `mint_nft` function would need to be part of the NftManager trait, or NftHandler provides a more general mint.
             //    `pallet-critter-nfts`'s `mint_pet_nft` extrinsic takes species and name. We need to adapt.
             //    Let's assume NftHandler is extended or critter_nfts_pallet provides a suitable internal mint function.
-            //    This implies `NftManager` trait might need a `mint_new_pet(owner, species, name, dna, initial_level, etc.) -> Result<PetId, DispatchError>`
+            //    This implies `NftManager` trait might need a `mint_new_pet(owner, species, name, determined_dna_hash, determined_base_strength, ..., determined_elemental_affinity)`
+            //    or `pallet-critter-nfts::mint_pet_nft` could take an Option<[u8;16]> for dna_override,
+            //    and if Some, it uses that for stat derivation instead of generating a new random one.
 
             // 5. Clean up: Remove from PendingOffspring, decrement AccountPendingOffspringCount.
             //    PendingOffspring::<T>::remove(offspring_id);

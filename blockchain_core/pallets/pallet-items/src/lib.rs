@@ -53,22 +53,26 @@ pub mod pallet {
 
     /// Enum defining the possible effects an item can have.
     #[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-    pub enum ItemEffect<BlockNumber> { // Made generic for BlockNumber for duration
+    pub enum ItemEffect<BlockNumberType> {
         AttributeBoost {
             attribute: PetAttributeType,
-            value: i16, // Can be positive or negative
-            duration: Option<BlockNumber>, // Duration in blocks, None for permanent
+            value: i16, // Delta: can be positive or negative
+            is_percentage: bool, // If true, value is e.g. 10 for +10%. If false, it's an absolute delta.
+            is_permanent: bool, // If true, applies to a base stat or permanently alters a dynamic one. If false, needs duration.
+            duration_blocks: Option<BlockNumberType>, // Only if !is_permanent.
         },
         GrantPersonalityTrait {
             trait_to_grant: Vec<u8>, // The personality trait string
+            // Future: chance_to_grant_percent: u8, // If not guaranteed
         },
-        ModifyFertility {
-            boost_percentage: u8, // e.g., 10 for 10%
-            duration_eras: Option<u32>, // Duration in eras
+        ModifyFertility { // Example specific effect for breeding
+            fertility_points_change: i16, // Direct change to a conceptual "fertility" score on PetNft
+            cooldown_reduction_blocks: Option<BlockNumberType>,
         },
-        // Future: ApplyCosmetic { cosmetic_id: u32 },
+        // Future: Heal { amount: u32, heal_type: HealType { HP, Energy } }
+        // Future: RevivePet { chance_percent: u8 }
         // SYNERGY: Effect to grant temporary access to a special battle area or quest line
-        // GrantAccess { feature_id: u32, duration: BlockNumber }
+        // GrantAccess { feature_id: u32, duration: BlockNumberType }
     }
 
     /// Struct to hold details of an item definition.
@@ -94,16 +98,15 @@ pub mod pallet {
         type Currency: Currency<Self::AccountId>; // For system shop or item values
 
         /// Handler for interacting with Pet NFTs to apply item effects.
-        type NftHandler: super::NftManagerForItems< // Use super to access trait in parent module
+        type NftHandler: super::NftManagerForItems<
             Self::AccountId,
-            PetId, // Assuming PetId is u32 or defined in NftManagerForItems
-            PetAttributeType, // Enum for which attribute to modify
-            Vec<u8>, // For personality trait string
-            BlockNumberFor<Self> // Pass BlockNumberFor<Self> for duration
+            PetId,
+            PetAttributeType,
+            Vec<u8>, // TraitType (for personality_traits)
+            BlockNumberFor<Self>, // BlockNumberType for durations
+            DispatchResult // DispatchResultType
         >;
         // Note: NftManagerForItems is a NEW conceptual trait pallet_critter_nfts would need to implement.
-        // It would have methods like `apply_attribute_boost(pet_id, attribute, value, duration)`
-        // and `grant_personality_trait(pet_id, trait_string)`.
 
         #[pallet::constant]
         type MaxItemNameLength: Get<u32>;
@@ -219,71 +222,114 @@ pub mod pallet {
             let user = ensure_signed(origin)?;
 
             // 1. Check if item_id is valid (exists in ItemDefinitions)
-            //    let item_details = ItemDefinitions::<T>::get(item_id).ok_or(Error::<T>::ItemNotFound)?;
+            let user = ensure_signed(origin)?;
 
-            // SYNERGY: Check UserProfile score for eligibility to use rare items (requires Config to access pallet-user-profile)
-            // if T::UserProfileChecker::get_user_score(&user) < item_details.min_required_score {
-            //     ensure!(false, Error::<T>::UserScoreTooLowForItem); // Conceptual error
-            // }
-            // Or, more directly if pallet-user-profile is a known type (less ideal than trait):
-            // // let user_profile = pallet_user_profile::Pallet::<T>::user_profiles(&user); // This assumes T is also Config for pallet_user_profile
-            // // ensure!(user_profile.overall_progress_score > item_details.min_required_score_conceptual, Error::<T>::UserScoreTooLowForItem);
+            let item_details = ItemDefinitions::<T>::get(item_id).ok_or(Error::<T>::ItemNotFound)?;
+            let current_quantity = UserItemInventory::<T>::get((&user, item_id));
+            ensure!(current_quantity > 0, Error::<T>::NotEnoughItemsInInventory);
+
+            // SYNERGY: Check UserProfile score for eligibility to use rare items
+            // // if item_details.rarity_level > RARE_THRESHOLD && T::UserProfileChecker::get_user_score(&user) < item_details.min_required_score {
+            // //     return Err(Error::<T>::UserScoreTooLowForItem.into());
+            // // }
+
+            // Verify pet ownership via NftHandler
+            let pet_owner = T::NftHandler::get_pet_owner(&target_pet_id)
+               .ok_or(Error::<T>::CannotApplyItemToTarget)?; // Pet not found or NftHandler error
+            ensure!(pet_owner == user, Error::<T>::TargetPetNotOwned);
+
+            // Consume item (if consumable or stackable)
+            // Equipment "usage" might be handled by an "equip" extrinsic if it's persistent.
+            // If equipment provides one-time permanent boosts on "use", it's handled like a consumable here.
+            if item_details.category == ItemCategory::Consumable ||
+               (item_details.category != ItemCategory::Equipment && item_details.max_stack.is_some()) { // Non-equipment stackable
+                UserItemInventory::<T>::insert((&user, item_id), current_quantity.saturating_sub(1));
+            } else if item_details.category == ItemCategory::Equipment {
+                // For true "Equipment" that is equipped/unequipped, this extrinsic might not be the right one.
+                // Or, if "using" equipment means a one-time application of its permanent effects:
+                // ensure!(current_quantity > 0, Error::<T>::NotEnoughItemsInInventory); // Should already be checked
+                // UserItemInventory::<T>::insert((&user, item_id), current_quantity.saturating_sub(1)); // Consume it
+                // This implies that "Equipment" items providing permanent boosts are consumed on use.
+                // If they are meant to be equipped and provide passive stats, a different system is needed.
+                // For now, let's assume this extrinsic is for items that apply effects and are consumed or quantity reduced.
+                // If it's a non-stackable, non-consumable that's not equipment (e.g. a reusable key item for a quest),
+                // its quantity might not change. This logic depends on item design.
+                // For now, we'll assume non-equipment items are consumed if stackable, or one-time use if not stackable.
+                // The current logic for equipment is to disallow direct "use" if it means "equip".
+                ensure!(item_details.category != ItemCategory::Equipment, Error::<T>::CannotUseEquipmentDirectly);
+            }
 
 
-            // 2. Check if user owns the item (UserItemInventory) and has enough quantity (e.g. > 0)
-            //    UserItemInventory::<T>::try_mutate((&user, item_id), |quantity| -> DispatchResult {
-            //        ensure!(*quantity > 0, Error::<T>::NotEnoughItemsInInventory);
-            //        *quantity -= 1;
-            //        Ok(())
-            //    })?;
+            // Apply effects via T::NftHandler
+            for effect in &item_details.effects {
+                match effect {
+                    ItemEffect::AttributeBoost { attribute, value, is_percentage, is_permanent, duration_blocks } => {
+                        T::NftHandler::apply_attribute_boost_to_pet(
+                            &user, &target_pet_id, *attribute, *value, *is_percentage, *is_permanent, *duration_blocks
+                        ).map_err(|_| Error::<T>::ItemEffectApplicationFailed)?;
+                    },
+                    ItemEffect::GrantPersonalityTrait { trait_to_grant } => {
+                        T::NftHandler::grant_personality_trait_to_pet(
+                            &user, &target_pet_id, trait_to_grant.clone()
+                        ).map_err(|_| Error::<T>::ItemEffectApplicationFailed)?;
+                    },
+                    ItemEffect::ModifyFertility { fertility_points_change, cooldown_reduction_blocks } => {
+                        if *fertility_points_change != 0 {
+                             T::NftHandler::modify_pet_fertility_value(&user, &target_pet_id, *fertility_points_change)
+                                 .map_err(|_| Error::<T>::ItemEffectApplicationFailed)?;
+                        }
+                        if let Some(reduction) = cooldown_reduction_blocks {
+                             T::NftHandler::reduce_pet_breeding_cooldown(&user, &target_pet_id, *reduction)
+                                 .map_err(|_| Error::<T>::ItemEffectApplicationFailed)?;
+                        }
+                    },
+                    // Handle other future effects like GrantAccess, Heal, RevivePet
+                }
+            }
 
-            // 3. Check if user owns target_pet_id (via T::NftHandler::owner_of_pet from pallet-critter-nfts)
-            //    This part of NftHandlerForItems might just be a direct call to pallet_critter_nfts owner_of.
-            //    Or NftHandlerForItems might have its own owner_of if it needs specific logic.
-            //    Let's assume T::NftHandler has an `owner_of(pet_id)` method.
-            //    let pet_owner = T::NftHandler::owner_of_pet(&target_pet_id).ok_or(Error::<T>::CannotApplyItemToTarget)?;
-            //    ensure!(pet_owner == user, Error::<T>::TargetPetNotOwned);
-
-            // 4. Apply effects via T::NftHandler
-            //    For each effect in item_details.effects:
-            //    match effect {
-            //        ItemEffect::AttributeBoost { attribute, value, duration } => {
-            //            T::NftHandler::apply_attribute_boost(&target_pet_id, attribute, value, duration, &user)?;
-            //        },
-            //        ItemEffect::GrantPersonalityTrait { trait_to_grant } => {
-            //            T::NftHandler::grant_personality_trait(&target_pet_id, trait_to_grant, &user)?;
-            //        },
-            //        ItemEffect::ModifyFertility { boost_percentage, duration_eras } => {
-            //             T::NftHandler::modify_pet_fertility(&target_pet_id, boost_percentage, &user)?;
-            //        }
-            //    }
-
-            // 5. Emit Event::ItemUsedOnPet
-            //    Self::deposit_event(Event::ItemUsedOnPet { user, item_id, pet_id: target_pet_id, effects_applied: item_details.effects });
+            Self::deposit_event(Event::ItemUsedOnPet { user, item_id, pet_id: target_pet_id, effects_applied: item_details.effects.clone() });
 
             Ok(())
         }
     }
 }
 
-pub trait NftManagerForItems<AccountId, PetId, AttributeType, TraitType, BlockNumber> {
-    fn apply_attribute_boost(
+
+// --- NftManagerForItems Trait Definition ---
+// This trait defines how pallet-items interacts with pallet-critter-nfts.
+// pallet-critter-nfts would then implement this.
+pub trait NftManagerForItems<AccountId, PetId, LocalPetAttributeType, TraitTypeString, BlockNumberType, DispatchResultType> {
+    fn get_pet_owner(pet_id: &PetId) -> Option<AccountId>;
+
+    fn apply_attribute_boost_to_pet(
+        caller: &AccountId, // The user applying the item
         pet_id: &PetId,
-        attribute: AttributeType,
+        attribute: LocalPetAttributeType, // This is pallet_items::PetAttributeType
         value: i16,
-        duration: Option<BlockNumber>,
-        owner_check: &AccountId
-    ) -> DispatchResult;
+        is_percentage: bool,
+        is_permanent: bool,
+        duration_blocks: Option<BlockNumberType>,
+    ) -> DispatchResultType;
 
-    fn grant_personality_trait(
+    fn grant_personality_trait_to_pet(
+        caller: &AccountId,
         pet_id: &PetId,
-        trait_to_grant: TraitType,
-        owner_check: &AccountId
-    ) -> DispatchResult;
+        trait_to_grant: TraitTypeString, // TraitTypeString is Vec<u8>
+    ) -> DispatchResultType;
 
-    fn modify_pet_fertility(
+    fn modify_pet_fertility_value( // Example for a specific fertility stat
+        caller: &AccountId,
         pet_id: &PetId,
-        boost_percentage: u8,
-        owner_check: &AccountId
-    ) -> DispatchResult;
+        fertility_points_change: i16,
+    ) -> DispatchResultType;
+
+    fn reduce_pet_breeding_cooldown( // Example
+        caller: &AccountId,
+        pet_id: &PetId,
+        reduction_blocks: BlockNumberType,
+    ) -> DispatchResultType;
+
+    // Future: fn apply_cosmetic_to_pet(caller: &AccountId, pet_id: &PetId, cosmetic_id: u32) -> DispatchResultType;
+    // Future: fn equip_item_to_pet_slot(caller: &AccountId, pet_id: &PetId, item_id: ItemId, slot_type: u8) -> DispatchResultType;
+    // Future: fn unequip_item_from_pet_slot(caller: &AccountId, pet_id: &PetId, slot_type: u8) -> DispatchResultType;
 }

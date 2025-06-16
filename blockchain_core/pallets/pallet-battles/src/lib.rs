@@ -19,11 +19,38 @@ pub mod pallet {
     // The actual path might differ based on project structure.
     // For this tool, we assume the type checker would find it if properly configured.
     // use pallet_critter_nfts::NftManager; // This would be the ideal way with correct dependencies.
+    // use pallet_critter_nfts; // To access ElementType, or define locally/share via common types crate
+    // use sp_std::vec::Vec; // For Vec in BattlePetStats
 
     pub type BattleId = u32;
     // PetId will come from T::PetId
 
     type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+
+    // Conceptual struct for passing comprehensive pet stats to battle logic
+    // This would be populated by fetching PetNft data and active item effects via NftHandler.
+    // pub struct BattlePetStats<PetId, AccountId, ElementType> { // Made generic for ElementType
+    //     pet_id: PetId,
+    //     owner: AccountId,
+    //     // Base Charter Attributes
+    //     base_strength: u8,
+    //     base_agility: u8,
+    //     base_intelligence: u8,
+    //     base_vitality: u8,
+    //     primary_elemental_affinity: Option<ElementType>, // Assuming ElementType from critter_nfts
+    //     // Dynamic Attributes
+    //     level: u32,
+    //     current_hp: u32, // Calculated from vitality, level, items for the battle instance
+    //     current_mood: u8, // Mood might influence battle performance
+    //     // Effective Combat Stats (derived from base, level, items, temporary effects)
+    //     effective_attack: u32,
+    //     effective_defense: u32,
+    //     effective_speed: u32, // Determines attack order, evasion
+    //     // Other relevant info
+    //     personality_traits: Vec<Vec<u8>>,
+    //     // equipped_items: Vec<u32 /*ItemId*/>, // If equipment provides passive bonuses
+    //     // active_buffs_debuffs: Vec<u32 /*StatusEffectId*/>, // If items grant temporary effects
+    // }
 
 
     #[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Default)]
@@ -195,6 +222,18 @@ pub mod pallet {
             // 4. Determine the actual winner_pet_id based on this simulation.
             //    For now, `winner_pet_id` is an input to this extrinsic.
 
+            // Before this extrinsic is called, the battle simulation (as conceptualized in calculate_battle_simulation)
+            // would have occurred (e.g., off-chain, or via a trusted oracle that runs this logic).
+            // The extrinsic then receives the `winner_pet_id` (and potentially `loser_pet_id`, `battle_log_hash`).
+
+            // 1. Fetch PetNft details for winner_pet_id and (inferred) loser_pet_id using T::NftHandler
+            //    This confirms their existence and ownership by players in the battle.
+            //    This data would also be used if the on-chain extrinsic itself performed a simplified final check or applied on-chain effects.
+            //    (e.g. `let winner_details = T::NftHandler::get_pet_details(&winner_pet_id).ok_or(...)?;`)
+
+            // 2. (Future) If a battle_log_hash is provided, it could be stored on-chain for verifiability.
+            //    `CurrentBattleLogHash::<T>::put(battle_id, battle_log_hash);`
+
             let mut winner_account_final: Option<T::AccountId> = None;
             let mut loser_account_final: Option<T::AccountId> = None;
             let mut loser_pet_id_final: Option<T::PetId> = None;
@@ -244,6 +283,19 @@ pub mod pallet {
                 PetInBattle::<T>::remove(&pet2_id_val);
             }
 
+            // 3. Distribute Rewards (already part of the extrinsic's existing logic)
+            //    Rewards could be scaled based on level difference or Pet "rank" (future UserProfile synergy).
+
+            // 4. (Future SYNERGY) Update PetNft stats (if battles grant XP or change personality traits)
+            //    `T::NftHandler::grant_battle_xp(&winner_pet_id, XP_AMOUNT_PLACEHOLDER)?;`
+            //    `T::NftHandler::update_personality_from_battle(&winner_pet_id, BattleOutcome::Win)?;` // Conceptual
+            //    `if let Some(ref loser_id) = loser_pet_id_final { T::NftHandler::update_personality_from_battle(loser_id, BattleOutcome::Loss)?; }`
+
+            // 5. (Future SYNERGY) Update UserProfile stats for players
+            //    `if let Some(ref winner_acc) = winner_account_final { pallet_user_profile::Pallet::<T>::record_battle_win(winner_acc)?; }`
+            //    `if let Some(ref loser_acc) = loser_account_final { pallet_user_profile::Pallet::<T>::record_battle_loss(loser_acc)?; }`
+
+
             Self::deposit_event(Event::BattleConcluded {
                 battle_id,
                 winner_account: winner_account_final,
@@ -255,5 +307,89 @@ pub mod pallet {
 
             Ok(())
         }
+    }
+
+    // Separate impl block for conceptual helper functions
+    impl<T: Config> Pallet<T> {
+        // fn calculate_battle_simulation(
+        //     pet1_stats: &BattlePetStats<T::PetId, T::AccountId, pallet_critter_nfts::ElementType>, // Assume BattlePetStats defined above
+        //     pet2_stats: &BattlePetStats<T::PetId, T::AccountId, pallet_critter_nfts::ElementType>,
+        //     random_seed: T::Hash, // For RNG aspects
+        // ) -> (T::PetId, T::PetId) { // Returns (winner_pet_id, loser_pet_id)
+
+            // --- Conceptual Battle Logic ---
+            // This simulation is illustrative. A real system could be far more complex and likely off-chain.
+            // const MAX_BATTLE_TURNS: u32 = 50; // Example constant
+
+            // 0. Initialize Battle State:
+            //    - let mut pet1_current_hp = pet1_stats.current_hp;
+            //    - let mut pet2_current_hp = pet2_stats.current_hp;
+            //    - (Future) Apply pre-battle passive abilities or item effects.
+
+            // 1. Determine Attack Order (Example):
+            //    - Higher `effective_speed` attacks first. If equal, use randomness or a tie-breaker.
+            //    - let (mut current_attacker_stats, mut current_defender_stats, mut current_attacker_hp, mut current_defender_hp) =
+            //    -   if pet1_stats.effective_speed >= pet2_stats.effective_speed { // Handle ties with logic or randomness
+            //    -       (pet1_stats, pet2_stats, pet1_current_hp, pet2_current_hp)
+            //    -   } else {
+            //    -       (pet2_stats, pet1_stats, pet2_current_hp, pet1_current_hp)
+            //    -   };
+
+            // 2. Simulate Turns (Max turns or until one pet's HP is <= 0):
+            //    `for _turn in 0..MAX_BATTLE_TURNS { ... }`
+            //    In each turn, attacker performs an action (e.g., basic attack).
+            //    (Future: Pets could have multiple abilities/moves to choose from).
+
+            //    a. Calculate Hit Chance (Example):
+            //       - `let base_hit_chance: u8 = 90;` // Percentage
+            //       - `let accuracy_factor = current_attacker_stats.effective_speed.saturating_div(current_defender_stats.effective_speed.max(1));` // Avoid div by zero
+            //       - `let mut hit_chance = base_hit_chance.saturating_mul(accuracy_factor.min(2) as u8);` // Cap factor effect
+            //       - `hit_chance = hit_chance.min(99);` // Max 99% hit
+            //       // Use random_seed part for this turn's randomness
+            //       // `if (random_value_from_seed_for_this_turn % 100) >= hit_chance { /* Miss */ /* Swap roles and continue */ }`
+
+            //    b. Calculate Damage (Example):
+            //       - `let base_damage = current_attacker_stats.effective_attack;`
+            //       - `let defense_reduction = current_defender_stats.effective_defense / 2;` // example
+            //       - `let raw_damage = base_damage.saturating_sub(defense_reduction);`
+            //       - `let min_damage = 1u32;`
+            //       - `let mut damage = raw_damage.max(min_damage);`
+
+            //    c. Apply Elemental Modifier (Example):
+            //       - `let elemental_multiplier = Self::get_elemental_multiplier(&current_attacker_stats.primary_elemental_affinity, &current_defender_stats.primary_elemental_affinity);` // e.g., Fire > Nature = 1.5x, Fire < Water = 0.75x (fixed point math needed)
+            //       // `damage = (damage as u64 * elemental_multiplier_fixed_point / FIXED_POINT_DENOMINATOR) as u32;`
+
+            //    d. Critical Hit Chance (Example):
+            //       - `let crit_chance = 5u8.saturating_add(current_attacker_stats.effective_agility / 10);`
+            //       // `if (random_value_from_seed_for_crit % 100) < crit_chance { damage = damage.saturating_mul(3) / 2; /* Critical Hit! 1.5x */ }`
+
+            //    e. Personality Trait Influence (Example):
+            //       - `if current_attacker_stats.personality_traits.contains(&"Brave".encode()) && current_attacker_hp < (current_attacker_stats.current_hp / 4) { damage = damage.saturating_mul(11) / 10; /* Brave last stand +10% */ }`
+            //       // `if current_defender_stats.personality_traits.contains(&"Timid".encode()) && (random_value_from_seed_for_flinch % 10) == 0 { /* Timid pet might "flinch" and miss its next turn - conceptual */ }`
+
+            //    f. Apply Damage:
+            //       - `current_defender_hp = current_defender_hp.saturating_sub(damage);`
+            //       - `if current_defender_hp == 0 { return (current_attacker_stats.pet_id, current_defender_stats.pet_id); }`
+
+            //    g. Swap attacker/defender roles for next iteration of the turn.
+            //       // `core::mem::swap(&mut current_attacker_stats, &mut current_defender_stats);`
+            //       // `core::mem::swap(&mut current_attacker_hp, &mut current_defender_hp);`
+            //    `}` // End of turn loop
+
+            // 3. Determine Winner if MAX_BATTLE_TURNS reached:
+            //    - // E.g., pet with higher remaining HP percentage wins.
+            //    - // Or, if HP is equal, pet with higher total effective stats, or random.
+            //    // `if pet1_current_hp * 100 / pet1_stats.current_hp.max(1) >= pet2_current_hp * 100 / pet2_stats.current_hp.max(1) { (pet1_stats.pet_id, pet2_stats.pet_id) } else { (pet2_stats.pet_id, pet1_stats.pet_id) }`
+
+            // Placeholder return, actual logic above would return earlier.
+            // (pet1_stats.pet_id, pet2_stats.pet_id) // Default or error case
+        // }
+
+        // fn get_elemental_multiplier(
+        //     _attacker_affinity: &Option<pallet_critter_nfts::ElementType>,
+        //     _defender_affinity: &Option<pallet_critter_nfts::ElementType>,
+        // ) -> u64 { // Should return a fixed-point multiplier (e.g., 100 for 1.0x, 150 for 1.5x)
+        //     100 // Placeholder for 1.0x
+        // }
     }
 }

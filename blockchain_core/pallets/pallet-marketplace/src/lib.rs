@@ -19,15 +19,19 @@ pub trait NftManager<AccountId, PetId, DispatchResult> {
 pub mod pallet {
     use frame_support::{
         pallet_prelude::*,
-        traits::{Currency, ExistenceRequirement}, // Added ExistenceRequirement
+        traits::{Currency, ExistenceRequirement, OnUnbalanced},
     };
     use frame_system::pallet_prelude::*;
+    use sp_runtime::Perbill; // For Perbill type for fees
     use scale_info::TypeInfo;
     // Import the NftManager trait defined above
     use super::NftManager; // This refers to the NftManager trait defined outside this module
 
 
     type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+    // Conceptual: Type alias for negative imbalance, used with OnUnbalanced for fee handling.
+    // type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
+
 
     #[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
     pub struct ListingDetails<AccountId, Balance> {
@@ -43,6 +47,13 @@ pub mod pallet {
 
         /// The handler for NFT operations, bridging to the NFT pallet.
         type NftHandler: NftManager<Self::AccountId, Self::PetId, DispatchResult>;
+
+        // SYNERGY: Marketplace Fee Configuration
+        // #[pallet::constant]
+        // type MarketplaceFeeRate: Get<Perbill>; // e.g., Perbill::from_percent(1) for 1%
+        // type FeeDestination: OnUnbalanced<NegativeImbalanceOf<Self>>; // Where fees go (e.g., Treasury, Burn)
+        // Or, if simpler, an AccountId to transfer fees to:
+        // type FeeCollectorAccountId: Get<Self::AccountId>;
     }
 
     #[pallet::pallet]
@@ -184,6 +195,37 @@ pub mod pallet {
 
             // Ensure buyer is not the seller
             ensure!(buyer != listing.seller, Error::<T>::BuyerIsSeller);
+
+            // --- Conceptual Fee Logic ---
+            // let sale_price = listing.price;
+            // let fee = T::MarketplaceFeeRate::get() * sale_price; // Perbill multiplication needs careful handling of Balance type
+            // let price_after_fee = sale_price.saturating_sub(fee);
+
+            // // Option 1: Direct transfer to FeeCollectorAccountId (simpler)
+            // // if fee > BalanceOf::<T>::zero() {
+            // //     T::Currency::transfer(&buyer, &T::FeeCollectorAccountId::get(), fee, ExistenceRequirement::AllowDeath)?;
+            // // }
+            // // T::Currency::transfer(&buyer, &listing.seller, price_after_fee, ExistenceRequirement::KeepAlive)?;
+            // // This means buyer pays `sale_price + fee` or pallet needs to manage an intermediate account.
+
+            // // Option 2: Buyer pays full price to seller, then seller pays fee (more complex for seller) - not ideal.
+
+            // // Option 3: Buyer pays full price, pallet intercepts fee.
+            // // This would require the pallet to have a sovereign account or use imbalances.
+            // // Total amount to be withdrawn from buyer:
+            // // T::Currency::withdraw(&buyer, sale_price, WithdrawReasons::TRANSACTION_PAYMENT, ExistenceRequirement::KeepAlive)?;
+            // // T::Currency::deposit_creating(&listing.seller, price_after_fee); // Simplified deposit
+            // // T::FeeDestination::on_unbalanced(T::Currency::issue(fee)); // If FeeDestination handles Imbalance
+
+            // For this conceptual stage, we'll proceed with the original direct transfer logic
+            // and add a NOTE that fees would alter this flow by splitting the `listing.price`.
+            // The actual implementation detail (e.g. pallet sovereign account, or buyer pays seller and then fee separately)
+            // would be decided during full implementation. The critical point is acknowledging the fee.
+            // A comment will suffice here to indicate where fee logic would apply.
+            // NOTE ON FEE: At this point, the `listing.price` would be split.
+            // `price_to_seller = listing.price - fee`. `fee` goes to `T::FeeDestination`.
+            // The T::Currency::transfer below would use `price_to_seller`.
+            // An additional transfer or imbalance handling would manage the `fee`.
 
             // Perform currency transfer from buyer to seller
             T::Currency::transfer(&buyer, &listing.seller, listing.price, ExistenceRequirement::KeepAlive)
