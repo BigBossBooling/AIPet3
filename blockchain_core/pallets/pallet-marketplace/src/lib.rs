@@ -115,6 +115,12 @@ pub mod pallet {
             // Check if already listed
             ensure!(!Listings::<T>::contains_key(&pet_id), Error::<T>::NftAlreadyListed);
 
+            // SYNERGY: Check seller's trade_reputation_score from pallet-user-profile
+            // // let seller_profile = pallet_user_profile::Pallet::<T>::user_profiles(&seller); // Requires T: pallet_user_profile::Config
+            // // if seller_profile.trade_reputation_score < MIN_REP_TO_LIST_CONSTANT {
+            // //     return Err(Error::<T>::SellerReputationTooLow.into()); // Conceptual error
+            // // }
+
             // Verify ownership using the NftHandler
             let owner = T::NftHandler::owner_of(&pet_id).ok_or(Error::<T>::PetNotFound)?;
             ensure!(owner == seller, Error::<T>::NotNftOwner);
@@ -196,6 +202,15 @@ pub mod pallet {
 
             // Remove the listing from storage
             Listings::<T>::remove(&pet_id);
+
+            // SYNERGY: After successful trade, call pallet-user-profile to update trade stats for buyer and seller
+            // // pallet_user_profile::Pallet::<T>::record_successful_trade(&buyer)?; // Requires T: pallet_user_profile::Config
+            // // pallet_user_profile::Pallet::<T>::record_successful_trade(&listing.seller)?;
+
+            // SYNERGY: (Future) Could also update buyer's/seller's trade_reputation_score based on this successful transaction
+            // // pallet_user_profile::Pallet::<T>::update_trade_reputation(&buyer, POSITIVE_TRADE_REP_CHANGE)?;
+            // // pallet_user_profile::Pallet::<T>::update_trade_reputation(&listing.seller, POSITIVE_TRADE_REP_CHANGE)?;
+
 
             // Deposit an event
             Self::deposit_event(Event::NftSold {

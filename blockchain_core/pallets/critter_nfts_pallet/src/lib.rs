@@ -69,7 +69,18 @@ pub mod pallet {
         pub energy_status: u8,  // Numerical value
         pub personality_traits: Vec<Vec<u8>>, // New field for storing personality traits as Vec of strings (Vec<u8>)
         // pub owner: AccountId, // Considering if owner should be part of the struct or only in maps
+        // SYNERGY: For battle champion status influencing breeding or other perks
+        // pub battle_champion_eras: u32,
+        // SYNERGY: For tracking if pet is equipped with items from pallet-items
+        // pub equipped_item_slots: BoundedVec<Option<u32 /*ItemId from pallet-items*/>, ConstU32</*MaxEquippedItems*/>>,
     }
+
+    // Conceptual struct for effective stats, returned by a helper
+    // pub struct EffectivePetStats {
+    //     pub strength: u8,
+    //     pub agility: u8,
+    //     // ... other stats
+    // }
 
     // Type alias for balance, needs to be accessible by Config trait for DailyClaimAmount
     // So, it's better defined directly or within the pallet module but before Config.
@@ -427,6 +438,47 @@ pub mod pallet {
 
             Ok(())
         }
+    }
+
+    // SYNERGY: Public functions callable by other pallets
+    impl<T: Config> Pallet<T> {
+        // // SYNERGY: Function to be called by pallet-battles to update champion status
+        // pub fn set_battle_champion_status(pet_id: &PetId, eras: u32) -> DispatchResult {
+        //     // Ensure pet exists, then update a new field PetNft.battle_champion_eras
+        //     // PetNfts::<T>::try_mutate(...)
+        //     Ok(())
+        // }
+
+        // // SYNERGY: Functions for pallet-items to equip/unequip items
+        // // These would require ItemId type, MaxEquippedItems const in Config, and equipped_item_slots in PetNft
+        // pub fn equip_item_to_pet(owner: &T::AccountId, pet_id: &PetId, item_id: u32 /*ItemId*/, slot_index: u8) -> DispatchResult {
+        //     // Verify ownership, pet exists, item exists (via a trait call to pallet-items perhaps), slot_index valid
+        //     // Update PetNft.equipped_item_slots[slot_index] = Some(item_id);
+        //     // Potentially apply item's permanent effects if it's equipment with on-equip stat boosts
+        //     Ok(())
+        // }
+        // pub fn unequip_item_from_pet(owner: &T::AccountId, pet_id: &PetId, slot_index: u8) -> DispatchResult {
+        //     // Verify ownership, pet exists, slot_index valid and has an item
+        //     // PetNft.equipped_item_slots[slot_index] = None;
+        //     // Potentially remove item's permanent effects
+        //     Ok(())
+        // }
+
+        // // SYNERGY: Function for pallet-battles or pallet-items to get current effective stats
+        // // This would read base stats, level, mood, and factor in equipped items.
+        // pub fn get_effective_pet_stats(pet_id: &PetId) -> Option<super::EffectivePetStats> { // Assuming EffectivePetStats is defined above
+        //     // Fetch PetNft
+        //     // Fetch equipped items (e.g., from PetNft.equipped_item_slots)
+        //     // For each equipped item, fetch its stat boosts (would need a trait call to pallet-items)
+        //     // Calculate effective stats based on base stats, level, mood, item boosts.
+        //     // Return Some(EffectivePetStats { ... }) or None if pet not found
+        //     None // Placeholder
+        // }
+
+        // // SYNERGY: Helper for pallet-breeding to get all relevant data for parent, including charter stats
+        // pub fn get_pet_breeding_data(pet_id: &PetId) -> Option<PetNft> { // Could return a more specific struct
+        //     Self::pet_nfts(pet_id) // Returns the whole PetNft struct which now includes charter attributes
+        // }
     }
 }
 

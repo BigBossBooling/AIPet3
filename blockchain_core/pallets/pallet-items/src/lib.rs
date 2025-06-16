@@ -67,6 +67,8 @@ pub mod pallet {
             duration_eras: Option<u32>, // Duration in eras
         },
         // Future: ApplyCosmetic { cosmetic_id: u32 },
+        // SYNERGY: Effect to grant temporary access to a special battle area or quest line
+        // GrantAccess { feature_id: u32, duration: BlockNumber }
     }
 
     /// Struct to hold details of an item definition.
@@ -218,6 +220,15 @@ pub mod pallet {
 
             // 1. Check if item_id is valid (exists in ItemDefinitions)
             //    let item_details = ItemDefinitions::<T>::get(item_id).ok_or(Error::<T>::ItemNotFound)?;
+
+            // SYNERGY: Check UserProfile score for eligibility to use rare items (requires Config to access pallet-user-profile)
+            // if T::UserProfileChecker::get_user_score(&user) < item_details.min_required_score {
+            //     ensure!(false, Error::<T>::UserScoreTooLowForItem); // Conceptual error
+            // }
+            // Or, more directly if pallet-user-profile is a known type (less ideal than trait):
+            // // let user_profile = pallet_user_profile::Pallet::<T>::user_profiles(&user); // This assumes T is also Config for pallet_user_profile
+            // // ensure!(user_profile.overall_progress_score > item_details.min_required_score_conceptual, Error::<T>::UserScoreTooLowForItem);
+
 
             // 2. Check if user owns the item (UserItemInventory) and has enough quantity (e.g. > 0)
             //    UserItemInventory::<T>::try_mutate((&user, item_id), |quantity| -> DispatchResult {

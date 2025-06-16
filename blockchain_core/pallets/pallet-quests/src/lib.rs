@@ -20,6 +20,10 @@ pub mod pallet {
     pub struct Quest<Balance> {
         pub description: Vec<u8>, // Consider BoundedVec<u8, T::MaxDescriptionLength> for determinable weight
         pub reward_ptcn: Balance,
+        // SYNERGY: Fields for prerequisites
+        // pub min_user_progress_score: Option<u64 /*ScoreValue from pallet-user-profile*/>,
+        // pub required_pet_charter_attribute: Option<(u32 /*PetAttributeType enum index or ID*/, u8 /*min_value*/)>,
+        // pub required_pet_id_for_completion: Option<u32 /*PetId*/>, // If a specific pet must be "used" or present
     }
 
     #[pallet::config]
@@ -152,6 +156,21 @@ pub mod pallet {
 
             // Check if quest exists
             let quest = AvailableQuests::<T>::get(&quest_id).ok_or(Error::<T>::QuestNotFound)?;
+
+            // SYNERGY: Check UserProfile scores or PetNft attributes for quest eligibility
+            // This check would ideally be in `accept_quest` or a helper `can_accept_quest`
+            // For `complete_quest`, we assume eligibility was met to accept it.
+            // Example conceptual checks (would require T::Config to provide access to other pallets or traits):
+            // if let Some(min_score) = quest.min_user_progress_score {
+            //     // let user_profile = pallet_user_profile::Pallet::<T>::user_profiles(&account);
+            //     // ensure!(user_profile.overall_progress_score >= min_score, Error::<T>::UserScoreTooLow);
+            // }
+            // if let Some((attr_type, min_val)) = quest.required_pet_charter_attribute {
+            //     // let pet_details = T::NftHandler::get_pet_details(&quest.required_pet_id_for_completion.unwrap_or_default());
+            //     // match attr_type { /* check specific base stat */ }
+            //     // ensure!(pet_stat >= min_val, Error::<T>::PetAttributeTooLow);
+            // }
+
 
             // Check if already completed by this account
             ensure!(!CompletedQuests::<T>::contains_key((&account, &quest_id)), Error::<T>::QuestAlreadyCompleted);
