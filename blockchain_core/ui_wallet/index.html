@@ -591,32 +591,130 @@
         </div>
     </div>
 
+        <hr>
+        <h2>My Item Inventory</h2>
+        <div id="item-inventory-section">
+            <p>View and manage your collected items.</p>
+            <ul id="item-inventory-list">
+                <p id="item-inventory-placeholder">Your inventory is empty or loading...</p>
+                <!-- Example of an item list item (dynamically generated):
+                <li>
+                    <strong>Item:</strong> Health Potion (ID: ITEM001) x3 <br>
+                    <strong>Category:</strong> Consumable<br>
+                    <strong>Description:</strong> Restores a small amount of a pet's energy.<br>
+                    <strong>Effects:</strong> +20 Energy (Temporary or Permanent)<br>
+                    <label for="item-target-pet-ITEM001">Use on Pet:</label>
+                    <select class="item-target-pet-select" data-item-id="ITEM001">
+                        <option value="">-- Select your pet --</option>
+                        <! -- User's pets populated here -->
+                    </select>
+                    <button class="use-item-button" data-item-id="ITEM001">Use Item</button>
+                </li>
+                <li>
+                    <strong>Item:</strong> Basic Strength Charm (ID: EQUIP001) x1 <br>
+                    <strong>Category:</strong> Equipment<br>
+                    <strong>Description:</strong> A charm that slightly boosts a pet's base strength.<br>
+                    <strong>Effects:</strong> +2 Base Strength (while equipped - conceptual equipping UI needed later)<br>
+                    <! -- For equipment, "Use" might mean "Equip" which is more complex -->
+                    <button disabled>Equip (Conceptual)</button>
+                </li>
+                -->
+            </ul>
+            <p id="item-action-status"></p>
+        </div>
+
+        <hr>
+        <h2>My Profile & Achievements</h2>
+        <div id="user-profile-section">
+            <p>Your progress and scores within the CritterCraft ecosystem.</p>
+            <div id="profile-scores-display">
+                <p><strong>Overall Progress Score:</strong> <span id="profile-overall-score">Loading...</span></p>
+                <p><strong>Total Pet Levels Sum:</strong> <span id="profile-pet-levels-sum">Loading...</span></p>
+                <p><strong>Quests Completed:</strong> <span id="profile-quests-completed">Loading...</span></p>
+                <p><strong>Battles Won:</strong> <span id="profile-battles-won">Loading...</span></p>
+                <p><strong>Successful Trades:</strong> <span id="profile-successful-trades">Loading...</span></p>
+                <p><strong>Community Contributions Score:</strong> <span id="profile-community-contributions">Loading...</span></p>
+                <p><strong>Trade Reputation Score:</strong> <span id="profile-trade-reputation">Loading...</span></p>
+                <p><strong>Last Active Block:</strong> <span id="profile-last-active">Loading...</span></p>
+            </div>
+            <!-- Conceptual: Could add display for badges or titles earned based on scores -->
+        </div>
+
     <hr>
     <h2>Governance</h2>
     <div id="governance-section">
-        <p>The CritterCraft on-chain governance system is currently under development. Our goal is to empower PTCN token holders to shape the future of the ecosystem.
-        Refer to <a href="../../GOVERNANCE.md" target="_blank">GOVERNANCE.md</a> for full details.</p>
+            <p>Participate in the decentralized governance of CritterCraft! Your voice matters. Review proposals, vote on referenda, and see how the community shapes the future.
+            (Refer to <a href="../../GOVERNANCE.md" target="_blank">GOVERNANCE.md</a> for full details on the governance model.)</p>
 
-        <h4>Planned Governance Features:</h4>
-        <ul>
-            <li>
-                <strong>Public Referenda (via `pallet-democracy`):</strong>
-                All PTCN holders will be able to propose and vote on referenda for key decisions.
-                This includes voting with PTCN, potentially with conviction voting options to give more weight to long-term holders.
-            </li>
-            <li>
-                <strong>CritterCraft Council (via `pallet-collective` & elections):</strong>
-                An elected council will help guide the ecosystem, propose referenda, potentially fast-track urgent proposals, or act as a technical committee.
-                Council members will be elected by PTCN holders.
-            </li>
-            <li>
-                <strong>On-Chain Treasury (via `pallet-treasury`):</strong>
-                A portion of network fees or other revenue streams may be directed to an on-chain treasury.
-                Proposals to spend treasury funds (e.g., for development grants, community initiatives, marketing) will be submitted and voted upon via the governance system (typically by the Council or through public referenda).
-            </li>
-        </ul>
-        <p><strong>Current Status:</strong> Foundational work in progress. Interactive governance features will be rolled out in future updates.</p>
-        <p>Your participation will be crucial for a truly decentralized CritterCraft!</p>
+            <!-- Democracy: Referenda & Proposals -->
+            <div id="democracy-module" style="margin-bottom: 20px; padding:10px; border: 1px solid #cce;">
+                <h3>Public Referenda & Proposals (`pallet-democracy`)</h3>
+                <div id="active-referenda">
+                    <h4>Active Referenda</h4>
+                    <ul id="referenda-list">
+                        <p id="referenda-list-placeholder">Loading active referenda...</p>
+                        <!-- Example Referendum Item (Dynamically Generated):
+                        <li>
+                            <strong>Referendum #15:</strong> Adjust Marketplace Fee to 0.5%<br>
+                            <em>Proposed by: Council / AccountId...</em><br>
+                            Ends in: 3 days, 4 hours (Block #XXXXXX)<br>
+                            Current Tally: Yes: 60% (VoteAmount), No: 30% (VoteAmount), Turnout: Y% <br>
+                            <button class="vote-referendum-button" data-referendum-id="15" data-vote="aye">Vote YES</button>
+                            <button class="vote-referendum-button" data-referendum-id="15" data-vote="nay">Vote NO</button>
+                            <a href="#referendum-details-15" class="view-referendum-details">View Details</a>
+                        </li>
+                        -->
+                    </ul>
+                </div>
+                <div id="submit-proposal-area" style="margin-top: 15px;">
+                    <button id="submitProposalButton">Submit New Proposal (Conceptual)</button>
+                    <p id="proposal-submit-status"></p>
+                </div>
+            </div>
+
+            <!-- Council Information -->
+            <div id="council-module" style="margin-bottom: 20px; padding:10px; border: 1px solid #cec;">
+                <h3>CritterCraft Council (`pallet-collective`)</h3>
+                <div id="council-members">
+                    <h4>Current Council Members</h4>
+                    <ul id="council-members-list">
+                        <p id="council-members-placeholder">Loading council members...</p>
+                        <!-- Example Member: <li>CouncilMemberAddr1 (IdentityName)</li> -->
+                    </ul>
+                </div>
+                <div id="council-proposals" style="margin-top: 10px;">
+                    <h4>Recent Council Motions/Proposals</h4>
+                    <ul id="council-motions-list">
+                        <p id="council-motions-placeholder">Loading council motions...</p>
+                        <!-- Example Motion: <li>Motion #8: Fast-track Referendum #15 - Passed</li> -->
+                    </ul>
+                </div>
+                <button id="viewCouncilInfoButton">More Council Info (Conceptual)</button>
+            </div>
+
+            <!-- Treasury Information -->
+            <div id="treasury-module" style="padding:10px; border: 1px solid #ecc;">
+                <h3>Ecosystem Treasury (`pallet-treasury`)</h3>
+                <p>Treasury Balance: <span id="treasury-balance">Loading...</span> PTCN</p>
+                <div id="treasury-proposals">
+                    <h4>Active Spending Proposals</h4>
+                    <ul id="treasury-proposals-list">
+                        <p id="treasury-proposals-placeholder">Loading treasury proposals...</p>
+                        <!-- Example Proposal:
+                        <li>
+                            <strong>Proposal #3:</strong> Fund Community Art Contest (ID: TP003)<br>
+                            <em>Proposed by: CouncilMemberAddr1</em><br>
+                            Amount Requested: 5000 PTCN<br>
+                            Beneficiary: CommunityWalletAddr<br>
+                            Status: In Voting / Approved / Awarded<br>
+                            <button class="support-treasury-proposal" data-proposal-id="TP003">Endorse Proposal (Conceptual)</button>
+                        </li>
+                        -->
+                    </ul>
+                </div>
+                <button id="submitTreasuryProposalButton">Submit Treasury Proposal (Conceptual)</button>
+            </div>
+            <p id="governance-action-status" style="margin-top: 15px;"></p>
     </div>
 
     <hr>

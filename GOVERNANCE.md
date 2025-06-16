@@ -118,3 +118,38 @@ These pallets are designed to work together:
 *   `pallet-elections-phragmen` populates the members of `pallet-collective`.
 
 The specific origins (e.g., who can submit certain proposals, who can approve treasury spends) will be carefully configured in the runtime to establish the desired governance balance for CritterChain.
+
+## 8. Conceptual User Interface for On-Chain Governance
+
+The CritterCraft UI Wallet will provide a dedicated "Governance" section to facilitate user interaction with the on-chain governance mechanisms. This interface will aim to make participation transparent and accessible.
+
+### a. Public Referenda & Proposals (`#democracy-module`)
+*   **Display Active Referenda (`#referenda-list`):**
+    *   A list of all currently active public referenda.
+    *   Each item will show: Referendum ID, title/short description, proposer, voting end time/block, current tally (Yes/No votes, turnout percentage).
+    *   Buttons to "Vote YES" and "Vote NO" on each referendum.
+    *   A link/button to view more detailed information about the referendum (e.g., full proposal text, on-chain call data).
+*   **Submitting Proposals (`#submit-proposal-area`):**
+    *   A button "[Submit New Proposal (Conceptual)]" will eventually allow eligible users to initiate new public referenda. This flow would involve specifying the proposed action (e.g., a runtime call) and potentially bonding PTCN.
+*   **Voting Interface:**
+    *   When voting, users might be presented with options for "Conviction Voting" (locking tokens for longer to increase vote weight).
+*   **Status Feedback:** A general status area (`#governance-action-status` or module-specific) will provide feedback on proposal submissions and voting transactions.
+
+### b. CritterCraft Council Information (`#council-module`)
+*   **Display Council Members (`#council-members-list`):**
+    *   A list of current council members, showing their AccountIds and identities (if available).
+*   **Council Motions/Proposals (`#council-motions-list`):**
+    *   A feed of recent motions proposed and voted upon by the council (e.g., motions to fast-track referenda, approve treasury spends).
+*   **More Council Info (`#viewCouncilInfoButton`):**
+    *   A conceptual button leading to more detailed information about the council's mandate, election process, and historical decisions.
+
+### c. Ecosystem Treasury (`#treasury-module`)
+*   **Treasury Balance (`#treasury-balance`):** Display the current total balance of the on-chain treasury.
+*   **Spending Proposals (`#treasury-proposals-list`):**
+    *   A list of active proposals to spend funds from the treasury.
+    *   Each item will show: Proposal ID, proposer, amount requested, beneficiary, short description/purpose, and current status (e.g., "Under Council Consideration," "Approved, Pending Payout," "Paid").
+    *   A conceptual "[Endorse Proposal]" button might allow users to signal support, though formal approval typically rests with the Council or via a referendum.
+*   **Submitting Treasury Proposals (`#submitTreasuryProposalButton`):**
+    *   A conceptual button for users (or council members) to initiate new treasury spending proposals, detailing the request, amount, and beneficiary.
+
+This UI structure aims to provide a clear overview of governance activities and enable PTCN holders to participate effectively in the decision-making processes of CritterCraft. All interactions involving extrinsics (voting, proposing) will initially be simulated in the UI development phase.

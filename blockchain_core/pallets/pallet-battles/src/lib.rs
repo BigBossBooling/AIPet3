@@ -165,6 +165,36 @@ pub mod pallet {
             // This would need to be more robust (e.g. oracle, both players agree, or signed game server report).
             ensure!(reporter == battle.player1, Error::<T>::NotAuthorizedToReportOutcome);
 
+            // --- BATTLE LOGIC (Conceptual - Likely Off-Chain or complex on-chain) ---
+            // The actual determination of `winner_pet_id` would come from a more complex system.
+            // For this conceptual update, we assume `winner_pet_id` is correctly reported.
+            // The logic below then assigns winner/loser accounts based on this.
+            //
+            // A full battle simulation would:
+            // 1. Fetch full PetNft details for battle.pet1_id and battle.pet2_id (if applicable)
+            //    This would be done via T::NftHandler, which would need a method like `get_pet_details(pet_id)`.
+            //    Pet details would include:
+            //    - Explicit on-chain charter attributes: base_strength, base_agility, etc.
+            //    - Dynamic attributes: level, current_mood, current_energy.
+            //    - Personality traits.
+            //    - (Crucially) Any active temporary attribute boosts from consumed items
+            //      or bonuses from equipped items. This implies NftHandler needs to expose these,
+            //      or this pallet needs to be aware of `pallet-items`.
+            //      (e.g., T::NftHandler::get_effective_stats(pet_id) -> EffectiveStats, or
+            //       this pallet queries pallet-items for active effects on a pet).
+            //
+            // 2. The battle algorithm would use these comprehensive stats:
+            //    - `effective_strength = base_strength + level_bonus + item_bonus_strength ...`
+            //    - `effective_agility = base_agility + ...`
+            //    - Elemental affinities (from PetNft.primary_elemental_affinity) would play a role.
+            //    - Personality traits might give situational advantages/disadvantages.
+            //    - Randomness (from a T::RandomnessSource if on-chain) for hit chances, critical hits, etc.
+            //
+            // 3. Simulate turns, damage calculation, status effects.
+            //
+            // 4. Determine the actual winner_pet_id based on this simulation.
+            //    For now, `winner_pet_id` is an input to this extrinsic.
+
             let mut winner_account_final: Option<T::AccountId> = None;
             let mut loser_account_final: Option<T::AccountId> = None;
             let mut loser_pet_id_final: Option<T::PetId> = None;

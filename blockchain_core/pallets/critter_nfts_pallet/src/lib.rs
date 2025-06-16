@@ -33,6 +33,20 @@ pub mod pallet {
     // Define PetId type alias for clarity
     pub type PetId = u32;
 
+    // Add this enum definition, e.g., before the PetNft struct
+    #[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen, Default, Copy)]
+    pub enum ElementType {
+        #[default]
+        Neutral,
+        Fire,
+        Water,
+        Earth,
+        Air,
+        Tech,
+        Nature,
+        Mystic,
+    }
+
     // Define the PetNft struct
     #[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
     // #[scale_info(skip_type_params(T))] // Not needed if AccountId is not part of PetNft struct directly
@@ -41,6 +55,13 @@ pub mod pallet {
         pub dna_hash: [u8; 16], // 16 bytes for DNA hash
         pub initial_species: Vec<u8>,
         pub current_pet_name: Vec<u8>,
+        // New Explicit Charter Attributes (Immutable after minting)
+        pub base_strength: u8,
+        pub base_agility: u8,
+        pub base_intelligence: u8,
+        pub base_vitality: u8,
+        pub primary_elemental_affinity: Option<ElementType>, // Optional for neutrality
+        // Existing mutable/dynamic attributes
         pub level: u32,
         pub experience_points: u32,
         pub mood_indicator: u8, // e.g., 0=Sad, 1=Neutral, 2=Happy, 3=Playful
@@ -175,6 +196,24 @@ pub mod pallet {
             let dna_hash_data = (dna_seed, &sender, pet_id, &species, &name).encode();
             let dna_hash = frame_support::Hashable::blake2_128(&dna_hash_data);
 
+            // Placeholder derivation for charter attributes from dna_hash
+            // In a real system, this would be a more sophisticated algorithm.
+            let base_strength = dna_hash[0] % 10 + 5; // Example: results in 5-14
+            let base_agility = dna_hash[1] % 10 + 5;
+            let base_intelligence = dna_hash[2] % 10 + 5;
+            let base_vitality = dna_hash[3] % 10 + 5;
+
+            let element_type_index = dna_hash[4] % 8; // For 8 ElementType variants including Neutral
+            let primary_elemental_affinity = match element_type_index {
+                0 => Some(ElementType::Fire),
+                1 => Some(ElementType::Water),
+                2 => Some(ElementType::Earth),
+                3 => Some(ElementType::Air),
+                4 => Some(ElementType::Tech),
+                5 => Some(ElementType::Nature),
+                6 => Some(ElementType::Mystic),
+                _ => None, // Or Some(ElementType::Neutral) if None is not desired
+            };
 
             // Create new PetNft instance
             let new_pet = PetNft {
@@ -182,13 +221,19 @@ pub mod pallet {
                 dna_hash,
                 initial_species: species.clone(),
                 current_pet_name: name.clone(),
+                // Set new charter attributes
+                base_strength,
+                base_agility,
+                base_intelligence,
+                base_vitality,
+                primary_elemental_affinity,
+                // Default dynamic attributes
                 level: 1,
                 experience_points: 0,
                 mood_indicator: 1, // Neutral
-                hunger_status: 50, // Default
-                energy_status: 50, // Default
-                personality_traits: Vec::new(), // Initialize as empty
-                // owner: sender.clone(), // Not storing owner in struct directly to avoid data duplication
+                hunger_status: 50,
+                energy_status: 50,
+                personality_traits: Vec::new(),
             };
 
             // Store the new PetNft
