@@ -1,0 +1,287 @@
+name: CritterCraft CI/CD Pipeline
+
+on:
+  # Triggers the workflow on push or pull request events for the "main" branch
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  # Allows you to run this workflow manually from the Actions tab (for full pipeline runs)
+  workflow_dispatch:
+
+jobs:
+  # Job 1: Setup Shared Rust Environment & Cache
+  setup_rust_env:
+    name: Setup Rust Toolchain & Cache
+    runs-on: ubuntu-latest
+    # Define outputs if you need to pass specific paths/versions to dependent jobs
+    outputs:
+      cargo-cache-key: ${{ steps.cache-cargo.outputs.cache-hit }}
+      # No need to pass toolchain directly via output, actions-rs/toolchain handles it globally
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain (stable)
+        # Uses specific Rust action for better integration and caching
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable # Or specific version like 'nightly', '1.70.0'
+          profile: minimal  # Install only necessary components for CI
+          override: true    # Set this toolchain as default for the runner
+
+      - name: Cache Cargo Registry
+        # Caches ~/.cargo/registry to speed up subsequent runs
+        uses: actions/cache@v4
+        id: cache-cargo
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+            
+      - name: Cache Cargo Build Artifacts
+        # Caches target directory to speed up builds and tests
+        uses: actions/cache@v4
+        id: cache-cargo-build
+        with:
+          path: target
+          # Key depends on OS, Rust toolchain, and Cargo.lock changes
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-
+
+      - name: Install Rustfmt & Clippy (for linting/formatting job)
+        run: |
+          rustup component add rustfmt --toolchain stable
+          rustup component add clippy --toolchain stable
+
+  # Job 2: Code Quality & Style (Rust Linting & Formatting)
+  lint_and_format_rust:
+    name: Code Quality & Style (Rust)
+    runs-on: ubuntu-latest
+    needs: [setup_rust_env] # This job depends on the environment setup passing
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Restore Rust environment and caches from setup_rust_env
+      - name: Restore Rust Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Restore Cargo Caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+            ${{ runner.os }}-cargo-build-
+            
+      - name: Run Rustfmt (Code Formatter Check)
+        # --check-formatted ensures it's correctly formatted, --workspace includes all crates
+        run: cargo fmt --all -- --check
+          
+      - name: Run Clippy (Rust Linter)
+        # --all-targets for thoroughness, -D warnings to treat warnings as errors for CI
+        run: cargo clippy --all-targets -- -D warnings
+
+  # Job 3: Build the CritterCraft Blockchain Node
+  build_node:
+    name: Build CritterCraft Node
+    runs-on: ubuntu-latest
+    needs: [lint_and_format_rust] # Depends on linting/formatting passing
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      # Restore Rust environment and caches
+      - name: Restore Rust Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Restore Cargo Caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+            ${{ runner.os }}-cargo-build-
+
+      - name: Build CritterCraft Node (Release Mode)
+        # --release for optimized, production-ready build
+        # --locked ensures Cargo.lock is not modified, for repeatable builds
+        # This is where our "unseen code" compiles into a functional binary.
+        run: cargo build --release --locked --workspace # --workspace to build all crates
+      
+  # Job 4: Run Core Unit & Integration Tests (Rust)
+  test_core_rust:
+    name: Run Core Tests (Rust)
+    runs-on: ubuntu-latest
+    needs: [build_node] # Depends on a successful build
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Restore Rust environment and caches
+      - name: Restore Rust Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Restore Cargo Caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+            ${{ runner.os }}-cargo-build-
+
+      - name: Run All Rust Tests
+        # --workspace to run tests across all crates in the workspace
+        run: cargo test --workspace -- --nocapture # --nocapture to see print statements in logs
+        
+      - name: Upload Test Results (e.g., to Codecov for coverage, or a test reporting tool)
+        uses: codecov/codecov-action@v4 # Example: for code coverage
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }} # Secret token for code coverage service
+          fail_ci_if_error: true # Fail if coverage upload fails
+
+  # Job 5: Security Vulnerability Scan (Rust Dependencies)
+  security_audit_rust:
+    name: Security Audit (Rust)
+    runs-on: ubuntu-latest
+    needs: [build_node] # Can run in parallel with tests, but needs a successful build
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Restore Rust environment and caches
+      - name: Restore Rust Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Restore Cargo Caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+            ${{ runner.os }}-cargo-build-
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+          
+      - name: Run cargo-audit
+        # Audits project dependencies for known vulnerabilities
+        run: cargo audit --deny warnings # Treat audit warnings as errors for CI
+        
+  # Job 6: Build Conceptual Frontend UI (if applicable - based on ui-wallet/index.html implies a frontend)
+  # This job would be for JavaScript/TypeScript frontends, not Rust.
+  build_frontend_ui:
+    name: Build Frontend UI (Conceptual)
+    runs-on: ubuntu-latest
+    needs: [setup_rust_env] # Can run in parallel with Rust jobs, no direct dependency on Rust build
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Or specific LTS version like '18.x'
+          cache: 'yarn' # or 'npm' or 'pnpm'
+      - name: Install Frontend Dependencies
+        # Assuming frontend code is in a 'ui-wallet' directory
+        run: yarn install # or npm install
+        working-directory: ./blockchain_core/ui-wallet 
+      - name: Build Frontend
+        # 'yarn build' or 'npm run build' depending on your frontend setup
+        run: yarn build # or npm run build
+        working-directory: ./blockchain_core/ui-wallet
+
+  # Job 7: Check Documentation Integrity (for markdown files)
+  check_documentation_integrity:
+    name: Check Docs Integrity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Install Markdown Link Checker
+        run: npm install -g markdown-link-check # Or other markdown linting tools
+      - name: Check Markdown Links
+        # Checks for broken links in .md files
+        run: find . -name "*.md" -print0 | xargs -0 -I{} markdown-link-check {} # Basic check
+        # This is a basic example; for more advanced checks, dedicated actions/tools exist.
+
+  # Job 8 (Conceptual for full CI/CD): Deploy to Testnet/Staging
+  # deploy_testnet:
+  #   name: Deploy to Testnet
+  #   runs-on: ubuntu-latest
+  #   # This job depends on all critical build and test jobs passing
+  #   needs: [test_core_rust, security_audit_rust, build_frontend_ui]
+  #   environment:
+  #     name: testnet
+  #     url: 'https://testnet.crittercraft.com' # URL of your deployed testnet
+  #   steps:
+  #     - name: Checkout Repository
+  #       uses: actions/checkout@v4
+  #     - name: Deploy CritterCraft Node & Frontend
+  #       # This step would involve commands to deploy the compiled node binary and frontend artifacts
+  #       # e.g., using Docker, Kubernetes, or a specific cloud provider's CLI/GitHub Action
+  #       run: |
+  #         echo "Initiating deployment of CritterCraft to testnet environment..."
+  #         # Example: Login to Docker registry, build/push image, then deploy to K8s
+  #         # echo "${{ secrets.DOCKER_PASSWORD }}" | docker login --username ${{ secrets.DOCKER_USERNAME }} --password-stdin
+  #         # docker build -t my-registry/crittercraft-node .
+  #         # docker push my-registry/crittercraft-node
+  #         # kubectl apply -f k8s-testnet.yaml
+  #         echo "Deployment commands would go here."
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v4
+
+      # Runs a single command using the runners shell
+      - name: Run a one-line script
+        run: echo Hello, world!
+
+      # Runs a set of commands using the runners shell
+      - name: Run a multi-line script
+        run: |
+          echo Add other actions to build,
+          echo test, and deploy your project.
