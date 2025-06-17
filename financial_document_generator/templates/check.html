@@ -4,7 +4,21 @@
     <meta charset="UTF-8">
     <title>Check</title>
     <link rel="stylesheet" href="../static/style.css">
-    <style>
+
+    <!-- Style block for custom @font-face rules -->
+    <style id="custom-fonts-style">
+    {% if font_configs %}
+        {% for font_config in font_configs %}
+        @font-face {
+            font-family: '{{ font_config.font_family }}'; /* e.g., 'MyCustomCheckFont' */
+            src: url('{{ font_config.font_src_url }}');   /* e.g., 'file:///path/to/font.ttf' */
+            /* Later we could add font-weight, font-style if needed */
+        }
+        {% endfor %}
+    {% endif %}
+    </style>
+
+    <style> /* Existing main style block */
         /* Add some basic check-specific styling */
         .check-container {
             width: 800px; /* Standard check width-ish */
@@ -13,15 +27,30 @@
             padding: 20px;
             margin: 20px auto;
             position: relative;
-            font-family: 'Courier New', Courier, monospace; /* Common check font */
+            /* Apply the first custom font if available, otherwise fallback to Courier New */
+            font-family: {% if font_configs and font_configs[0].font_family %}'{{ font_configs[0].font_family }}'{% else %}'Courier New', Courier, monospace{% endif %};
         }
-        .check-header, .check-footer {
-            display: flex;
+        .check-header { /* Ensure this allows for flex layout or similar for logo and text */
+            display: flex; /* Using flex to align logo and bank details */
             justify-content: space-between;
+            align-items: flex-start; /* Align items to the top */
             font-size: 0.8em;
+            padding-bottom: 10px; /* Add some padding below header */
+            border-bottom: 1px solid #eee; /* Optional: line below header */
         }
-        .check-number {
+        .bank-logo {
+            max-width: 150px; /* Max width for the logo */
+            max-height: 50px; /* Max height for the logo */
+            margin-right: 15px; /* Space between logo and bank details */
+        }
+        .bank-details-text {
+            /* flex-grow: 1; */ /* Allow bank details to take remaining space if needed */
+            display: inline-block; /* Keep it inline with logo if logo is also inline-block or float */
+            vertical-align: top; /* Align with top of logo if logo is taller */
+        }
+        .check-number-header { /* Renamed from .check-number to avoid conflict if used elsewhere */
             text-align: right;
+            font-size: 1.2em; /* Make check number more prominent */
         }
         .payee-info {
             margin-top: 40px;
@@ -49,19 +78,33 @@
             position: absolute;
             bottom: 10px;
             left: 20px;
-            font-family: 'OCRB', monospace; /* MICR font - needs to be available */
+            /* font-family: 'OCRB', monospace; */ /* MICR font - needs to be available, will be set if provided in font_configs */
             font-size: 1.2em;
         }
+        /* Example of how a specific MICR font could be applied if tagged in font_configs */
+        /* This assumes a font_config entry might have a specific use like 'micr_font' */
+        {% for font_config in font_configs %}
+            {% if font_config.use == 'micr' %}
+        .routing-account {
+            font-family: '{{ font_config.font_family }}', monospace !important;
+        }
+            {% endif %}
+        {% endfor %}
     </style>
 </head>
 <body>
     <div class="check-container">
         <div class="check-header">
-            <div class="bank-name">
-                <strong>{{ bank_name | default('Your Bank Name') }}</strong><br>
-                <small>{{ bank_address | default('123 Bank Street, Financial City, ST 12345') }}</small>
+            <div> <!-- Wrapper for logo and bank text details -->
+                {% if bank_logo_url %}
+                <img src="{{ bank_logo_url }}" alt="Bank Logo" class="bank-logo">
+                {% endif %}
+                <div class="bank-details-text">
+                    <strong>{{ bank_name | default('Your Bank Name') }}</strong><br>
+                    <small>{{ bank_address | default('123 Bank Street, Financial City, ST 12345') }}</small>
+                </div>
             </div>
-            <div class="check-number">
+            <div class="check-number-header">
                 Check No: <strong>{{ check_number | default('0001') }}</strong>
             </div>
         </div>
