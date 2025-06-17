@@ -156,9 +156,9 @@ Validators will need to generate and register specific session keys. These are t
 ```rust
 // runtime/src/lib.rs (conceptual snippet)
 // parameter_types! {
-//     pub const EpochDuration: u64 = EPOCH_DURATION_IN_SLOTS; // e.g., 2400 slots (4 hours if 6s slots) per era
+//     pub const EpochDuration: u64 = EPOCH_DURATION_IN_SLOTS; // e.g., 600 slots (1 hour if 6s slots), assuming one Babe epoch per session. SessionsPerEra in pallet-staking then defines how many such sessions form an era.
 //     pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK; // e.g., 6000 ms
-//     pub const ReportLongevity: u64 = BondingDuration::get() as u64 * SessionsPerEra::get() as u64 * EpochDuration::get();
+//     pub const ReportLongevity: u64 = BondingDuration::get() as u64 * SessionsPerEra::get() as u64 * EpochDuration::get(); // BondingDuration and SessionsPerEra from pallet-staking config
 // }
 // impl pallet_babe::Config for Runtime {
 //     type EpochDuration = EpochDuration;

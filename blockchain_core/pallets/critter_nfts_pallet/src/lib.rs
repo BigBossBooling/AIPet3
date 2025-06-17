@@ -55,8 +55,12 @@ pub mod pallet {
         // --- Immutable Attributes ---
         pub id: PetId,
         pub dna_hash: [u8; 16],
-        pub initial_species: Vec<u8>, // Consider BoundedVec in future if max length is critical early
-        pub current_pet_name: Vec<u8>, // Consider BoundedVec in future
+        pub initial_species: Vec<u8>,
+        // COMMENT TO ADD: Consider BoundedVec<u8, T::MaxSpeciesNameLen> in a future iteration for on-chain size guarantees.
+        //                This would require adding `MaxSpeciesNameLen: Get<u32>` to Config.
+        pub current_pet_name: Vec<u8>,
+        // COMMENT TO ADD: Consider BoundedVec<u8, T::MaxPetNameLen> in a future iteration.
+        //                This would require adding `MaxPetNameLen: Get<u32>` to Config.
 
         // Explicit On-Chain Charter Attributes (Immutable after minting)
         pub base_strength: u8,
@@ -102,6 +106,9 @@ pub mod pallet {
     // Placeholder for pallet_items::ItemCategory if not directly importing
     // This is just for compilation within this pallet if pallet_items is not a direct dep for types
     // In a real setup, this would come from pallet_items.
+    // NOTE: This local `pallet_items::ItemCategory` definition is a placeholder for conceptual clarity within this file.
+    // In a real multi-crate Substrate workspace, `ItemCategory` would be imported from the actual `pallet-items` crate,
+    // and `pallet-critter-nfts` would declare a dependency on `pallet-items` in its `Cargo.toml` to access its types.
     pub mod pallet_items {
         #[derive(PartialEq, Clone, Copy)] // For comparison in consume_item_if_category
         pub enum ItemCategory { Food, Toy, Other } // Simplified for this context
@@ -240,25 +247,27 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(4).reads(1))] // Basic weight, adjust as needed
         pub fn mint_pet_nft(
             origin: OriginFor<T>,
-            species: Vec<u8>,
-            name: Vec<u8>,
+            species: Vec<u8>, // Directly from CLI: <Species> argument. Validated for length if PetNft.initial_species becomes BoundedVec.
+            name: Vec<u8>,    // Directly from CLI: <Name> argument. Validated for length if PetNft.current_pet_name becomes BoundedVec.
         ) -> DispatchResult {
-            let sender = ensure_signed(origin)?;
+            let sender = ensure_signed(origin)?; // Derived from CLI's --from <SeedOrUri>
 
-            // Generate PetId
+            // Generate PetId (self-contained logic, no additional CLI input needed)
             let pet_id = NextPetId::<T>::try_mutate(|next_id| -> Result<PetId, DispatchError> {
                 let current_id = *next_id;
                 *next_id = next_id.checked_add(1).ok_or(Error::<T>::NextPetIdOverflow)?;
                 Ok(current_id)
             })?;
 
-            // Generate a simple DNA hash (placeholder - can be improved with randomness)
-            // let dna_hash = T::PetRandomness::random(&species).0.into(); // Example using randomness
+            // DNA Hash Generation (self-contained, uses sender, pet_id, species, name, and T::PetRandomness)
+            // COMMENT TO ADD: This process is fully self-contained within the extrinsic, suitable for CLI minting.
             let (dna_seed, _) = T::PetRandomness::random_seed();
             let dna_hash_data = (dna_seed, &sender, pet_id, &species, &name).encode();
             let dna_hash = frame_support::Hashable::blake2_128(&dna_hash_data);
 
-            // --- Charter Attribute Derivation from dna_hash ---
+            // Charter Attribute Derivation from dna_hash (self-contained)
+            // COMMENT TO ADD: Derivation of base_strength, base_agility, etc., from dna_hash is internal
+            // and requires no extra CLI parameters, aligning with simple CLI usage.
             // This illustrative algorithm aims for a spread of values.
             // Each u8 in dna_hash ranges from 0-255.
             // Base stats range, e.g., 5-20 (16 possible values). Max u8 for stat is 255.
@@ -270,8 +279,8 @@ pub mod pallet {
 
             // Strength (5-20): dna_hash[0] & dna_hash[1]
             // Combine two bytes for a wider initial range (0-65535), then scale.
-            let val_s = ((dna_hash[0] as u16) << 8 | dna_hash[1] as u16) % 100; // 0-99
-            let base_strength = (5 + (val_s * 15) / 99) as u8; // Scales 0-99 to 0-15, then adds 5 -> 5-20
+            let val_s = ((dna_hash[0] as u16) << 8 | dna_hash[1] as u16) % 100;
+            let base_strength = (5 + (val_s * 15) / 99) as u8;
 
             // Agility (5-20): dna_hash[2] & dna_hash[3]
             let val_a = ((dna_hash[2] as u16) << 8 | dna_hash[3] as u16) % 100;
@@ -286,7 +295,7 @@ pub mod pallet {
             let base_vitality = (5 + (val_v * 15) / 99) as u8;
 
             // Primary Elemental Affinity: dna_hash[8] using Option<ElementType>
-            let primary_elemental_affinity = match dna_hash[8] % 8 { // 7 defined types + None
+            let primary_elemental_affinity = match dna_hash[8] % 8 {
                 0 => Some(ElementType::Fire),
                 1 => Some(ElementType::Water),
                 2 => Some(ElementType::Earth),
@@ -294,15 +303,25 @@ pub mod pallet {
                 4 => Some(ElementType::Tech),
                 5 => Some(ElementType::Nature),
                 6 => Some(ElementType::Mystic),
-                _ => None, // Represents Neutral or no strong affinity
+                _ => None,
             };
 
-            // Create new PetNft instance
+            // Initial Dynamic Attributes (self-contained, set to sensible defaults)
+            // COMMENT TO ADD: All dynamic attributes are initialized to suitable defaults for a newly minted pet.
+            let current_block_number = frame_system::Pallet::<T>::block_number();
+            let initial_mood = T::MaxMoodValue::get();
+
+            // Ensure species and name are converted to BoundedVec if PetNft struct uses it.
+            // For now, PetNft uses Vec<u8>, so direct clone is fine.
+            // If PetNft.initial_species became BoundedVec<u8, T::MaxSpeciesNameLen>, then:
+            // let bounded_species: BoundedVec<u8, T::MaxSpeciesNameLen> = species.clone().try_into().map_err(|_| Error::<T>::SpeciesNameTooLong)?;
+            // Similar for name. Add corresponding errors if/when BoundedVec is used.
+
             let new_pet = PetNft {
                 id: pet_id,
                 dna_hash,
-                initial_species: species.clone(),
-                current_pet_name: name.clone(),
+                initial_species: species.clone(), // Use bounded_species if changed in PetNft struct
+                current_pet_name: name.clone(),   // Use bounded_name if changed in PetNft struct
                 base_strength,
                 base_agility,
                 base_intelligence,
@@ -310,14 +329,14 @@ pub mod pallet {
                 primary_elemental_affinity,
                 level: 1,
                 experience_points: 0,
-                mood_indicator: T::MaxMoodValue::get(), // Start at max mood
-                last_fed_block: frame_system::Pallet::<T>::block_number(),
-                last_played_block: frame_system::Pallet::<T>::block_number(),
-                personality_traits: BoundedVec::new(), // Initialize empty BoundedVec
-                last_state_update_block: frame_system::Pallet::<T>::block_number(),
+                mood_indicator: initial_mood,
+                last_fed_block: current_block_number,
+                last_played_block: current_block_number,
+                personality_traits: BoundedVec::new(),
+                last_state_update_block: current_block_number,
             };
 
-            // Store the new PetNft
+            // Storage operations (self-contained)
             PetNfts::<T>::insert(pet_id, new_pet);
 
             // Update ownership records

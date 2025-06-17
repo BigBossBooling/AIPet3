@@ -36,6 +36,8 @@ This repository serves as a comprehensive blueprint for the CritterCraft project
         *   `pallet-battles` (Pet battle registration & outcome reporting)
         *   `pallet-quests` (Quest management & completion)
         *   `pallet-breeding` (Conceptual outline for pet breeding)
+        *   `pallet-items` (Conceptual outline for item management)
+        *   `pallet-user-profile` (Conceptual outline for user scores and reputation)
 
 ## Current Status
 

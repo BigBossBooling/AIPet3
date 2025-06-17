@@ -15,7 +15,7 @@ This document outlines the conceptual framework for the future decentralized gov
 
 ## 3. Proposal Lifecycle (Conceptual)
 
-A new pallet, `pallet-governance` (or similar), will manage the proposal lifecycle.
+The proposal lifecycle will be managed by a suite of standard FRAME governance pallets, primarily `pallet-democracy` for public proposals and `pallet-collective` for council motions and actions.
 
 1.  **Proposal Submission:**
     *   Any PTCN holder meeting a minimum token threshold (e.g., holding 0.1% of total supply) can submit a proposal.
@@ -51,7 +51,7 @@ The community could potentially vote on:
 
 ## 5. Phased Rollout
 
-*   **Stage 4 (Current Focus - Hooks):** Conceptual outline and UI placeholder. No on-chain voting pallet yet.
+*   **Initial Conceptual Phase:** Conceptual outline, key pallet identification (`pallet-democracy`, `pallet-collective`, `pallet-treasury`), and UI placeholders were established.
 *   **Future Stages:**
     *   Implementation of a basic `pallet-governance`.
     *   Introduction of simple proposal types (e.g., text-based polls).

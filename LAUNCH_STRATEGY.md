@@ -43,7 +43,7 @@ The primary goal before any public launch is to cultivate an engaged and informe
     *   Potential for targeted airdrops to users of related Substrate/Polkadot ecosystem projects or NFT communities to bootstrap initial user base.
     *   Incentives for testnet participants or early adopters.
     *   *(Note: Airdrops require careful planning to avoid sybil attacks and ensure fair distribution to genuine users).*
-*   **No Large Public Sale Envisioned Initially:** Focus on organic growth, staking, and play-to-earn/contribute-to-earn mechanisms for token distribution post-launch.
+*   **No Large Public Sale Envisioned Initially:** Focus on organic growth, staking, and play-to-earn/contribute-to-earn mechanisms for token distribution post-launch (e.g., rewards from `pallet-battles` and `pallet-quests`, earnings from the Daily PTCN Claim, and potential earnings from future Advanced Blockchain Support Jobs or User Shops).
 
 ## 3. Phased Mainnet Launch Strategy
 

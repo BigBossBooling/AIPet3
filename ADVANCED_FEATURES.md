@@ -195,7 +195,7 @@ This document provides a high-level conceptual outline for advanced economic loo
 
     This UI aims to guide players through multi-stage treasure hunts, from discovery to completion, making the process engaging and clear.
 
-## 4. Mini-Games & Arcade
+## 5. Mini-Games & Arcade
 
 *   **Concept:** A suite of on-chain or on-chain verifiable mini-games, allowing players to compete for fun and PTCN/item rewards.
 *   **Pallet Interactions:**
@@ -243,7 +243,7 @@ This document provides a high-level conceptual outline for advanced economic loo
 
     This UI aims to provide easy access to a variety of games, manage participation, track performance, and claim earned rewards, fostering a fun and engaging aspect of the CritterCraft ecosystem.
 
-## 5. (Future Consideration) IoT Device Integration
+## 6. (Future Consideration) IoT Device Integration
 
 *   **Concept:** Allow real-world data from Internet of Things (IoT) devices (e.g., smart pet feeders, activity trackers for real pets if users have them and want to link) to influence in-game pet stats or trigger on-chain events/rewards.
 *   **Technical Challenges:** Requires secure oracle solutions to bring IoT data on-chain reliably.
@@ -251,7 +251,7 @@ This document provides a high-level conceptual outline for advanced economic loo
 
 These advanced features aim to create a deeply engaging, economically vibrant, and evolving world for CritterCraft players. Each will require careful design and phased implementation.
 
-## 6. Pet NFT Charter Attributes (Foundational Traits)
+## 7. Pet NFT Charter Attributes (Foundational Traits)
 
 Charter Attributes are the foundational traits that define the core essence, potential, and uniqueness of a Pet NFT from the moment of its creation (minting). Some are directly stored and immutable, while others can be conceptually derived from the pet's "genetic code."
 
@@ -336,7 +336,7 @@ This combination of explicit on-chain charter attributes and the richer informat
 
     These V2 UI enhancements aim to provide a comprehensive and user-friendly interface for all common staking operations and information needs.
 
-## 7. Competitive Pet Battles
+## 8. Competitive Pet Battles
 
 CritterCraft will feature a robust system for competitive pet battles, where Pet NFTs engage in strategic combat. `pallet-battles` is the core on-chain component for managing battle registration, state, and outcomes, simplified for an MVP.
 
@@ -389,8 +389,7 @@ CritterCraft will feature a robust system for competitive pet battles, where Pet
 
     This simplified approach for MVP ensures `pallet-battles` is lean, relying on a more straightforward off-chain simulation for battle resolution, while core on-chain attributes still drive the battle's nature.
 
-## 9. Future Stage: Pet Breeding & Genetics
-## 9. Future Stage: Pet Breeding & Genetics
+## 9. Pet Breeding & Genetics
 
 A comprehensive Pet Breeding and Genetics system is envisioned for CritterCraft, adding depth to pet collection and strategy. For an MVP, this system is simplified, focusing on core mechanics and deferring more complex genetic influences.
 
@@ -461,7 +460,7 @@ A comprehensive Pet Breeding and Genetics system is envisioned for CritterCraft,
 
 This simplified Pet Breeding system for MVP focuses `pallet-breeding` on the core mechanics of parent selection, DNA/species determination, and offspring incubation, while leveraging `pallet-critter-nfts` for the actual stat derivation from DNA, ensuring consistency with normally minted pets. Advanced genetic modifiers are deferred.
 
-## 10. Future Feature: Pet Day Cares & Caregiver Roles
+## 10. Pet Day Cares & Caregiver Roles
 
 Pet Day Cares introduce a social and passive development mechanic to CritterCraft, allowing pets to gain attributes or experience over time while being looked after by other players or their designated "Caregiver" pets. This feature aims to provide utility for pets not actively questing or battling and creates new service-oriented roles within the ecosystem.
 
