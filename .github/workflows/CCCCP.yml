@@ -165,7 +165,7 @@ jobs:
         run: cargo test --workspace -- --nocapture # --nocapture to see print statements in logs
         
       - name: Upload Test Results (e.g., to Codecov for coverage, or a test reporting tool)
-        uses: codecov/codecov-action@v4 # Example: for code coverage
+        uses: codecov/codecov-action@v5 # Example: for code coverage
         with:
           token: ${{ secrets.CODECOV_TOKEN }} # Secret token for code coverage service
           fail_ci_if_error: true # Fail if coverage upload fails
