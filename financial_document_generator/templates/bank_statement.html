@@ -3,10 +3,189 @@
 <head>
     <meta charset="UTF-8">
     <title>Bank Statement</title>
-    <link rel="stylesheet" href="../static/style.css">
+    <link rel="stylesheet" href="../static/style.css"> <!-- General styles -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+        .statement-container {
+            width: 8.5in; /* Approx letter size */
+            min-height: 11in;
+            padding: 0.5in;
+            margin: 20px auto;
+            border: 1px solid #ddd;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+            background: #fff;
+        }
+        .header, .footer {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            margin: 0;
+            color: #444;
+        }
+        .header p {
+            margin: 5px 0;
+            font-size: 0.9em;
+        }
+        .account-info, .statement-details {
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .account-info table, .statement-details table, .summary table {
+            width: 100%;
+            font-size: 0.9em;
+        }
+        .account-info th, .statement-details th {
+            text-align: left;
+            padding-right: 10px;
+            color: #555;
+            font-weight: bold;
+        }
+        .account-info td, .statement-details td {
+            padding: 2px 0;
+        }
+        .transactions-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 0.85em;
+        }
+        .transactions-table th, .transactions-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .transactions-table th {
+            background-color: #f7f7f7;
+            font-weight: bold;
+        }
+        .transactions-table td.amount {
+            text-align: right;
+        }
+        .summary {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+        .summary h3 {
+            margin-top: 0;
+            color: #444;
+            text-align: center;
+        }
+        .summary table td {
+            padding: 4px 0;
+        }
+        .summary table td:last-child {
+            text-align: right;
+            font-weight: bold;
+        }
+        .footer p {
+            font-size: 0.8em;
+            color: #777;
+        }
+    </style>
 </head>
 <body>
-    <h1>Bank Statement</h1>
-    <!-- Add document-specific content here -->
+    <div class="statement-container">
+        <div class="header">
+            <h1>{{ bank_details.name | default('Your Bank Name') }}</h1>
+            <p>{{ bank_details.address | default('123 Banking Way, Financial District, XY 12345') }}</p>
+            <p>Phone: {{ bank_details.phone | default('(123) 456-7890') }} | Website: {{ bank_details.website | default('www.yourbank.com') }}</p>
+        </div>
+
+        <div class="account-info">
+            <table>
+                <tr>
+                    <th style="width: 150px;">Account Holder:</th>
+                    <td>{{ account_holder.name | default('John Doe') }}</td>
+                </tr>
+                <tr>
+                    <th>Address:</th>
+                    <td>{{ account_holder.address_line1 | default('123 Main Street') }}<br>
+                        {{ account_holder.address_line2 | default('Anytown, ST 12345') }}
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="statement-details">
+            <table>
+                <tr>
+                    <th style="width: 150px;">Account Number:</th>
+                    <td>{{ account_details.number | default('XXXX-XXXX-1234') }}</td>
+                    <th>Statement Period:</th>
+                    <td>{{ statement_period.start_date | default('MM/DD/YYYY') }} - {{ statement_period.end_date | default('MM/DD/YYYY') }}</td>
+                </tr>
+                <tr>
+                    <th>Account Type:</th>
+                    <td>{{ account_details.type | default('Checking') }}</td>
+                    <th>Statement Date:</th>
+                    <td>{{ statement_date | default('MM/DD/YYYY') }}</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="summary">
+            <h3>Account Summary</h3>
+            <table>
+                <tr>
+                    <td>Previous Balance on {{ statement_period.start_date | default('MM/DD/YYYY') }}</td>
+                    <td class="amount">{{ summary.beginning_balance | default('$0.00') }}</td>
+                </tr>
+                <tr>
+                    <td>Total Deposits & Credits</td>
+                    <td class="amount">{{ summary.total_deposits | default('$0.00') }}</td>
+                </tr>
+                <tr>
+                    <td>Total Withdrawals & Debits</td>
+                    <td class="amount">{{ summary.total_withdrawals | default('$0.00') }}</td>
+                </tr>
+                <tr>
+                    <td><strong>New Balance on {{ statement_period.end_date | default('MM/DD/YYYY') }}</strong></td>
+                    <td class="amount"><strong>{{ summary.ending_balance | default('$0.00') }}</strong></td>
+                </tr>
+            </table>
+        </div>
+
+        <h3>Transaction Details</h3>
+        <table class="transactions-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th class="amount">Withdrawals (-)</th>
+                    <th class="amount">Deposits (+)</th>
+                    <th class="amount">Balance</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for transaction in transactions %}
+                <tr>
+                    <td>{{ transaction.date }}</td>
+                    <td>{{ transaction.description }}</td>
+                    <td class="amount">{{ transaction.withdrawal | default('') }}</td>
+                    <td class="amount">{{ transaction.deposit | default('') }}</td>
+                    <td class="amount">{{ transaction.balance }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" style="text-align:center;">No transactions during this period.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="footer">
+            <p>Please review your statement carefully. If you have any questions, contact us at {{ bank_details.phone | default('(123) 456-7890') }}.</p>
+            <p>Thank you for banking with {{ bank_details.name | default('Your Bank Name') }}!</p>
+        </div>
+    </div>
 </body>
 </html>
