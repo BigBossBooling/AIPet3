@@ -35,8 +35,8 @@ This document provides a high-level conceptual outline for advanced economic loo
     *   **Seller-Set Fees (Deferred for Post-MVP):** The ability for shop owners to add their own percentage fees on top of platform fees is deferred.
     *   **Platform Fees (MVP Simplification):**
         *   Sales through User Shops, like the general `pallet-marketplace`, will adhere to a simplified fee structure for MVP. This means either **zero transaction fees** or a **small, fixed flat fee** (`MarketplaceFixedFee` from `pallet-marketplace::Config`) per sale. Percentage-based fees (`MarketplaceFeeRate`) are deferred.
-        *   If a fixed fee is applied, it is ideally deducted from the sale price before the seller receives funds, with the fee directed to a `FeeDestination` (e.g., Treasury or burn address) as configured in `pallet-marketplace`. This maintains consistency and reduces complexity for MVP.
-        *   **General Marketplace Fees (MVP):** As above, the general `pallet-marketplace` (if distinct from user shops or used as a fallback) will also use either **zero fees or a small, fixed flat fee (`MarketplaceFixedFee`)** for MVP, deferring percentage-based fees.
+        *   **Fee Application Model (MVP):** If a `MarketplaceFixedFee` is configured and greater than zero, the `listing.price` must be greater than the `MarketplaceFixedFee` for the sale to proceed (ensuring the seller receives a non-zero amount). The buyer pays the total `listing.price`. From this amount, `MarketplaceFixedFee` is transferred to the `FeeDestinationAccountId`, and the remaining `listing.price - MarketplaceFixedFee` is transferred to the seller. This is managed by the `buy_nft` extrinsic in `pallet-marketplace`.
+        *   **General Marketplace Fees (MVP):** As above, the general `pallet-marketplace` (if distinct from user shops or used as a fallback) will also use either **zero fees or a small, fixed flat fee (`MarketplaceFixedFee`)** for MVP, applied as described above (buyer pays total price, which is then split between seller and fee destination).
 
     #### 4. Conceptual User Interface for User Shops
 
@@ -347,47 +347,55 @@ CritterCraft will feature a robust system for competitive pet battles, where Pet
     *   **Rewards (Simplified for MVP):** A fixed PTCN amount (`BattleRewardAmount` from `Config`) is distributed to the winner.
 
     ### 2. Core On-Chain Logic/Data (`pallet-battles` - MVP Focus)
-    *   **`BattleDetails` Struct:** Stores `player1`, `pet1_id`, `player2` (Option), `pet2_id` (Option), `status` (`PendingMatch`, `Concluded`), `winner` (Option).
-    *   **`PetInBattle` Storage:** Tracks if a pet is currently in an active battle.
-    *   **`report_battle_outcome` Extrinsic (Simplified):**
-        *   Receives only `battle_id` and `winner_pet_id` as key inputs.
-        *   The `loser_pet_id` is inferred by the pallet based on the `BattleDetails`.
-        *   Storing a `battle_log_hash` is deferred for post-MVP to simplify the reporting process.
-        *   Verifies participants and battle status.
-        *   Updates `BattleDetails` (status to `Concluded`, records winner).
-        *   Distributes the fixed PTCN reward to the winner's owner via `T::Currency`.
-        *   Emits `BattleConcluded` event including the inferred loser.
+    *   **`BattleDetails` Struct:** Stores `player1`, `pet1_id`, `player2` (Option), `pet2_id` (Option), `status` (`PendingMatch`, `Concluded`), `winner` (Option<AccountId>).
+    *   **`PetInBattle` Storage:** Tracks if a `PetId` is currently in an active `BattleId`.
+    *   **`register_for_battle` Extrinsic:**
+        *   Allows `player1` to register their `pet1_id`.
+        *   Performs checks: pet not already in battle, player owns pet, pet is eligible (e.g., not locked elsewhere via `NftHandler::is_transferable`).
+        *   Creates a new battle record with `status = PendingMatch`, `player2` and `pet2_id` as `None`.
+        *   Marks `pet1_id` in `PetInBattle`.
+    *   **`report_battle_outcome` Extrinsic (Simplified for MVP):**
+        *   Takes `battle_id` and `winner_pet_id` as inputs.
+        *   **Authority (MVP):** Only `player1` of the battle can report the outcome. (Future: Oracle or consensus from both players).
+        *   **Logic:**
+            *   Retrieves `BattleDetails`. Ensures battle exists and is not already `Concluded`.
+            *   Determines `winner_account`, `loser_account`, and `loser_pet_id` based on the provided `winner_pet_id` and the stored `BattleDetails`.
+            *   Updates `BattleDetails` status to `Concluded` and records the `winner_account`.
+            *   If a `winner_account` is determined and `BattleRewardAmount` (from `Config`) is greater than zero, the reward is distributed to the `winner_account` (e.g., via `T::Currency::deposit_creating`).
+            *   Clears `PetInBattle` entries for both `pet1_id` and `pet2_id` (if `pet2_id` was Some).
+            *   Emits a `BattleConcluded` event with all relevant details (winner/loser accounts and pet IDs, reward amount).
+        *   Storing a `battle_log_hash` is deferred for post-MVP.
 
     ### 3. Conceptual Battle Mechanics & Formulas (Inputs to Off-Chain Simulation - MVP Focus)
 
-    The actual battle simulation (determining the winner) is performed off-chain for MVP, with the result (`winner_pet_id`) submitted to `report_battle_outcome`. The on-chain pet attributes inform this simulation.
+    The actual battle simulation (determining `winner_pet_id`) is performed **off-chain** for MVP. The result is then submitted to `report_battle_outcome`. The on-chain pet attributes from `pallet-critter-nfts` (obtained via `NftHandler`) serve as the primary input to this simulation.
 
-    *   **Input Pet Data (MVP Focus):** For each participating pet, the off-chain simulation primarily considers:
+    *   **Input Pet Data (MVP Focus):** For each participating pet, the off-chain simulation will primarily use:
         *   **`level`**: From `PetNft`.
         *   **Core Charter Attributes** from `PetNft`: `base_strength`, `base_agility`, `base_vitality`.
         *   **`primary_elemental_affinity: Option<ElementType>`**: From `PetNft`.
         *   **Deferred/Simplified for MVP Simulation:**
-            *   `base_intelligence` might be deferred if not used for special moves in MVP.
-            *   Detailed `personality_traits` influence is simplified or deferred. For MVP, a very simple trait effect (e.g. "Aggressive" = +5% attack) could be considered if essential, but complex interactions are post-MVP.
-            *   Complex item buffs active during battle are deferred. Basic equipped item stats might be considered if an "effective stats" system is simple enough in `pallet-critter-nfts`.
-            *   `mood_indicator` could provide a minor percentage buff/debuff (e.g., Happy = +5% stats, Unhappy = -5% stats) if desired for MVP.
+            *   `base_intelligence`: Might be deferred if not used for special moves/abilities in the MVP simulation.
+            *   Detailed `personality_traits` influence: For MVP, this could be simplified to a few key traits having a predefined minor impact, or deferred entirely. Complex emergent behaviors from many traits are post-MVP.
+            *   Complex item buffs active during battle: These are deferred for MVP. The simulation would use the pet's base and charter stats.
+            *   `mood_indicator`: Could provide a minor percentage buff/debuff to effective stats (e.g., Happy = +5% attack/defense, Unhappy = -5%) if desired for MVP's simulation.
     *   **Effective Combat Stats (Calculated in Off-Chain Simulation):**
-        *   **Effective HP:** Derived primarily from `base_vitality` and `level` (e.g., `(base_vitality * VITALITY_HP_MULTIPLIER) + (level * LEVEL_HP_BONUS)`).
+        *   **Effective HP:** Derived primarily from `base_vitality` and `level`. Example: `(base_vitality * VITALITY_HP_MULTIPLIER_CONST) + (level * LEVEL_HP_BONUS_CONST)`. (Constants are part of simulation balancing).
         *   **Effective Attack:** Derived primarily from `base_strength` and `level`.
-        *   **Effective Defense:** Derived primarily from `base_vitality` (or a dedicated defense stat if added) and `level`.
+        *   **Effective Defense:** Derived primarily from `base_vitality` (or a dedicated defense stat if added to charter attributes) and `level`.
         *   **Effective Speed:** Derived primarily from `base_agility` and `level`.
-    *   **Turn-Based Logic (Conceptual Example - MVP Simplification):**
-        *   **Attack Order:** Determined by `Effective Speed`.
-        *   **Actions per Turn:** Basic "Attack" action for MVP.
-        *   **Hit Chance (Simplified):** A base hit chance (e.g., 85-90%) is used. Complex accuracy vs. evasion calculations based on agility are deferred for MVP. A simple random roll against the base chance determines hit/miss.
-            *   `if (random_value_from_seed % 100) < base_hit_chance { /* Hit */ } else { /* Miss */ }`
-        *   **Damage Calculation (Simplified):** A straightforward formula like `damage = Attacker_Effective_Attack - (Defender_Effective_Defense / 2)`. Ensure minimum damage (e.g., 1) if attack > defense part.
-        *   **Elemental Modifiers:** Retained as a core mechanic. Damage is adjusted based on `primary_elemental_affinity` matchups (e.g., Fire deals 1.5x to Nature).
-        *   **Critical Hits & Advanced Effects (Deferred for MVP):** Complex critical hit systems (beyond a simple, flat chance if desired) and multi-layered status effects are post-MVP for the simulation.
-    *   **Winning Condition:** First pet to reach 0 HP loses. If max turns are reached, higher remaining HP percentage wins.
-    *   **Battle Log (Off-Chain):** The simulation should still produce a log, but its hash is not necessarily submitted on-chain for MVP.
+    *   **Turn-Based Logic (Conceptual Example for Off-Chain Simulation - MVP Simplification):**
+        *   **Attack Order:** Determined by `Effective Speed`. Randomness (from a shared seed if deterministic off-chain simulation is desired) for ties.
+        *   **Actions per Turn:** Basic "Attack" action for MVP. More complex moves/abilities are post-MVP.
+        *   **Hit Chance (Simplified):** A base hit chance (e.g., 85-90%) is used. Complex accuracy vs. evasion calculations based on agility are deferred for MVP's core calculation. A simple random number generation against the base chance determines hit/miss.
+            *   Example: `if (random_value % 100) < base_hit_chance { /* Hit */ } else { /* Miss */ }`
+        *   **Damage Calculation (Simplified):** A straightforward formula, e.g., `damage = Attacker_Effective_Attack - (Defender_Effective_Defense / DEFENSE_FACTOR_CONST)`. Ensure minimum damage (e.g., 1) if attack > defense part.
+        *   **Elemental Modifiers:** Retained as a core mechanic. Damage is adjusted based on `primary_elemental_affinity` matchups (e.g., Fire deals 1.5x to Nature, Water deals 0.75x to Fire). A predefined matrix of multipliers would be used.
+        *   **Critical Hits & Advanced Effects (Deferred for MVP):** Complex critical hit systems (beyond a simple, flat random chance if desired for the simulation) and multi-layered status effects are post-MVP.
+    *   **Winning Condition:** First pet to reach 0 HP loses. If a maximum number of turns is reached (to prevent stalemates), the winner might be determined by higher remaining HP percentage or other tie-breaker rules.
+    *   **Battle Log (Off-Chain):** The off-chain simulation should ideally produce a log of turns, actions, and outcomes. While the hash of this log is not stored on-chain for MVP, the log itself can be useful for debugging, community interest, and potential future dispute resolution systems.
 
-    This simplified approach for MVP ensures `pallet-battles` is lean, relying on a more straightforward off-chain simulation for battle resolution, while core on-chain attributes still drive the battle's nature.
+    This simplified approach for MVP ensures `pallet-battles` remains lean by focusing on registering participants and recording outcomes, while the computationally intensive battle simulation occurs off-chain using on-chain pet data as the source of truth.
 
 ## 9. Pet Breeding & Genetics
 

@@ -63,14 +63,14 @@ pub mod pallet {
     #[pallet::config]
     pub trait Config: frame_system::Config {
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-        type Currency: Currency<Self::AccountId>; // For battle rewards later
+        type Currency: Currency<Self::AccountId>;
         type PetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen + Default + Ord;
 
-        // NftHandler for interacting with the NFT pallet.
-        type NftHandler: pallet_critter_nfts::NftManager<Self::AccountId, Self::PetId, DispatchResult>;
+        /// Handler for interacting with the NFT pallet (pallet-critter-nfts).
+        type NftHandler: pallet_critter_nfts::NftManager<Self::AccountId, Self::PetId>; // Corrected: Removed DispatchResult generic from trait bound
 
         #[pallet::constant]
-        type BattleRewardAmount: Get<BalanceOf<Self>>; // New constant for rewards
+        type BattleRewardAmount: Get<BalanceOf<Self>>;
     }
 
     #[pallet::pallet]
@@ -132,36 +132,42 @@ pub mod pallet {
         ) -> DispatchResult {
             let player1 = ensure_signed(origin)?;
 
-            // Check if pet is already in another battle
+            // 1. Check if the pet is already registered in another active battle.
             ensure!(!PetInBattle::<T>::contains_key(&pet_id), Error::<T>::PetAlreadyInBattle);
 
-            // Verify ownership and eligibility via NftHandler
-            // owner_of returns Option<AccountId>
-            let owner = T::NftHandler::owner_of(&pet_id).ok_or(Error::<T>::NotNftOwnerOrNftNotFound)?;
-            ensure!(owner == player1, Error::<T>::NotNftOwnerOrNftNotFound);
+            // 2. Verify ownership of the pet via NftHandler.
+            let owner = T::NftHandler::owner_of(&pet_id)
+                .ok_or(Error::<T>::NotNftOwnerOrNftNotFound)?; // Pet doesn't exist or no owner.
+            ensure!(owner == player1, Error::<T>::NotNftOwnerOrNftNotFound); // Caller is not the owner.
 
-            // is_transferable means not locked by marketplace or other logic in critter_nfts_pallet
+            // 3. Check if the pet is eligible for battle (e.g., not locked by marketplace).
+            // `is_transferable` implies it's not locked by other systems.
             ensure!(T::NftHandler::is_transferable(&pet_id), Error::<T>::NftNotEligibleForBattle);
 
-            // Generate new BattleId
+            // 4. Generate a new BattleId.
             let battle_id = NextBattleId::<T>::try_mutate(|id| -> Result<BattleId, DispatchError> {
                 let current_id = *id;
                 *id = id.checked_add(1).ok_or(Error::<T>::BattleIdOverflow)?;
                 Ok(current_id)
             })?;
 
+            // 5. Create initial BattleDetails.
+            // For MVP, a battle is registered by player1. Player2 would need a separate `join_battle` extrinsic (not in this subtask's scope).
+            // So, player2 and pet2_id remain None initially.
             let battle_details = BattleDetails {
                 player1: player1.clone(),
                 pet1_id: pet_id,
-                player2: None,
-                pet2_id: None,
+                player2: None,         // Player2 joins via a separate action (e.g., join_battle extrinsic).
+                pet2_id: None,         // Pet2 joins when Player2 joins.
                 status: BattleStatus::PendingMatch,
-                winner: None,
+                winner: None,          // Winner determined after outcome is reported.
             };
 
+            // 6. Store the new battle and mark the pet as being in this battle.
             Battles::<T>::insert(battle_id, battle_details);
             PetInBattle::<T>::insert(&pet_id, battle_id);
 
+            // 7. Emit event.
             Self::deposit_event(Event::BattleRegistered { battle_id, player: player1, pet_id });
             Ok(())
         }
@@ -177,81 +183,83 @@ pub mod pallet {
         ) -> DispatchResult {
             let reporter = ensure_signed(origin)?;
 
-            let mut battle = Battles::<T>::get(&battle_id).ok_or(Error::<T>::BattleNotFound)?;
-            ensure!(battle.status != BattleStatus::Concluded, Error::<T>::BattleAlreadyConcluded);
+            // 1. Mutate battle details directly using try_mutate_exists for safety.
+            Battles::<T>::try_mutate_exists(battle_id, |battle_opt| -> DispatchResult {
+                let battle = battle_opt.as_mut().ok_or(Error::<T>::BattleNotFound)?;
 
-            // For MVP, player1 (the initiator) is authorized to report.
-            ensure!(reporter == battle.player1, Error::<T>::NotAuthorizedToReportOutcome);
+                // 2. Ensure battle is not already concluded.
+                ensure!(battle.status != BattleStatus::Concluded, Error::<T>::BattleAlreadyConcluded);
 
-            // Infer loser_pet_id. This assumes a 1v1 battle context as per current BattleDetails.
-            let inferred_loser_pet_id: Option<T::PetId>;
-            if battle.pet1_id == winner_pet_id {
-                inferred_loser_pet_id = battle.pet2_id;
-            } else if battle.pet2_id.is_some() && battle.pet2_id.unwrap() == winner_pet_id {
-                inferred_loser_pet_id = Some(battle.pet1_id);
-            } else {
-                // This means the reported winner_pet_id was not part of this battle
-                // or pet2_id was None (which shouldn't happen if a winner involving pet2 is reported).
-                return Err(Error::<T>::InvalidBattleParticipants.into());
-            }
+                // 3. MVP Authority Check: Assume only player1 (initiator) can report the outcome.
+                // A more robust system would involve oracles or consensus from both players.
+                ensure!(reporter == battle.player1, Error::<T>::NotAuthorizedToReportOutcome);
 
-            // Ensure that if pet2_id was None (e.g. solo registration), winner must be pet1_id
-            if battle.pet2_id.is_none() && winner_pet_id != battle.pet1_id {
-                 return Err(Error::<T>::InvalidBattleParticipants.into());
-            }
+                // 4. Determine winner and loser accounts and pet IDs.
+                let mut winner_account_final: Option<T::AccountId> = None;
+                let mut loser_account_final: Option<T::AccountId> = None;
+                let mut actual_winner_pet_id_final: Option<T::PetId> = None; // To store the confirmed winner pet ID.
+                let mut loser_pet_id_final: Option<T::PetId> = None;
 
-            let mut winner_account_final: Option<T::AccountId> = None;
-            let mut loser_account_final: Option<T::AccountId> = None;
-            // loser_pet_id_final is already inferred_loser_pet_id
-            let mut actual_winner_pet_id_final: Option<T::PetId> = Some(winner_pet_id);
-            let mut reward_given: Option<BalanceOf<T>> = None;
-
-            if battle.pet1_id == winner_pet_id {
-                winner_account_final = Some(battle.player1.clone());
-                if let Some(p2_acc) = battle.player2.clone() { // player2 account might not exist if pet2_id was None
-                    loser_account_final = Some(p2_acc);
+                if battle.pet1_id == winner_pet_id {
+                    winner_account_final = Some(battle.player1.clone());
+                    actual_winner_pet_id_final = Some(battle.pet1_id);
+                    // If player2 exists, they are the loser.
+                    if let (Some(p2_acc), Some(p2_pet)) = (&battle.player2, battle.pet2_id) {
+                        loser_account_final = Some(p2_acc.clone());
+                        loser_pet_id_final = Some(p2_pet);
+                    }
+                    // If player2 is None (e.g., player1 won a conceptual solo challenge or opponent fled before registering pet2),
+                    // loser_account and loser_pet_id remain None.
+                } else if battle.pet2_id.is_some() && battle.pet2_id.unwrap() == winner_pet_id {
+                    // pet2_id must exist and match winner_pet_id for player2 to be the winner.
+                    winner_account_final = battle.player2.clone(); // battle.player2 must be Some.
+                    actual_winner_pet_id_final = battle.pet2_id;
+                    loser_account_final = Some(battle.player1.clone());
+                    loser_pet_id_final = Some(battle.pet1_id);
+                } else {
+                    // Reported winner_pet_id does not match any known participant in the battle.
+                    return Err(Error::<T>::InvalidBattleParticipants.into());
                 }
-            } else if battle.pet2_id.is_some() && battle.pet2_id.unwrap() == winner_pet_id {
-                winner_account_final = battle.player2.clone(); // player2 must exist if pet2_id is winner
-                loser_account_final = Some(battle.player1.clone());
-            }
-            // If winner_pet_id was not found (already handled by InvalidBattleParticipants), this part is skipped.
 
-            battle.status = BattleStatus::Concluded;
-            battle.winner = winner_account_final.clone();
+                // 5. Update battle status and winner.
+                battle.status = BattleStatus::Concluded;
+                battle.winner = winner_account_final.clone();
 
-            // Distribute reward (fixed amount for MVP)
-            if let Some(ref win_acc) = winner_account_final {
-                let reward = T::BattleRewardAmount::get();
-                if reward > BalanceOf::<T>::from(0u32) {
-                    T::Currency::deposit_creating(win_acc, reward);
-                    reward_given = Some(reward);
+                // 6. Distribute reward to the winner.
+                let mut reward_given: Option<BalanceOf<T>> = None;
+                if let Some(ref win_acc) = winner_account_final {
+                    let reward_amount = T::BattleRewardAmount::get();
+                    if reward_amount > BalanceOf::<T>::from(0u32) {
+                        // Using deposit_creating with same caveats as in other pallets (MVP simplification).
+                        // A more robust system might use a treasury or a dedicated rewards pool.
+                        T::Currency::deposit_creating(win_acc, reward_amount);
+                        // TODO: Consider map_err for RewardDistributionFailed if deposit_creating can error and needs handling.
+                        reward_given = Some(reward_amount);
+                    }
                 }
-            }
 
-            Battles::<T>::insert(&battle_id, battle.clone());
+                // 7. Clean up PetInBattle state for both pets involved.
+                PetInBattle::<T>::remove(&battle.pet1_id);
+                if let Some(pet2_id_val) = battle.pet2_id {
+                    PetInBattle::<T>::remove(&pet2_id_val);
+                }
 
-            // Clean up PetInBattle state for both pets
-            PetInBattle::<T>::remove(&battle.pet1_id);
-            if let Some(pet2_id_val) = battle.pet2_id { // only remove if pet2 was actually in battle
-                PetInBattle::<T>::remove(&pet2_id_val);
-            }
-
-            Self::deposit_event(Event::BattleConcluded {
-                battle_id,
-                winner_account: winner_account_final,
-                winner_pet_id: actual_winner_pet_id_final,
-                loser_account: loser_account_final,
-                loser_pet_id: inferred_loser_pet_id, // Use inferred loser
-                reward_amount: reward_given,
-                // battle_log_hash: None, // Add when battle_log_hash param is re-introduced
-            });
-
-            Ok(())
+                // 8. Emit event.
+                Self::deposit_event(Event::BattleConcluded {
+                    battle_id,
+                    winner_account: winner_account_final,
+                    winner_pet_id: actual_winner_pet_id_final,
+                    loser_account: loser_account_final,
+                    loser_pet_id: loser_pet_id_final,
+                    reward_amount: reward_given,
+                    // battle_log_hash: None, // Deferred for post-MVP.
+                });
+                Ok(())
+            }) // End of try_mutate_exists
         }
     }
 
-    // Separate impl block for conceptual helper functions
+    // Separate impl block for conceptual helper functions (battle simulation logic is off-chain for MVP)
     impl<T: Config> Pallet<T> {
         // fn calculate_battle_simulation(
         //     pet1_stats: &MvpBattlePetStats<T::PetId, T::AccountId, pallet_critter_nfts::ElementType>,

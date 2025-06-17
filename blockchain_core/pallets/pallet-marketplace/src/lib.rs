@@ -50,12 +50,13 @@ pub mod pallet {
 
         // MVP Fee Configuration: Fixed fee or zero fee.
         #[pallet::constant]
-        type MarketplaceFixedFee: Get<BalanceOf<Self>>; // e.g., 1 PTCN, or 0 for no fee MVP.
+        type MarketplaceFixedFee: Get<BalanceOf<Self>>;
         // type MarketplaceFeeRate: Get<Perbill>; // Deferred for MVP
 
-        /// Destination for collected fees (if MarketplaceFixedFee > 0).
-        /// Could be Treasury, a specific operational account, or a burn mechanism.
-        type FeeDestination: OnUnbalanced<NegativeImbalanceOf<T>>;
+        /// AccountId for the fee destination (e.g., Treasury account).
+        /// Used if MarketplaceFixedFee > 0.
+        #[pallet::constant]
+        type FeeDestinationAccountId: Get<Self::AccountId>;
     }
 
     #[pallet::pallet]
@@ -89,26 +90,18 @@ pub mod pallet {
         PetNotFound,
         /// The caller is not the owner of the Pet NFT they are trying to list.
         NotNftOwner,
-        /// This Pet NFT is already listed for sale.
         NftAlreadyListed,
-        /// The Pet NFT is not transferable (e.g., it's locked or soul-bound).
         NftNotTransferable,
-        /// The attempt to lock the NFT via the NftHandler failed.
         LockNftFailed,
-        /// The price for listing an NFT must be greater than zero.
         PriceMustBeGreaterThanZero,
-        /// The specified listing was not found.
         ListingNotFound,
-        /// The caller is not the seller of the listed NFT.
         NotSeller,
-        /// The attempt to unlock the NFT via the NftHandler failed.
         UnlockNftFailed,
-        /// A user cannot buy their own listed NFT.
         BuyerIsSeller,
-        /// The buyer does not have enough balance to purchase the NFT.
-        InsufficientBalance, // Note: T::Currency::transfer handles this, but explicit error can be useful
-        /// The transfer of currency or NFT failed.
-        TransferFailed,
+        InsufficientBalance, // Although T::Currency::transfer handles this, an explicit error can be useful for UI.
+        TransferFailed, // Generic failure for currency or NFT transfer.
+        FeePaymentFailed, // If the seller cannot pay the marketplace fee from the sale proceeds.
+        PriceTooLowToCoverFeeAndSellerPayment, // If price <= fee, meaning seller gets nothing or negative.
     }
 
     #[pallet::call]
@@ -122,37 +115,32 @@ pub mod pallet {
         ) -> DispatchResult {
             let seller = ensure_signed(origin)?;
 
-            // Ensure price is not zero
+            // 1. Ensure price is greater than zero.
             ensure!(price > BalanceOf::<T>::from(0u32), Error::<T>::PriceMustBeGreaterThanZero);
 
-            // Check if already listed
+            // 2. Check if the NFT is already listed.
             ensure!(!Listings::<T>::contains_key(&pet_id), Error::<T>::NftAlreadyListed);
 
-            // SYNERGY: Check seller's trade_reputation_score from pallet-user-profile
-            // // let seller_profile = pallet_user_profile::Pallet::<T>::user_profiles(&seller); // Requires T: pallet_user_profile::Config
-            // // if seller_profile.trade_reputation_score < MIN_REP_TO_LIST_CONSTANT {
-            // //     return Err(Error::<T>::SellerReputationTooLow.into()); // Conceptual error
-            // // }
-
-            // Verify ownership using the NftHandler
+            // 3. Verify ownership of the NFT.
             let owner = T::NftHandler::owner_of(&pet_id).ok_or(Error::<T>::PetNotFound)?;
             ensure!(owner == seller, Error::<T>::NotNftOwner);
 
-            // Check if transferable/lockable via NftHandler
+            // 4. Check if the NFT is transferable (not locked by other means).
             ensure!(T::NftHandler::is_transferable(&pet_id), Error::<T>::NftNotTransferable);
 
-            // Attempt to lock the NFT via NftHandler
-            T::NftHandler::lock_nft(&seller, &pet_id).map_err(|_dispatch_err| Error::<T>::LockNftFailed)?;
-            // Note: if lock_nft returns a DispatchError, we're converting it.
-            // A more robust error handling might involve specific errors from NftHandler if it defines its own error type.
+            // 5. Lock the NFT to prevent transfers while listed.
+            T::NftHandler::lock_nft(&seller, &pet_id).map_err(|_| Error::<T>::LockNftFailed)?;
 
+            // 6. Create listing details.
             let listing_details = ListingDetails {
                 seller: seller.clone(),
                 price,
             };
 
+            // 7. Store the listing.
             Listings::<T>::insert(&pet_id, listing_details);
 
+            // 8. Emit event.
             Self::deposit_event(Event::NftListed { seller, pet_id, price });
             Ok(())
         }
@@ -165,127 +153,99 @@ pub mod pallet {
         ) -> DispatchResult {
             let signer = ensure_signed(origin)?;
 
-            // Retrieve the listing
+            // 1. Retrieve the listing.
             let listing_details = Listings::<T>::get(&pet_id).ok_or(Error::<T>::ListingNotFound)?;
 
-            // Verify that the caller is the seller
+            // 2. Verify that the caller is the seller.
             ensure!(listing_details.seller == signer, Error::<T>::NotSeller);
 
-            // Attempt to unlock the NFT via NftHandler
-            // Pass listing_details.seller as it's the verified owner who locked it.
-            T::NftHandler::unlock_nft(&listing_details.seller, &pet_id).map_err(|_dispatch_err| Error::<T>::UnlockNftFailed)?;
+            // 3. Attempt to unlock the NFT via NftHandler.
+            // The owner passed to unlock_nft should be the original seller who locked it.
+            T::NftHandler::unlock_nft(&listing_details.seller, &pet_id)
+                .map_err(|_| Error::<T>::UnlockNftFailed)?;
 
-            // Remove the listing from storage
+            // 4. Remove the listing from storage.
             Listings::<T>::remove(&pet_id);
 
-            // Deposit an event
+            // 5. Emit event.
             Self::deposit_event(Event::NftUnlisted { seller: signer, pet_id });
 
             Ok(())
         }
 
         #[pallet::call_index(2)]
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1) + T::DbWeight::get().reads_writes(1,1) + T::DbWeight::get().writes(1))] // Placeholder: R:Listings, W:Currency, W:NftHandler, W:Listings
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1) + T::DbWeight::get().reads_writes(1,1) + T::DbWeight::get().writes(1))]
         pub fn buy_nft(
             origin: OriginFor<T>,
             pet_id: T::PetId,
         ) -> DispatchResult {
             let buyer = ensure_signed(origin)?;
 
-            // Retrieve the listing
+            // 1. Retrieve the listing.
             let listing = Listings::<T>::get(&pet_id).ok_or(Error::<T>::ListingNotFound)?;
 
-            // Ensure buyer is not the seller
+            // 2. Ensure buyer is not the seller.
             ensure!(buyer != listing.seller, Error::<T>::BuyerIsSeller);
 
-            // --- Conceptual Fee Logic ---
-            // let sale_price = listing.price;
-            // let fee = T::MarketplaceFeeRate::get() * sale_price; // Perbill multiplication needs careful handling of Balance type
-            // let price_after_fee = sale_price.saturating_sub(fee);
-
-            // // Option 1: Direct transfer to FeeCollectorAccountId (simpler)
-            // // if fee > BalanceOf::<T>::zero() {
-            // //     T::Currency::transfer(&buyer, &T::FeeCollectorAccountId::get(), fee, ExistenceRequirement::AllowDeath)?;
-            // // }
-            // // T::Currency::transfer(&buyer, &listing.seller, price_after_fee, ExistenceRequirement::KeepAlive)?;
-            // // This means buyer pays `sale_price + fee` or pallet needs to manage an intermediate account.
-
-            // // Option 2: Buyer pays full price to seller, then seller pays fee (more complex for seller) - not ideal.
-
-            // // Option 3: Buyer pays full price, pallet intercepts fee.
-            // // This would require the pallet to have a sovereign account or use imbalances.
-            // // Total amount to be withdrawn from buyer:
-            // // T::Currency::withdraw(&buyer, sale_price, WithdrawReasons::TRANSACTION_PAYMENT, ExistenceRequirement::KeepAlive)?;
-            // // T::Currency::deposit_creating(&listing.seller, price_after_fee); // Simplified deposit
-            // // T::FeeDestination::on_unbalanced(T::Currency::issue(fee)); // If FeeDestination handles Imbalance
-
-            // For this conceptual stage, we'll proceed with the original direct transfer logic
-            // and add a NOTE that fees would alter this flow by splitting the `listing.price`.
-            // The actual implementation detail (e.g. pallet sovereign account, or buyer pays seller and then fee separately)
-            // would be decided during full implementation. The critical point is acknowledging the fee.
-            // A comment will suffice here to indicate where fee logic would apply.
-            // NOTE ON FEE: At this point, the `listing.price` would be split.
-            // `price_to_seller = listing.price - fee`. `fee` goes to `T::FeeDestination`.
-            // The T::Currency::transfer below would use `price_to_seller`.
-            // An additional transfer or imbalance handling would manage the `fee`.
-
-            // MVP Fee Logic:
-            // Seller lists at `listing.price`. Buyer pays `listing.price`.
-            // If `MarketplaceFixedFee > 0`, this fee is deducted from `listing.price` before seller gets it.
-            // Seller receives `listing.price - fee`. Fee goes to `FeeDestination`.
-            // The actual mechanics of transferring to FeeDestination (e.g. via pallet account) are complex
-            // and deferred. For MVP, the principle is that the fee is accounted for.
-
+            // 3. Handle fees and calculate amount for seller.
             let sale_price = listing.price;
-            let fee = T::MarketplaceFixedFee::get();
-            let amount_to_seller = sale_price.saturating_sub(fee);
+            let fixed_fee = T::MarketplaceFixedFee::get();
+            let amount_to_seller;
 
-            // Transfer amount to seller
-            T::Currency::transfer(&buyer, &listing.seller, amount_to_seller, ExistenceRequirement::KeepAlive)
-                .map_err(|_dispatch_err| Error::<T>::TransferFailed)?;
-
-            // Handle the fee if it's greater than zero
-            if fee > BalanceOf::<T>::from(0u32) {
-                // Conceptually, the buyer might pay `sale_price + fee` or the fee is part of `sale_price`.
-                // The current logic implies buyer pays `sale_price`, and seller effectively pays the fee from it.
-                // To correctly move the fee to FeeDestination, the pallet would typically need to
-                // temporarily hold the fee amount.
-                // For MVP conceptual logic: Assume `buyer` has effectively paid `listing.price`.
-                // `amount_to_seller` has gone to seller. The remaining `fee` needs to be handled.
-                // This simplified version doesn't show the full fund flow for the fee part,
-                // as it would require a more complex setup (e.g. pallet account or withdrawing from buyer and splitting).
-                // We acknowledge the fee exists and would be routed to T::FeeDestination.
-                // A more complete (but complex) flow:
-                // T::Currency::withdraw(&buyer, sale_price, ...)?; // Withdraw full amount from buyer
-                // T::Currency::deposit_creating(&listing.seller, amount_to_seller); // Deposit to seller
-                // let fee_imbalance = T::Currency::issue(fee); // Or some way to take the fee part
-                // T::FeeDestination::on_unbalanced(fee_imbalance);
-                // For now, the direct transfer to seller is `amount_to_seller`. The `fee` portion of `listing.price`
-                // is conceptually set aside for `FeeDestination`. The exact mechanism is abstracted for MVP.
-                // This means the buyer must have at least `amount_to_seller`.
-                // If the model is buyer pays `listing.price` AND `fee` on top:
-                // T::Currency::transfer(&buyer, &fee_destination_account, fee, ...)?;
-                // For now, we assume the original transfer covers the seller's part after fee.
+            if fixed_fee > BalanceOf::<T>::from(0u32) {
+                // Ensure the sale price can at least cover the fee, and ideally leave something for the seller.
+                // For MVP, we'll ensure price > fee for the transaction to proceed if a fee is active.
+                // This means seller must get a non-zero amount.
+                ensure!(sale_price > fixed_fee, Error::<T>::PriceTooLowToCoverFeeAndSellerPayment);
+                amount_to_seller = sale_price.saturating_sub(fixed_fee);
+            } else {
+                // No fee or zero fee.
+                amount_to_seller = sale_price;
             }
 
-            // Perform NFT transfer from seller to buyer using NftHandler
-            // This assumes NftHandler's transfer_nft also handles unlocking if applicable.
-            T::NftHandler::transfer_nft(&listing.seller, &buyer, &pet_id)
-                .map_err(|_dispatch_err| Error::<T>::TransferFailed)?;
+            // 4. Perform currency transfer: Buyer pays `sale_price`.
+            // Seller receives `amount_to_seller`. Fee (if any) goes to `FeeDestinationAccountId`.
 
-            // Remove the listing from storage
+            // Step 4a: Transfer the main portion of the sale price from buyer to seller.
+            T::Currency::transfer(&buyer, &listing.seller, amount_to_seller, ExistenceRequirement::KeepAlive)
+                .map_err(|_| Error::<T>::TransferFailed)?; // This covers buyer's insufficient balance for amount_to_seller.
+
+            // Step 4b: If there's a fee, transfer it from buyer to FeeDestinationAccountId.
+            // This model means the buyer explicitly pays the fee on top of the amount that goes to the seller.
+            // The total cost for the buyer is `amount_to_seller + fixed_fee`, which equals `sale_price`.
+            if fixed_fee > BalanceOf::<T>::from(0u32) {
+                 T::Currency::transfer(&buyer, &T::FeeDestinationAccountId::get(), fixed_fee, ExistenceRequirement::KeepAlive)
+                    .map_err(|_| Error::<T>::FeePaymentFailed)?; // Error if buyer cannot cover the fee.
+            }
+            // Note: The above logic ensures buyer pays the full 'sale_price' which is then split.
+            // If buyer did not have `sale_price` initially, the first transfer for `amount_to_seller` might fail,
+            // or if they had just enough for `amount_to_seller` but not the `fixed_fee`, the second transfer would fail.
+            // A single withdrawal from buyer to pallet, then split, is more robust but adds pallet account complexity.
+            // The current model is: Buyer needs `amount_to_seller + fixed_fee` (i.e. `sale_price`).
+            // The previous model (buyer pays seller, seller pays fee) is also viable but shifts risk.
+            // Let's stick to: Buyer pays seller `amount_to_seller`, buyer pays fee collector `fixed_fee`. Total buyer cost = `sale_price`.
+
+            // 5. Perform NFT transfer from seller to buyer using NftHandler.
+            // This assumes NftHandler's transfer_nft also handles unlocking (or that marketplace pallet calls unlock first if needed).
+            // Based on NftManager trait, transfer_nft does not manage locks itself.
+            // The NFT was locked at listing. It should be unlocked here before transfer by NftHandler,
+            // or NftHandler::transfer_nft must be capable of transferring a locked NFT if called by an authorized pallet like this one.
+            // For MVP, we assume NftHandler::transfer_nft will succeed if the NFT is locked by this marketplace.
+            // A stricter flow:
+            // T::NftHandler::unlock_nft(&listing.seller, &pet_id).map_err(|_| Error::<T>::UnlockNftFailed)?; // Unlock before transfer
+            // T::NftHandler::transfer_nft(&listing.seller, &buyer, &pet_id).map_err(|_| Error::<T>::TransferFailed)?;
+            // However, our NftManager::transfer_nft assumes caller handles locks.
+            // The lock made by list_nft_for_sale needs to be undone.
+            // The NftHandler::transfer_nft should ideally be called on an unlocked NFT.
+            // So, this pallet must call unlock_nft first.
+            T::NftHandler::unlock_nft(&listing.seller, &pet_id).map_err(|_| Error::<T>::UnlockNftFailed)?;
+            T::NftHandler::transfer_nft(&listing.seller, &buyer, &pet_id)
+                .map_err(|_| Error::<T>::TransferFailed)?;
+
+            // 5. Remove the listing from storage.
             Listings::<T>::remove(&pet_id);
 
-            // SYNERGY: After successful trade, call pallet-user-profile to update trade stats for buyer and seller
-            // // pallet_user_profile::Pallet::<T>::record_successful_trade(&buyer)?; // Requires T: pallet_user_profile::Config
-            // // pallet_user_profile::Pallet::<T>::record_successful_trade(&listing.seller)?;
-
-            // SYNERGY: (Future) Could also update buyer's/seller's trade_reputation_score based on this successful transaction
-            // // pallet_user_profile::Pallet::<T>::update_trade_reputation(&buyer, POSITIVE_TRADE_REP_CHANGE)?;
-            // // pallet_user_profile::Pallet::<T>::update_trade_reputation(&listing.seller, POSITIVE_TRADE_REP_CHANGE)?;
-
-
-            // Deposit an event
+            // 6. Emit event.
             Self::deposit_event(Event::NftSold {
                 buyer,
                 seller: listing.seller,

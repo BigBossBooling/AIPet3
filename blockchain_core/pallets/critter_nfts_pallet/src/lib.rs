@@ -50,17 +50,13 @@ pub mod pallet {
 
     // Define the PetNft struct
     #[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-    #[scale_info(skip_type_params(T))] // Important for BoundedVec usage with generics
+    #[scale_info(skip_type_params(T))]
     pub struct PetNft<T: Config> {
         // --- Immutable Attributes ---
         pub id: PetId,
         pub dna_hash: [u8; 16],
-        pub initial_species: Vec<u8>,
-        // COMMENT TO ADD: Consider BoundedVec<u8, T::MaxSpeciesNameLen> in a future iteration for on-chain size guarantees.
-        //                This would require adding `MaxSpeciesNameLen: Get<u32>` to Config.
-        pub current_pet_name: Vec<u8>,
-        // COMMENT TO ADD: Consider BoundedVec<u8, T::MaxPetNameLen> in a future iteration.
-        //                This would require adding `MaxPetNameLen: Get<u32>` to Config.
+        pub initial_species: Vec<u8>, // Future: BoundedVec<u8, T::MaxSpeciesNameLen>
+        pub current_pet_name: Vec<u8>, // Future: BoundedVec<u8, T::MaxPetNameLen>
 
         // Explicit On-Chain Charter Attributes (Immutable after minting)
         pub base_strength: u8,
@@ -247,81 +243,56 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(4).reads(1))] // Basic weight, adjust as needed
         pub fn mint_pet_nft(
             origin: OriginFor<T>,
-            species: Vec<u8>, // Directly from CLI: <Species> argument. Validated for length if PetNft.initial_species becomes BoundedVec.
-            name: Vec<u8>,    // Directly from CLI: <Name> argument. Validated for length if PetNft.current_pet_name becomes BoundedVec.
+            species: Vec<u8>,
+            name: Vec<u8>,
         ) -> DispatchResult {
-            let sender = ensure_signed(origin)?; // Derived from CLI's --from <SeedOrUri>
+            let sender = ensure_signed(origin)?;
 
-            // Generate PetId (self-contained logic, no additional CLI input needed)
+            // 1. Generate PetId
             let pet_id = NextPetId::<T>::try_mutate(|next_id| -> Result<PetId, DispatchError> {
                 let current_id = *next_id;
                 *next_id = next_id.checked_add(1).ok_or(Error::<T>::NextPetIdOverflow)?;
                 Ok(current_id)
             })?;
 
-            // DNA Hash Generation (self-contained, uses sender, pet_id, species, name, and T::PetRandomness)
-            // COMMENT TO ADD: This process is fully self-contained within the extrinsic, suitable for CLI minting.
+            // 2. DNA Hash Generation (self-contained using inputs and randomness)
             let (dna_seed, _) = T::PetRandomness::random_seed();
             let dna_hash_data = (dna_seed, &sender, pet_id, &species, &name).encode();
             let dna_hash = frame_support::Hashable::blake2_128(&dna_hash_data);
 
-            // Charter Attribute Derivation from dna_hash (self-contained)
-            // COMMENT TO ADD: Derivation of base_strength, base_agility, etc., from dna_hash is internal
-            // and requires no extra CLI parameters, aligning with simple CLI usage.
-            // This illustrative algorithm aims for a spread of values.
-            // Each u8 in dna_hash ranges from 0-255.
+            // 3. Charter Attribute Derivation from dna_hash (internal, self-contained)
+            // Illustrative algorithm:
             // Base stats range, e.g., 5-20 (16 possible values). Max u8 for stat is 255.
             // We can use modulo and scaling.
 
             // Example: Use pairs of bytes from dna_hash for more entropy per stat group.
             // Strength & Agility from first 4 bytes. Intelligence & Vitality from next 4.
-            // Elemental Affinity from another byte.
-
-            // Strength (5-20): dna_hash[0] & dna_hash[1]
-            // Combine two bytes for a wider initial range (0-65535), then scale.
             let val_s = ((dna_hash[0] as u16) << 8 | dna_hash[1] as u16) % 100;
             let base_strength = (5 + (val_s * 15) / 99) as u8;
-
-            // Agility (5-20): dna_hash[2] & dna_hash[3]
             let val_a = ((dna_hash[2] as u16) << 8 | dna_hash[3] as u16) % 100;
             let base_agility = (5 + (val_a * 15) / 99) as u8;
-
-            // Intelligence (5-20): dna_hash[4] & dna_hash[5]
             let val_i = ((dna_hash[4] as u16) << 8 | dna_hash[5] as u16) % 100;
             let base_intelligence = (5 + (val_i * 15) / 99) as u8;
-
-            // Vitality (5-20): dna_hash[6] & dna_hash[7]
             let val_v = ((dna_hash[6] as u16) << 8 | dna_hash[7] as u16) % 100;
             let base_vitality = (5 + (val_v * 15) / 99) as u8;
-
-            // Primary Elemental Affinity: dna_hash[8] using Option<ElementType>
             let primary_elemental_affinity = match dna_hash[8] % 8 {
-                0 => Some(ElementType::Fire),
-                1 => Some(ElementType::Water),
-                2 => Some(ElementType::Earth),
-                3 => Some(ElementType::Air),
-                4 => Some(ElementType::Tech),
-                5 => Some(ElementType::Nature),
+                0 => Some(ElementType::Fire), 1 => Some(ElementType::Water), 2 => Some(ElementType::Earth),
+                3 => Some(ElementType::Air), 4 => Some(ElementType::Tech), 5 => Some(ElementType::Nature),
                 6 => Some(ElementType::Mystic),
                 _ => None,
             };
 
-            // Initial Dynamic Attributes (self-contained, set to sensible defaults)
-            // COMMENT TO ADD: All dynamic attributes are initialized to suitable defaults for a newly minted pet.
+            // 4. Initial Dynamic Attributes (set to defaults)
             let current_block_number = frame_system::Pallet::<T>::block_number();
             let initial_mood = T::MaxMoodValue::get();
 
-            // Ensure species and name are converted to BoundedVec if PetNft struct uses it.
-            // For now, PetNft uses Vec<u8>, so direct clone is fine.
-            // If PetNft.initial_species became BoundedVec<u8, T::MaxSpeciesNameLen>, then:
-            // let bounded_species: BoundedVec<u8, T::MaxSpeciesNameLen> = species.clone().try_into().map_err(|_| Error::<T>::SpeciesNameTooLong)?;
-            // Similar for name. Add corresponding errors if/when BoundedVec is used.
-
+            // Note: If initial_species or current_pet_name in PetNft become BoundedVec,
+            // length validation and .try_into().map_err() would be needed here for species & name.
             let new_pet = PetNft {
                 id: pet_id,
                 dna_hash,
-                initial_species: species.clone(), // Use bounded_species if changed in PetNft struct
-                current_pet_name: name.clone(),   // Use bounded_name if changed in PetNft struct
+                initial_species: species.clone(),
+                current_pet_name: name.clone(),
                 base_strength,
                 base_agility,
                 base_intelligence,
@@ -343,10 +314,9 @@ pub mod pallet {
             OwnerOfPet::<T>::try_mutate(&sender, |owned_pets_vec| {
                 owned_pets_vec.try_push(pet_id).map_err(|_| Error::<T>::ExceedMaxOwnedPets)
             })?;
-
             PetNftOwner::<T>::insert(pet_id, sender.clone());
 
-            // Deposit an event
+            // Emit event
             Self::deposit_event(Event::PetNftMinted { owner: sender, pet_id });
 
             Ok(())
@@ -361,38 +331,42 @@ pub mod pallet {
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
-            // Ensure sender is not transferring to themselves
+            // 1. Ensure sender is not transferring to themselves.
             ensure!(sender != recipient, Error::<T>::CannotTransferToSelf);
 
-            // Check if the pet exists and sender is the owner
-            let current_owner = PetNftOwner::<T>::get(pet_id).ok_or(Error::<T>::PetNotFound)?;
-            ensure!(current_owner == sender, Error::<T>::NotOwner);
+            // 2. Check if the pet exists and the sender is the current owner.
+            let owner = PetNftOwner::<T>::get(pet_id).ok_or(Error::<T>::PetNotFound)?;
+            ensure!(owner == sender, Error::<T>::NotOwner);
 
-            // Check if the NFT is locked
+            // 3. Check if the NFT is transferable (not locked).
             ensure!(Self::is_transferable(&pet_id), Error::<T>::NftLocked);
 
-            // Check if recipient can receive another pet
-            OwnerOfPet::<T>::try_mutate(&recipient, |recipient_pets| {
-                recipient_pets.try_push(pet_id).map_err(|_| Error::<T>::RecipientExceedMaxOwnedPets)
-            })?;
+            // 4. Check if recipient has space for a new pet.
+            let recipient_pets = OwnerOfPet::<T>::get(&recipient).unwrap_or_default();
+            ensure!(recipient_pets.len() < T::MaxOwnedPets::get() as usize, Error::<T>::RecipientExceedMaxOwnedPets);
 
-            // Remove pet from sender's ownership list
-            OwnerOfPet::<T>::try_mutate(&sender, |sender_pets| {
-                if let Some(index) = sender_pets.iter().position(|&id| id == pet_id) {
-                    sender_pets.swap_remove(index); // Efficient removal if order doesn't matter
+            // 5. Remove pet from sender's ownership list.
+            OwnerOfPet::<T>::try_mutate(&sender, |sender_owned_pets| {
+                if let Some(index) = sender_owned_pets.iter().position(|id| *id == pet_id) {
+                    sender_owned_pets.swap_remove(index);
                     Ok(())
                 } else {
-                    // This case should ideally not happen if PetNftOwner is consistent
-                    // but as a safeguard or if logic changes, it's good to consider.
-                    // For now, we assume PetNftOwner is the source of truth for ownership.
-                    Err(Error::<T>::NotOwner) // Or a more specific error
+                    // Should not happen if PetNftOwner is consistent with OwnerOfPet.
+                    // Considered an internal inconsistency if this branch is reached.
+                    Err(Error::<T>::NotOwner) // Or a more specific internal error
                 }
             })?;
 
-            // Update the direct owner mapping
+            // 6. Add pet to recipient's ownership list.
+            OwnerOfPet::<T>::try_mutate(&recipient, |recipient_owned_pets| {
+                recipient_owned_pets.try_push(pet_id).map_err(|_| Error::<T>::RecipientExceedMaxOwnedPets)
+                // This error should ideally be caught by check 4, but good to have defense in depth.
+            })?;
+
+            // 7. Update the direct owner mapping for the pet.
             PetNftOwner::<T>::insert(pet_id, recipient.clone());
 
-            // Deposit an event
+            // 8. Emit event.
             Self::deposit_event(Event::PetNftTransferred { from: sender, to: recipient, pet_id });
 
             Ok(())
@@ -414,24 +388,35 @@ pub mod pallet {
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
-            let current_owner = PetNftOwner::<T>::get(pet_id).ok_or(Error::<T>::PetNotFound)?;
-            ensure!(current_owner == sender, Error::<T>::NotOwner);
+            // 1. Verify ownership.
+            let owner = PetNftOwner::<T>::get(pet_id).ok_or(Error::<T>::PetNotFound)?;
+            ensure!(owner == sender, Error::<T>::NotOwner);
 
-            PetNfts::<T>::try_mutate(pet_id, |pet_nft_opt| -> DispatchResult {
+            // 2. Mutate PetNft data.
+            PetNfts::<T>::try_mutate(&pet_id, |pet_nft_opt| -> DispatchResult {
                 let pet_nft = pet_nft_opt.as_mut().ok_or(Error::<T>::PetNotFound)?;
 
+                // Selectively update name if provided.
                 if let Some(new_name) = name {
-                    // Consider BoundedVec for name in PetNft struct and validate length here if so.
+                    // TODO (Future): If current_pet_name becomes BoundedVec in PetNft struct,
+                    // new_name (if Vec<u8>) would need:
+                    // `pet_nft.current_pet_name = new_name.try_into().map_err(|_| Error::<T>::NameTooLong)?;`
+                    // For now, assuming Vec<u8> for PetNft.current_pet_name.
                     pet_nft.current_pet_name = new_name;
                 }
+
+                // Selectively update personality traits if provided.
+                // This replaces all existing traits with the new set.
                 if let Some(new_traits) = personality_traits {
-                    // This replaces all traits. Individual add/remove might be other extrinsics.
                     pet_nft.personality_traits = new_traits;
                 }
+
+                // 3. Update the last state update block.
                 pet_nft.last_state_update_block = frame_system::Pallet::<T>::block_number();
                 Ok(())
             })?;
 
+            // 4. Emit event.
             Self::deposit_event(Event::PetNftMetadataUpdated { owner: sender, pet_id });
             Ok(())
         }
@@ -488,10 +473,13 @@ pub mod pallet {
             // or if the Currency trait supports this kind of "deposit".
             // The exact mechanism can vary. `deposit_creating` ensures the account exists.
             // If it already exists, its behavior for just adding funds might differ.
-            T::Currency::deposit_creating(&claimer, amount);
+            T::Currency::deposit_creating(&claimer, amount); // Note: This doesn't return a result directly to check against ClaimRewardFailed easily.
+                                                          // A more robust system might use `issue` to a pallet account then `transfer`.
 
+            // 4. Update the last claim time for the user.
             LastClaimTime::<T>::insert(&claimer, current_block);
 
+            // 5. Emit event.
             Self::deposit_event(Event::DailyClaimMade {
                 account: claimer,
                 amount,
@@ -506,25 +494,34 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1).reads(2))] // R: Owner, Item; W: PetNft
         pub fn feed_pet(origin: OriginFor<T>, pet_id: PetId, food_item_id: ItemId) -> DispatchResult {
             let owner = ensure_signed(origin)?;
-            ensure!(Self::owner_of_pet(&pet_id) == Some(owner.clone()), Error::<T>::NotOwner);
 
-            // Consume the food item via ItemHandler.
-            // Assumes pallet_items::ItemCategory::Food exists and is the correct variant.
+            // 1. Check if the sender owns the pet.
+            ensure!(PetNftOwner::<T>::get(pet_id) == Some(owner.clone()), Error::<T>::NotOwner);
+
+            // 2. Consume the specified food item via the ItemHandler.
+            // This interaction confirms the item exists, is of the correct category (Food), and deducts it from inventory.
             T::ItemHandler::consume_item_if_category(&owner, food_item_id, pallet_items::ItemCategory::Food)
                 .map_err(|_| Error::<T>::ItemInteractionFailed)?;
 
-            PetNfts::<T>::try_mutate(&pet_id, |pet_opt| -> DispatchResult {
-                let pet = pet_opt.as_mut().ok_or(Error::<T>::PetNotFound)?;
+            // 3. Update pet's attributes.
+            PetNfts::<T>::try_mutate(&pet_id, |pet_nft_opt| -> DispatchResult {
+                let pet = pet_nft_opt.as_mut().ok_or(Error::<T>::PetNotFound)?;
                 let current_block = frame_system::Pallet::<T>::block_number();
 
+                // Update last fed time.
                 pet.last_fed_block = current_block;
+                // Boost mood.
                 pet.mood_indicator = pet.mood_indicator.saturating_add(T::FeedMoodBoost::get()).min(T::MaxMoodValue::get());
+                // Grant XP.
                 pet.experience_points = pet.experience_points.saturating_add(T::FeedXpGain::get());
-                Self::attempt_level_up(pet)?; // Internal helper
+                // Attempt to level up.
+                Self::attempt_level_up(pet)?;
+                // Record this interaction.
                 pet.last_state_update_block = current_block;
                 Ok(())
             })?;
 
+            // 4. Emit event.
             Self::deposit_event(Event::PetFed { owner, pet_id, food_item_id });
             Ok(())
         }
@@ -534,25 +531,33 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1).reads(2))] // Similar to feed_pet
         pub fn play_with_pet(origin: OriginFor<T>, pet_id: PetId, toy_item_id: ItemId) -> DispatchResult {
             let owner = ensure_signed(origin)?;
-            ensure!(Self::owner_of_pet(&pet_id) == Some(owner.clone()), Error::<T>::NotOwner);
 
-            // Consume the toy item via ItemHandler.
-            // Assumes pallet_items::ItemCategory::Toy exists.
+            // 1. Check if the sender owns the pet.
+            ensure!(PetNftOwner::<T>::get(pet_id) == Some(owner.clone()), Error::<T>::NotOwner);
+
+            // 2. Consume the specified toy item via the ItemHandler.
             T::ItemHandler::consume_item_if_category(&owner, toy_item_id, pallet_items::ItemCategory::Toy)
                 .map_err(|_| Error::<T>::ItemInteractionFailed)?;
 
-            PetNfts::<T>::try_mutate(&pet_id, |pet_opt| -> DispatchResult {
-                let pet = pet_opt.as_mut().ok_or(Error::<T>::PetNotFound)?;
+            // 3. Update pet's attributes.
+            PetNfts::<T>::try_mutate(&pet_id, |pet_nft_opt| -> DispatchResult {
+                let pet = pet_nft_opt.as_mut().ok_or(Error::<T>::PetNotFound)?;
                 let current_block = frame_system::Pallet::<T>::block_number();
 
-                pet.last_played_block = current_block; // This is the general care timestamp too
+                // Update last played time (also general care timestamp).
+                pet.last_played_block = current_block;
+                // Boost mood.
                 pet.mood_indicator = pet.mood_indicator.saturating_add(T::PlayMoodBoost::get()).min(T::MaxMoodValue::get());
+                // Grant XP.
                 pet.experience_points = pet.experience_points.saturating_add(T::PlayXpGain::get());
+                // Attempt to level up.
                 Self::attempt_level_up(pet)?;
+                // Record this interaction.
                 pet.last_state_update_block = current_block;
                 Ok(())
             })?;
 
+            // 4. Emit event.
             Self::deposit_event(Event::PetPlayedWith { owner, pet_id, toy_item_id });
             Ok(())
         }
@@ -562,23 +567,27 @@ pub mod pallet {
         #[pallet::call_index(6)]
         #[pallet::weight(T::DbWeight::get().reads_writes(1,1))]
         pub fn apply_neglect_check(origin: OriginFor<T>, pet_id: PetId) -> DispatchResult {
-            // Anyone can call this, or it could be restricted.
-            // For now, let's allow signed origin to trigger it.
-            let _sender = ensure_signed(origin)?;
+            let _sender = ensure_signed(origin)?; // Ensure the call is signed, though sender isn't used in logic directly.
 
-            PetNfts::<T>::try_mutate(&pet_id, |pet_opt| -> DispatchResult {
-                let pet = pet_opt.as_mut().ok_or(Error::<T>::PetNotFound)?;
+            // 1. Mutate the PetNft state.
+            PetNfts::<T>::try_mutate(&pet_id, |pet_nft_opt| -> DispatchResult {
+                let pet = pet_nft_opt.as_mut().ok_or(Error::<T>::PetNotFound)?;
                 let current_block = frame_system::Pallet::<T>::block_number();
 
-                // Use last_played_block as the general "last care" timestamp for neglect.
+                // 2. Check if the neglect threshold has been passed since the last play/care interaction.
                 if current_block.saturating_sub(pet.last_played_block) > T::NeglectThresholdBlocks::get() {
                     let old_mood = pet.mood_indicator;
+                    // 3. Apply mood penalty due to neglect.
                     pet.mood_indicator = pet.mood_indicator.saturating_sub(T::NeglectMoodPenalty::get());
+                    // 4. Update the last state update block.
                     pet.last_state_update_block = current_block;
+
+                    // 5. Emit an event if mood actually changed.
                     if pet.mood_indicator != old_mood {
-                       Self::deposit_event(Event::PetNeglected{ pet_id, new_mood: pet.mood_indicator });
+                       Self::deposit_event(Event::PetNeglected{ pet_id: pet.id, new_mood: pet.mood_indicator });
                     }
                 }
+                // If neglect threshold not met, no state changes or events occur for neglect.
                 Ok(())
             })
         }
@@ -587,14 +596,18 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Internal helper to handle level ups.
         fn attempt_level_up(pet: &mut PetNft<T>) -> DispatchResult {
-            // Simplified XP curve: e.g., 100 XP for level 1, 200 for level 2, etc.
-            // This can be made more complex with T::Config constants.
+            // 1. Define XP needed for the next level (example: 100 XP per level).
+            // This could be made more complex using T::Config constants for a curve.
             let xp_needed_for_next_level = 100u32.saturating_mul(pet.level);
 
+            // 2. Check if pet has enough XP.
             if pet.experience_points >= xp_needed_for_next_level {
+                // 3. Increment level.
                 pet.level = pet.level.saturating_add(1);
+                // 4. Deduct XP used for leveling (carry over excess XP).
                 pet.experience_points = pet.experience_points.saturating_sub(xp_needed_for_next_level);
 
+                // 5. Emit event.
                 Self::deposit_event(Event::PetLeveledUp { pet_id: pet.id, new_level: pet.level });
             }
             Ok(())
@@ -610,78 +623,81 @@ pub mod pallet {
 
 // Implementation of the NftManager trait for our Pallet
 impl<T: Config> NftManager<T::AccountId, PetId, DispatchResult> for Pallet<T> {
+    /// Get the owner of an NFT.
     fn owner_of(pet_id: &PetId) -> Option<T::AccountId> {
-        // Uses the getter defined for PetNftOwner storage map
         Self::pet_nft_owner(pet_id)
     }
 
+    /// Check if an NFT is transferable (i.e., not locked).
     fn is_transferable(pet_id: &PetId) -> bool {
-        // An NFT is transferable if it's NOT in LockedNfts.
         !LockedNfts::<T>::contains_key(pet_id)
     }
 
+    /// Lock an NFT, preventing transfers.
     fn lock_nft(owner: &T::AccountId, pet_id: &PetId) -> DispatchResult {
-        // Verify owner actually owns pet_id
+        // 1. Verify the `owner` is the actual owner of the `pet_id`.
         let current_owner = Self::pet_nft_owner(pet_id).ok_or(Error::<T>::PetNotFound)?;
         ensure!(current_owner == *owner, Error::<T>::NotOwner);
 
-        // Ensure it's not already locked
+        // 2. Ensure the NFT is not already locked.
         ensure!(!LockedNfts::<T>::contains_key(pet_id), Error::<T>::NftAlreadyLocked);
 
-        // Insert into locked set
+        // 3. Add the pet_id to the LockedNfts storage.
         LockedNfts::<T>::insert(pet_id, ());
         Ok(())
     }
 
+    /// Unlock an NFT, allowing transfers.
     fn unlock_nft(owner: &T::AccountId, pet_id: &PetId) -> DispatchResult {
-        // Verify owner actually owns pet_id. This check ensures that only the entity
-        // that has control over the owner (like the marketplace acting on seller's behalf
-        // or the owner themself) can initiate an unlock.
+        // 1. Verify the `owner` is the actual owner of the `pet_id`.
+        // This ensures that only the owner (or an entity acting on their behalf with their authority) can unlock.
         let current_owner = Self::pet_nft_owner(pet_id).ok_or(Error::<T>::PetNotFound)?;
         ensure!(current_owner == *owner, Error::<T>::NotOwner);
 
-        // Ensure it IS locked
+        // 2. Ensure the NFT is currently locked.
         ensure!(LockedNfts::<T>::contains_key(pet_id), Error::<T>::NftNotLocked);
 
-        // Remove from locked set
+        // 3. Remove the pet_id from the LockedNfts storage.
         LockedNfts::<T>::remove(pet_id);
         Ok(())
     }
 
+    /// Transfer an NFT from one account to another.
+    /// Note: This is a direct transfer, typically called by another pallet (e.g., marketplace after a sale).
+    /// It assumes any necessary lock/unlock logic specific to the calling context (like marketplace listing)
+    /// has been handled by the caller. This function itself does not check `is_transferable`.
     fn transfer_nft(from: &T::AccountId, to: &T::AccountId, pet_id: &PetId) -> DispatchResult {
-        // 1. Verify 'from' is the current owner
+        // 1. Verify 'from' is the current owner.
         let current_owner = Self::pet_nft_owner(pet_id).ok_or(Error::<T>::PetNotFound)?;
         ensure!(current_owner == *from, Error::<T>::NotOwner);
 
-        // This simplified transfer does not check for `is_transferable` (i.e. !is_locked).
-        // It's assumed the caller (e.g., marketplace) handles the lock state appropriately
-        // (e.g., calls unlock_nft just before or as part of the sale transaction flow,
-        // or the lock is specific to marketplace logic and doesn't prevent underlying transfer by authorized pallet).
-        // For a direct inter-pallet call like this, the NFT should ideally be in a state
-        // where it *can* be transferred (e.g. marketplace has called unlock_nft).
+        // 2. Check recipient capacity (important for inter-pallet transfers).
+        let recipient_pets = OwnerOfPet::<T>::get(to).unwrap_or_default();
+        ensure!(recipient_pets.len() < T::MaxOwnedPets::get() as usize, Error::<T>::RecipientExceedMaxOwnedPets);
 
-        // 2. Update OwnerOfPet for the sender ('from')
+        // 3. Update OwnerOfPet for the sender ('from'): remove pet_id.
         OwnerOfPet::<T>::try_mutate(from, |owned_pets_vec| {
-            if let Some(index) = owned_pets_vec.iter().position(|&id| id == *pet_id) {
+            if let Some(index) = owned_pets_vec.iter().position(|id| *id == *pet_id) {
                 owned_pets_vec.swap_remove(index);
                 Ok(())
             } else {
-                // This indicates an inconsistency if current_owner was correct.
+                // This indicates an inconsistency, as `current_owner` check should prevent this.
                 Err(Error::<T>::PetNotFound)
             }
         })?;
 
-        // 3. Update OwnerOfPet for the recipient ('to')
+        // 4. Update OwnerOfPet for the recipient ('to'): add pet_id.
         OwnerOfPet::<T>::try_mutate(to, |owned_pets_vec| {
+            // This should not fail if the capacity check (step 2) was done correctly.
             owned_pets_vec.try_push(*pet_id).map_err(|_| Error::<T>::ExceedMaxOwnedPets)
         })?;
 
-        // 4. Update PetNftOwner mapping
+        // 5. Update PetNftOwner mapping to the new owner.
         PetNftOwner::<T>::insert(pet_id, to.clone());
 
-        // Note: No event is emitted here. The calling context (e.g., marketplace)
-        // is responsible for emitting its own relevant event (e.g., NftSold).
-        // The main `transfer_pet_nft` extrinsic in this pallet would still emit `PetNftTransferred`.
+        // Note: No event is emitted here by default for inter-pallet transfers.
+        // The calling pallet (e.g., marketplace) is responsible for emitting its own relevant event (e.g., NftSold).
+        // The user-facing `transfer_pet_nft` extrinsic in this pallet *does* emit `PetNftTransferred`.
         Ok(())
     }
 }
@@ -689,103 +705,124 @@ impl<T: Config> NftManager<T::AccountId, PetId, DispatchResult> for Pallet<T> {
 
 // Conceptual Implementation of NftManagerForItems trait (defined in pallet-items)
 // This allows pallet-items to call functions on this pallet to apply specific effects to PetNfts.
-// Note: A proper dependency setup would be needed for pallet_items types.
-// For this conceptual phase, we assume pallet_items::TraitName is accessible.
-// This assumes pallet_items::NftManagerForItems is correctly defined in pallet_items's lib.rs
-// and that pallet-critter-nfts::Config includes pallet_items::Config or necessary type aliases.
-// For MVP, trait generics are simplified: AccountId, PetId, TraitTypeString (Vec<u8>), DispatchResultType
-impl<T: Config> crate::pallet_items::NftManagerForItems<T::AccountId, PetId, Vec<u8>, DispatchResult> for Pallet<T>
-    // where T: pallet_items::Config // This would be needed if using types from pallet_items::Config directly
-{
+// Assumes pallet_items::NftManagerForItems is correctly defined in pallet_items's lib.rs.
+// Generics for MVP: AccountId, PetId, TraitTypeString (Vec<u8>), DispatchResultType.
+// `pallet_items::Config` bound on `T` might be needed if using types from pallet_items directly,
+// but for now, we assume basic types like Vec<u8> are used for trait method signatures.
+impl<T: Config> crate::pallet_items::NftManagerForItems<T::AccountId, PetId, Vec<u8>, DispatchResult> for Pallet<T> {
+    /// Get the owner of a pet. Called by pallet-items to verify item use permissions.
     fn get_pet_owner(pet_id: &PetId) -> Option<T::AccountId> {
-        Self::pet_nft_owner(pet_id)
+        Self::pet_nft_owner(pet_id) // Uses existing getter from NftManager.
     }
 
+    /// Grant a fixed amount of XP to a pet.
     fn grant_fixed_xp_to_pet(
         caller: &T::AccountId,
         pet_id: &PetId,
         amount: u32
     ) -> DispatchResult {
-        // Ensure caller owns the pet (or any other permission logic if needed)
-        ensure!(Self::owner_of_pet(pet_id) == Some(caller.clone()), Error::<T>::NotOwner);
+        // 1. Ensure the caller owns the pet (or has other relevant permissions if design changes).
+        // For now, assume direct ownership is required for an item to be applied by the caller.
+        ensure!(Self::pet_nft_owner(pet_id) == Some(caller.clone()), Error::<T>::NotOwner);
 
-        PetNfts::<T>::try_mutate(pet_id, |pet_opt| -> DispatchResult {
-            let pet = pet_opt.as_mut().ok_or(Error::<T>::PetNotFound)?;
+        // 2. Mutate the PetNft to update XP and potentially level.
+        PetNfts::<T>::try_mutate(pet_id, |pet_nft_opt| -> DispatchResult {
+            let pet = pet_nft_opt.as_mut().ok_or(Error::<T>::PetNotFound)?;
+
             pet.experience_points = pet.experience_points.saturating_add(amount);
-            Self::attempt_level_up(pet)?;
+            Self::attempt_level_up(pet)?; // Call internal helper to check for level up.
+
             pet.last_state_update_block = frame_system::Pallet::<T>::block_number();
             Ok(())
         })
+        // Note: Event::PetNftMetadataUpdated or a more specific XP event could be emitted here or in attempt_level_up.
     }
 
+    /// Modify the mood indicator of a pet.
     fn modify_mood_of_pet(
         caller: &T::AccountId,
         pet_id: &PetId,
-        amount: i16
+        amount: i16 // Positive to increase mood, negative to decrease.
     ) -> DispatchResult {
-        ensure!(Self::owner_of_pet(pet_id) == Some(caller.clone()), Error::<T>::NotOwner);
+        ensure!(Self::pet_nft_owner(pet_id) == Some(caller.clone()), Error::<T>::NotOwner);
 
-        PetNfts::<T>::try_mutate(pet_id, |pet_opt| -> DispatchResult {
-            let pet = pet_opt.as_mut().ok_or(Error::<T>::PetNotFound)?;
+        PetNfts::<T>::try_mutate(pet_id, |pet_nft_opt| -> DispatchResult {
+            let pet = pet_nft_opt.as_mut().ok_or(Error::<T>::PetNotFound)?;
+
             let current_mood = pet.mood_indicator as i16;
+            // Add or subtract, then clamp to valid range [0, T::MaxMoodValue].
             let new_mood = current_mood.saturating_add(amount).clamp(0, T::MaxMoodValue::get() as i16) as u8;
             pet.mood_indicator = new_mood;
+
             pet.last_state_update_block = frame_system::Pallet::<T>::block_number();
-            // Self::deposit_event(Event::PetNftMetadataUpdated { owner: caller.clone(), pet_id: *pet_id }); // Or a more specific mood event
+            // Consider emitting PetNftMetadataUpdated or a specific PetMoodChanged event.
             Ok(())
         })
     }
 
+    /// Grant a new personality trait to a pet.
     fn grant_personality_trait_to_pet(
         caller: &T::AccountId,
         pet_id: &PetId,
-        trait_to_grant: Vec<u8>,
+        trait_to_grant: Vec<u8>, // The trait string.
     ) -> DispatchResult {
-        ensure!(Self::owner_of_pet(pet_id) == Some(caller.clone()), Error::<T>::NotOwner);
+        ensure!(Self::pet_nft_owner(pet_id) == Some(caller.clone()), Error::<T>::NotOwner);
 
-        PetNfts::<T>::try_mutate(pet_id, |pet_opt| -> DispatchResult {
-            let pet = pet_opt.as_mut().ok_or(Error::<T>::PetNotFound)?;
+        PetNfts::<T>::try_mutate(pet_id, |pet_nft_opt| -> DispatchResult {
+            let pet = pet_nft_opt.as_mut().ok_or(Error::<T>::PetNotFound)?;
 
-            let bounded_trait: BoundedVec<u8, T::MaxTraitStringLen> = trait_to_grant.try_into()
-                .map_err(|_| Error::<T>::TraitStringTooLong)?;
+            // Convert Vec<u8> to BoundedVec<u8, T::MaxTraitStringLen> for storage.
+            let bounded_trait_string: BoundedVec<u8, T::MaxTraitStringLen> = trait_to_grant.try_into()
+                .map_err(|_| Error::<T>::TraitStringTooLong)?; // Error if trait string is too long.
 
-            if !pet.personality_traits.iter().any(|existing_trait| existing_trait == &bounded_trait) {
-                pet.personality_traits.try_push(bounded_trait)
-                    .map_err(|_| Error::<T>::TooManyPersonalityTraits)?;
+            // Check if pet already has this trait or has max traits.
+            if !pet.personality_traits.iter().any(|existing_trait| existing_trait == &bounded_trait_string) {
+                pet.personality_traits.try_push(bounded_trait_string)
+                    .map_err(|_| Error::<T>::TooManyPersonalityTraits)?; // Error if max traits reached.
+            } else {
+                // Trait already exists, optionally return Ok or a specific Info/Warning.
+                // For now, do nothing more if trait exists.
             }
-            // Else, trait already exists, do nothing or return specific info.
 
             pet.last_state_update_block = frame_system::Pallet::<T>::block_number();
-            // Self::deposit_event(Event::PetNftMetadataUpdated { owner: caller.clone(), pet_id: *pet_id });
+            // Consider emitting PetNftMetadataUpdated or PetPersonalityTraitAdded event.
             Ok(())
         })
     }
 
+    /// Apply a generic breeding-assist effect to a pet.
+    /// The actual interpretation of `effect_type_id` and `value` is conceptual
+    /// and depends on how breeding mechanics are further defined or if `pallet-breeding` exists.
     fn apply_breeding_assist_effect_to_pet(
         caller: &T::AccountId,
         pet_id: &PetId,
-        effect_type_id: u8,
-        value: u32
+        effect_type_id: u8, // Identifier for the type of breeding effect.
+        value: u32          // Value associated with the effect.
     ) -> DispatchResult {
-        ensure!(Self::owner_of_pet(pet_id) == Some(caller.clone()), Error::<T>::NotOwner);
-        // This is highly conceptual for MVP as pallet-breeding is not fully defined.
-        // This function would:
-        // 1. Mutate PetNfts storage if the effect is stored directly on the PetNft struct
-        //    (e.g., a conceptual `fertility_points: u8` field).
-        // 2. OR, call a function on a `BreedingHandler` trait if breeding logic is in another pallet.
-        // For now, let's assume it might update a conceptual field or just log an event.
-        // Example: if effect_type_id == 0, increase conceptual fertility score by `value`.
-        //          if effect_type_id == 1, reduce breeding cooldown by `value` blocks.
+        ensure!(Self::pet_nft_owner(pet_id) == Some(caller.clone()), Error::<T>::NotOwner);
 
-        // Placeholder: Just update last_state_update_block to acknowledge interaction
-        PetNfts::<T>::try_mutate(pet_id, |pet_opt| -> DispatchResult {
-            let pet = pet_opt.as_mut().ok_or(Error::<T>::PetNotFound)?;
+        // Conceptual: This function's logic is highly dependent on future pallet-breeding or
+        // specific breeding-related fields added to PetNft.
+        // For MVP, this might just record that an interaction happened.
+        PetNfts::<T>::try_mutate(pet_id, |pet_nft_opt| -> DispatchResult {
+            let pet = pet_nft_opt.as_mut().ok_or(Error::<T>::PetNotFound)?;
             pet.last_state_update_block = frame_system::Pallet::<T>::block_number();
-            // Log a specific event here if desired, e.g., PetBreedingAssistApplied
             Ok(())
         })?;
 
-        log::info!("Conceptual breeding assist effect (type: {}, value: {}) applied to pet {}", effect_type_id, value, pet_id);
+        // Log the conceptual effect application.
+        // In a real implementation, this might:
+        // 1. Modify a `fertility_score` field on `PetNft`.
+        // 2. Call a method on a `BreedingManager` trait (implemented by `pallet-breeding`)
+        //    to reduce a breeding cooldown for `pet_id` by `value` blocks if `effect_type_id` indicates so.
+        log::info!(
+            "Conceptual breeding assist effect (type ID: {}, value: {}) applied to pet ID: {} by owner: {:?}",
+            effect_type_id,
+            value,
+            pet_id,
+            caller
+        );
+        // Consider emitting a generic event like PetBreedingAssistApplied { pet_id, effect_type_id, value }.
         Ok(())
     }
 }
