@@ -1,0 +1,59 @@
+# .github/dependabot.yml
+
+# This configuration will help us automate dependency updates for CritterCraft.
+# It ensures our project stays secure and benefits from the latest features
+# in its underlying libraries, adhering to the "Sense the Landscape, Secure the Solution" principle.
+
+version: 2
+updates:
+  # --- Rust Dependencies (Backend Node & Pallets) ---
+  - package-ecosystem: "cargo" # Monitors Rust dependencies managed by Cargo
+    directory: "/" # Assuming Cargo.toml files are at the root or within subdirectories
+    schedule:
+      interval: "weekly" # Check for updates weekly
+      day: "monday"      # Run on Monday
+      time: "08:00"      # Run at 08:00 UTC (early morning for proactive updates)
+    labels:
+      - "dependencies"
+      - "backend"
+      - "rust"
+    # Group minor/patch updates for less noise (Optional, uncomment if desired)
+    # groups:
+    #   rust-dependencies:
+    #     patterns:
+    #       - "*"
+    #     update-types:
+    #       - "patch"
+    #       - "minor"
+    
+  # --- JavaScript/TypeScript Frontend Dependencies (UI Wallet) ---
+  # Uncomment and adjust if you have a frontend directory with package.json
+  # For example, if your UI wallet is in `blockchain_core/ui-wallet`
+  - package-ecosystem: "npm" # Or "yarn" if you use Yarn
+    directory: "/blockchain_core/ui-wallet" # Location of package.json/yarn.lock
+    schedule:
+      interval: "weekly" # Check for updates weekly
+      day: "monday"
+      time: "08:00"
+    labels:
+      - "dependencies"
+      - "frontend"
+      - "javascript"
+    # Group minor/patch updates for less noise (Optional, uncomment if desired)
+    # groups:
+    #   js-dependencies:
+    #     patterns:
+    #       - "*"
+    #     update-types:
+    #       - "patch"
+    #       - "minor"
+
+  # --- GitHub Actions Dependencies (for CI/CD workflow itself) ---
+  - package-ecosystem: "github-actions" # Monitors versions of GitHub Actions used in workflows
+    directory: "/" # Where your .github/workflows/ directory is
+    schedule:
+      interval: "monthly" # Check less frequently, monthly is usually sufficient
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "ci-cd"
