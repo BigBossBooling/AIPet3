@@ -80,36 +80,30 @@ pub mod pallet {
         pub last_state_update_block: BlockNumberFor<T>, // Block of last significant on-chain state change or interaction
     }
 
+    // NOTE: The following `pallet_items::ItemCategory` enum and the `BasicCareItemConsumer` trait definition
+    // are conceptual placeholders defined locally within this file for ease of reference during this
+    // conceptual design phase. In a real multi-crate Substrate workspace:
+    // 1. `ItemCategory` would be defined in and imported from the actual `pallet-items` crate.
+    // 2. The `BasicCareItemConsumer` trait would ideally be defined in `pallet-items` (as it dictates
+    //    what `pallet-items` must provide for basic care item consumption logic called by this pallet).
+    //    This pallet (`pallet-critter-nfts`) would then declare `type ItemHandler: pallet_items::BasicCareItemConsumer<...>;`
+    //    in its Config, and `pallet-items` would implement that trait.
+    // This current local definition approach is for self-contained conceptual outlining here.
+
     // Conceptual: Trait to be implemented by pallet-items for basic care item consumption
-    // This allows pallet-critter-nfts to be less coupled with pallet-items' internal structure.
     pub trait BasicCareItemConsumer<AccountId, ItemId> {
-        // Define ItemCategory conceptually, assuming pallet-items has something similar
-        // For this example, we'll just pass a simple enum or u8 for category if needed.
-        // Let's assume pallet-items will define its own ItemCategory enum.
-        // For now, we'll use a placeholder type or rely on ItemId implying its category for simplicity here.
-        // A better way: pallet-items defines an enum `ItemCategory { Food, Toy, Potion, ... }`
-        // and `consume_care_item` takes this category.
-        // For this subtask, to avoid defining pallet_items::ItemCategory here:
         fn consume_item_if_category(
             user: &AccountId,
             item_id: ItemId,
-            // category_tag: u8, // e.g., 0 for Food, 1 for Toy
-            // Or, if pallet-items has a public ItemCategory enum:
-            category: pallet_items::ItemCategory, // Assuming pallet_items::ItemCategory exists
+            category: pallet_items::ItemCategory, // Assuming pallet_items::ItemCategory exists locally or is imported
         ) -> DispatchResult;
     }
 
     // Placeholder for pallet_items::ItemCategory if not directly importing
-    // This is just for compilation within this pallet if pallet_items is not a direct dep for types
-    // In a real setup, this would come from pallet_items.
-    // NOTE: This local `pallet_items::ItemCategory` definition is a placeholder for conceptual clarity within this file.
-    // In a real multi-crate Substrate workspace, `ItemCategory` would be imported from the actual `pallet-items` crate,
-    // and `pallet-critter-nfts` would declare a dependency on `pallet-items` in its `Cargo.toml` to access its types.
     pub mod pallet_items {
         #[derive(PartialEq, Clone, Copy)] // For comparison in consume_item_if_category
         pub enum ItemCategory { Food, Toy, Other } // Simplified for this context
     }
-
 
     pub(crate) type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 

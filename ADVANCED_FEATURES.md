@@ -2,7 +2,7 @@
 
 This document provides a high-level conceptual outline for advanced economic loops and gameplay features planned for future stages of CritterCraft development, building upon the foundations of Stage 5.
 
-## 1. Sophisticated User Shops
+## 1. User Shops
 
 *   **Concept:** Allow players to set up their own persistent, customizable shops within the CritterCraft ecosystem to sell Pet NFTs, items (from a future Item Pallet), or even services.
 *   **Pallet Interactions:**
@@ -38,7 +38,7 @@ This document provides a high-level conceptual outline for advanced economic loo
         *   **Fee Application Model (MVP):** If a `MarketplaceFixedFee` is configured and greater than zero, the `listing.price` must be greater than the `MarketplaceFixedFee` for the sale to proceed (ensuring the seller receives a non-zero amount). The buyer pays the total `listing.price`. From this amount, `MarketplaceFixedFee` is transferred to the `FeeDestinationAccountId`, and the remaining `listing.price - MarketplaceFixedFee` is transferred to the seller. This is managed by the `buy_nft` extrinsic in `pallet-marketplace`.
         *   **General Marketplace Fees (MVP):** As above, the general `pallet-marketplace` (if distinct from user shops or used as a fallback) will also use either **zero fees or a small, fixed flat fee (`MarketplaceFixedFee`)** for MVP, applied as described above (buyer pays total price, which is then split between seller and fee destination).
 
-    #### 4. Conceptual User Interface for User Shops
+    #### Conceptual User Interface for User Shops
 
     The "User Shops District" in the UI Wallet will be the central hub for player-to-player commerce beyond the general marketplace.
 
@@ -93,7 +93,7 @@ This document provides a high-level conceptual outline for advanced economic loo
 *   **Oracle Integration:** For jobs requiring off-chain verification (e.g., "Did user X tweet about CritterCraft?"), a trusted oracle system (could be a centralized service initially, or a decentralized oracle network later) would be needed to validate completion and trigger the `review_job_submission_and_payout` extrinsic.
 *   **Economic Impact:** Provides diverse earning opportunities beyond core gameplay, incentivizes ecosystem-beneficial activities, and allows for community-driven task fulfillment.
 
-    #### 4. Conceptual User Interface for Jobs Board
+    #### Conceptual User Interface for Jobs Board
 
     The "Jobs Board" in the UI Wallet will be the interface for users to find, apply for, and manage participation in advanced ecosystem support jobs.
 
@@ -171,7 +171,7 @@ This document provides a high-level conceptual outline for advanced economic loo
 *   **Oracle/Off-Chain Components:** For stages requiring external verification (e.g., "Visit website X and find a code"), an oracle or a secure off-chain mechanism would be needed to confirm completion and potentially call back to the pallet.
 *   **Economic Impact:** Creates engaging, high-value player experiences, drives community interaction around solving complex puzzles, and can be used to highlight specific platform features or partners. Rewards can be significant PTCN sinks or distributors of rare NFTs.
 
-    #### 4. Conceptual User Interface for Treasure Hunts
+    #### Conceptual User Interface for Treasure Hunts
 
     The "Treasure Hunts" section in the UI Wallet will be the portal for players to discover, participate in, and track their progress on complex adventures.
 
@@ -218,7 +218,7 @@ This document provides a high-level conceptual outline for advanced economic loo
         *   `GameLeaderboard`: `StorageMap<GameTypeEnum, BoundedVec<(AccountId, u32_score), MaxLeaderboardSize>>`.
 *   **Economic Impact:** Provides entertainment and social interaction, additional PTCN sinks (entry fees) and sources (prize pools), and can encourage strategic play.
 
-    #### 5. Conceptual User Interface for Mini-Games & Arcade
+    #### Conceptual User Interface for Mini-Games & Arcade
 
     The "Arcade & Mini-Games" section in the UI Wallet will serve as a hub for various casual and competitive games integrated with CritterChain.
 
@@ -243,7 +243,7 @@ This document provides a high-level conceptual outline for advanced economic loo
 
     This UI aims to provide easy access to a variety of games, manage participation, track performance, and claim earned rewards, fostering a fun and engaging aspect of the CritterCraft ecosystem.
 
-## 6. (Future Consideration) IoT Device Integration
+## 6. IoT Device Integration
 
 *   **Concept:** Allow real-world data from Internet of Things (IoT) devices (e.g., smart pet feeders, activity trackers for real pets if users have them and want to link) to influence in-game pet stats or trigger on-chain events/rewards.
 *   **Technical Challenges:** Requires secure oracle solutions to bring IoT data on-chain reliably.
@@ -293,7 +293,7 @@ While the above are stored on-chain, the `dna_hash` and explicit base stats can 
 
 This combination of explicit on-chain charter attributes and the richer information derivable from the `dna_hash` provides a robust foundation for unique, developable, and breedable Pet NFTs, while the simplified handling of dynamic stats like hunger/energy streamlines on-chain operations for an MVP.
 
-    ### 7. Staking UI V2 - Enhanced Interactions (Conceptual)
+## 14. Staking UI V2 - Enhanced Interactions (Conceptual)
 
     Building upon the initial staking UI, future enhancements will provide a more comprehensive and interactive experience, reflecting the detailed NPoS mechanics outlined in `CONSENSUS_MIGRATION.md`.
 
@@ -336,7 +336,7 @@ This combination of explicit on-chain charter attributes and the richer informat
 
     These V2 UI enhancements aim to provide a comprehensive and user-friendly interface for all common staking operations and information needs.
 
-## 8. Competitive Pet Battles
+## 13. Competitive Pet Battles
 
 CritterCraft will feature a robust system for competitive pet battles, where Pet NFTs engage in strategic combat. `pallet-battles` is the core on-chain component for managing battle registration, state, and outcomes, simplified for an MVP.
 
@@ -397,7 +397,7 @@ CritterCraft will feature a robust system for competitive pet battles, where Pet
 
     This simplified approach for MVP ensures `pallet-battles` remains lean by focusing on registering participants and recording outcomes, while the computationally intensive battle simulation occurs off-chain using on-chain pet data as the source of truth.
 
-## 9. Pet Breeding & Genetics
+## 11. Pet Breeding & Genetics
 
 A comprehensive Pet Breeding and Genetics system is envisioned for CritterCraft, adding depth to pet collection and strategy. For an MVP, this system is simplified, focusing on core mechanics and deferring more complex genetic influences.
 
@@ -468,7 +468,7 @@ A comprehensive Pet Breeding and Genetics system is envisioned for CritterCraft,
 
 This simplified Pet Breeding system for MVP focuses `pallet-breeding` on the core mechanics of parent selection, DNA/species determination, and offspring incubation, while leveraging `pallet-critter-nfts` for the actual stat derivation from DNA, ensuring consistency with normally minted pets. Advanced genetic modifiers are deferred.
 
-## 10. Pet Day Cares & Caregiver Roles
+## 12. Pet Day Cares & Caregiver Roles
 
 Pet Day Cares introduce a social and passive development mechanic to CritterCraft, allowing pets to gain attributes or experience over time while being looked after by other players or their designated "Caregiver" pets. This feature aims to provide utility for pets not actively questing or battling and creates new service-oriented roles within the ecosystem.
 
@@ -520,7 +520,7 @@ Pet Day Cares introduce a social and passive development mechanic to CritterCraf
         *   **Fee Management (MVP):** `pallet-daycare` (conceptual) will manage the direct transfer of the fixed fee from the pet owner to the day care operator upon successful enrollment. More complex escrow mechanisms and settlement/payout schedules are post-MVP considerations.
         *   **Platform Fees (MVP):** Platform fees for day care services are **deferred** for MVP to simplify the initial economic model and encourage usage.
 
-    #### 5. Conceptual User Interface for Pet Day Cares
+    #### Conceptual User Interface for Pet Day Cares
 
     The "Pet Day Care Center" in the UI Wallet will provide interfaces for both pet owners seeking day care services and players operating them.
 
@@ -553,7 +553,7 @@ Pet Day Cares introduce a social and passive development mechanic to CritterCraf
 
     This UI aims to make the process of finding, using, and providing day care services intuitive and informative.
 
-## 11. Item System (`pallet-items`)
+## 9. Item System (`pallet-items`)
 
 A dedicated Item System, likely managed by a `pallet-items`, will introduce a variety of usable and equippable objects that can affect Pet NFTs, gameplay, and the economy. These items can be earned, crafted (future), or traded.
 
@@ -615,7 +615,7 @@ A dedicated Item System, likely managed by a `pallet-items`, will introduce a va
 
 This simplified Item System for MVP focuses on core functionalities, clear separation of concerns for basic care versus special item effects, and defers more complex mechanics like equipment and timed buffs.
 
-    #### 4. Conceptual User Interface for Item System
+    #### Conceptual User Interface for Item System
 
     The UI Wallet will provide an "My Item Inventory" section (`#item-inventory-section`) for users to manage and use their items.
 
@@ -628,7 +628,7 @@ This simplified Item System for MVP focuses on core functionalities, clear separ
         *   For items like "Equipment," the button might be "Equip (Conceptual)," indicating a more complex equipping system for future development (potentially involving dedicated equipment slots on pets).
     *   **Status Feedback (`#item-action-status`):** Provides feedback on item usage attempts.
 
-## 12. User Score & Reputation System (`pallet-user-profile`)
+## 10. User Score & Reputation System (`pallet-user-profile`)
 
 To quantify user engagement, achievements, and trustworthiness within the CritterCraft ecosystem, a `pallet-user-profile` will be introduced. This pallet will maintain various scores for each user, derived from their on-chain activities, simplified for an MVP.
 
@@ -677,7 +677,7 @@ The core data structure, `UserProfile<BlockNumber>`, for MVP will store:
 
 The User Score & Reputation System aims to create a richer, more rewarding experience by recognizing and quantifying player contributions and achievements across the entire CritterCraft platform.
 
-    #### 5. Conceptual User Interface for User Profile & Scores
+    #### Conceptual User Interface for User Profile & Scores
 
     A "My Profile & Achievements" section (`#user-profile-section`) in the UI Wallet will allow users to view their calculated scores and ecosystem standing.
 
@@ -696,7 +696,7 @@ The User Score & Reputation System aims to create a richer, more rewarding exper
 
     This UI aims to give users a clear overview of their engagement, reputation, and progress within CritterCraft.
 
-## 13. Pet Development Lifecycle (Conceptual)
+## 8. Pet Development Lifecycle (Conceptual)
 
 Beyond the immutable charter attributes set at minting, Pet NFTs in CritterCraft are dynamic entities that grow and change based on time, owner interactions, and experiences. This lifecycle is primarily managed within `pallet-critter-nfts`, potentially influenced by `pallet-items`.
 
@@ -719,7 +719,7 @@ Beyond the immutable charter attributes set at minting, Pet NFTs in CritterCraft
 *   **Implementation (Simplified Extrinsics in `pallet-critter-nfts`):**
     *   `feed_pet(origin, pet_id, food_item_id: ItemId)`:
         *   Verifies ownership.
-        *   Calls `T::ItemHandler::consume_item_if_category(&owner, food_item_id, pallet_items::ItemCategory::Food)`. This trait, implemented by `pallet-items`, verifies the item is appropriate (e.g., is food) and consumes it from the user's inventory.
+        *   Calls `T::ItemHandler::consume_item_if_category(&owner, food_item_id, pallet_items::ItemCategory::Food)`. This trait, implemented by `pallet_items`, verifies the item is appropriate (e.g., is food) and consumes it from the user's inventory.
         *   Updates `pet.last_fed_block` to the current block.
         *   Increases `pet.mood_indicator` by `T::FeedMoodBoost::get()` (capped at `T::MaxMoodValue::get()`).
         *   Grants `pet.experience_points` by `T::FeedXpGain::get()`.
@@ -754,39 +754,4 @@ Beyond the immutable charter attributes set at minting, Pet NFTs in CritterCraft
 *   **Mechanics:** This would require more sophisticated tracking of historical states or specific interaction counts, adding complexity but also depth to pet individuality. For MVP, `personality_traits` are primarily set at minting or by specific rare items.
 
 This simplified lifecycle focuses on essential on-chain updates (timestamps, mood boosts, XP) for core interactions, while enabling richer off-chain calculations for dynamic states like hunger and energy, reducing on-chain storage and transaction load for the MVP.
-
-[end of ADVANCED_FEATURES.md]
-
-[end of ADVANCED_FEATURES.md]
-
-[end of ADVANCED_FEATURES.md]
-
-[end of ADVANCED_FEATURES.md]
-
-[end of ADVANCED_FEATURES.md]
-
-[end of ADVANCED_FEATURES.md]
-
-[end of ADVANCED_FEATURES.md]
-
-[end of ADVANCED_FEATURES.md]
-
-[end of ADVANCED_FEATURES.md]
-
-[end of ADVANCED_FEATURES.md]
-
-[end of ADVANCED_FEATURES.md]
-
-[end of ADVANCED_FEATURES.md]
-
-[end of ADVANCED_FEATURES.md]
-
-[end of ADVANCED_FEATURES.md]
-
-[end of ADVANCED_FEATURES.md]
-
-[end of ADVANCED_FEATURES.md]
-
-[end of ADVANCED_FEATURES.md]
-
-[end of ADVANCED_FEATURES.md]
+```
