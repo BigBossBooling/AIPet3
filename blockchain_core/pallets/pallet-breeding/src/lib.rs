@@ -147,6 +147,7 @@ pub mod pallet {
         PetNotOwned,
         PetInBreedingCooldown,
         PetTooYoungOrIneligible, // General eligibility check
+        ParentPetDataNotFound,   // New error for when NftHandler can't find parent data
         // ItemErrors
         // FertilityItemNotFound,
         // FertilityItemNotOwned,
@@ -157,6 +158,7 @@ pub mod pallet {
         CannotClaimOthersOffspring, // If breeder != claimer and not allowed
         MaxPendingOffspringReached,
         NftMintingFailed, // If interaction with NftHandler fails
+        CrossSpeciesBreedingNotAllowed, // If attempted when T::AllowCrossSpeciesBreeding is false
     }
 
     #[pallet::call]
@@ -205,40 +207,52 @@ pub mod pallet {
             //    let current_pending_count = AccountPendingOffspringCount::<T>::get(&breeder);
             //    ensure!(current_pending_count < T::MaxPendingOffspringPerAccount::get(), Error::<T>::MaxPendingOffspringReached);
 
-            // --- Genetic Algorithm & Offspring Generation (Conceptual) ---
-            // This part is highly complex and would involve:
-            // a. Fetching full PetNft details for parent1_id and parent2_id via T::NftHandler.
-            //    This data includes on-chain charter attributes (base_strength, etc.) and dna_hash.
-            //    (e.g., `let parent1_data = T::NftHandler::get_pet_details(&parent1_id).ok_or(Error::<T>::ParentPetDataNotFound)?;`)
-            //    (e.g., `let parent2_data = T::NftHandler::get_pet_details(&parent2_id).ok_or(Error::<T>::ParentPetDataNotFound)?;`)
-            //    (This implies NftBreedingHandler trait needs a `get_pet_simple_genetics` or similar function).
-            //    `let parent1_data = T::NftHandler::get_pet_simple_genetics(&parent1_id).ok_or(Error::<T>::ParentDataNotFound)?;` // Add Error
-            //    `let parent2_data = T::NftHandler::get_pet_simple_genetics(&parent2_id).ok_or(Error::<T>::ParentDataNotFound)?;`
+            // --- Genetic Algorithm & Offspring Generation ---
+            // a. Fetch necessary data from parents via T::NftHandler
+            let parent1_genetic_info = T::NftHandler::get_pet_simple_genetics(&parent1_id)
+                .ok_or(Error::<T>::ParentPetDataNotFound)?;
+            let parent2_genetic_info = T::NftHandler::get_pet_simple_genetics(&parent2_id)
+                .ok_or(Error::<T>::ParentPetDataNotFound)?;
 
-            // b. Determine Offspring Species (Simplified MVP):
-            //    - If parent1_data.species == parent2_data.species, offspring_species = parent1_data.species.
-            //    - If different (and cross-breeding is allowed for MVP via a Config const like AllowCrossSpeciesBreeding):
-            //        - Use T::RandomnessSource: 50% chance of parent1's species, 50% chance of parent2's species.
-            //        - No new hybrid species for MVP.
-            //    `let determined_species = if parent1_data.species == parent2_data.species { parent1_data.species.clone() } else { ... logic ... };`
-            let determined_species: Vec<u8> = Vec::new(); // Placeholder, e.g., from parent1_data.species
+            // Ensure cross-species breeding is allowed if species are different
+            if parent1_genetic_info.species != parent2_genetic_info.species && !T::AllowCrossSpeciesBreeding::get() {
+                ensure!(false, Error::<T>::CrossSpeciesBreedingNotAllowed);
+            }
 
-            // c. Generate new Offspring DNA Hash (Simplified MVP):
-            //    - Combine parent DNA hashes with randomness.
-            //    - Example: `offspring_dna_hash[i] = (parent1_data.dna_hash[i].wrapping_add(parent2_data.dna_hash[i])) / 2 ^ random_bytes[i];`
-            //    `let random_seed_bytes = T::RandomnessSource::random_seed().0.expose();` // Get raw random bytes
-            //    `let mut determined_dna_hash: [u8; 16] = Default::default();`
-            //    `for i in 0..16 { determined_dna_hash[i] = (parent1_data.dna_hash[i].wrapping_add(parent2_data.dna_hash[i])) / 2 ^ random_seed_bytes[i % random_seed_bytes.len()]; }`
-            let determined_dna_hash: [u8; 16] = Default::default(); // Placeholder
+            // b. Determine Fertility Boost (Conceptual - not used in determine_offspring_genetics_mvp for now)
+            // let fertility_item_effect_conceptual: Option<ConceptualFertilityBoost> = None;
 
-            // d. Defer complex Breeding Scores and most Fertility Item effects on genetics for MVP.
-            //    A simple fertility item might just be a prerequisite or reduce cooldown (handled by T::NftHandler or ItemHandler).
+            // c. & d. Call the conceptual helper function for DNA and Species
+            let (determined_dna_hash, determined_species) = Self::determine_offspring_genetics_mvp(
+                &parent1_genetic_info.dna_hash,
+                &parent1_genetic_info.species,
+                &parent2_genetic_info.dna_hash,
+                &parent2_genetic_info.species,
+                &T::RandomnessSource::random_seed().0, // Pass the raw random output
+                T::AllowCrossSpeciesBreeding::get(),
+            );
 
             // e. Create OffspringDetails with determined_dna_hash and determined_species.
-            //    The actual base stats (strength, agility, etc.) and elemental affinity
-            //    will be derived by pallet-critter-nfts when this offspring_dna_hash is used for minting,
-            //    based on its internal DNA derivation logic.
-            //    This simplifies pallet-breeding's responsibility to just generating the core genetic blueprint.
+            // Actual base stats will be derived by pallet-critter-nfts from this determined_dna_hash.
+            let offspring_id = NextOffspringId::<T>::try_mutate(|id| -> Result<OffspringId, DispatchError> {
+                let current_id = *id;
+                *id = id.checked_add(1).ok_or(Error::<T>::OffspringIdOverflow)?;
+                Ok(current_id)
+            })?;
+
+            let current_block = frame_system::Pallet::<T>::block_number();
+            let ready_at_block = current_block.saturating_add(T::IncubationDuration::get());
+
+            let new_offspring_details = OffspringDetails {
+                parents: (parent1_id, parent2_id),
+                breeder: breeder.clone(),
+                birth_block: current_block,
+                ready_at_block,
+                determined_dna_hash,
+                determined_species,
+            };
+            PendingOffspring::<T>::insert(offspring_id, new_offspring_details);
+            AccountPendingOffspringCount::<T>::mutate(&breeder, |count| *count = count.saturating_add(1));
 
             // --- Record Keeping & Event ---
             // let offspring_id = NextOffspringId::<T>::try_mutate(|id| -> Result<OffspringId, DispatchError> {
