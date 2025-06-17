@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Check</title>
+    <link rel="stylesheet" href="../static/style.css">
+    <style>
+        /* Add some basic check-specific styling */
+        .check-container {
+            width: 800px; /* Standard check width-ish */
+            height: 350px; /* Standard check height-ish */
+            border: 1px solid #ccc;
+            padding: 20px;
+            margin: 20px auto;
+            position: relative;
+            font-family: 'Courier New', Courier, monospace; /* Common check font */
+        }
+        .check-header, .check-footer {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8em;
+        }
+        .check-number {
+            text-align: right;
+        }
+        .payee-info {
+            margin-top: 40px;
+        }
+        .amount-box {
+            border: 1px solid black;
+            padding: 5px 10px;
+            display: inline-block;
+            margin-left: 20px;
+        }
+        .memo-line {
+            margin-top: 30px;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+        }
+        .signature-line {
+            margin-top: 40px;
+            border-top: 1px solid black;
+            width: 200px;
+            float: right;
+            text-align: center;
+            font-size: 0.8em;
+        }
+        .routing-account {
+            position: absolute;
+            bottom: 10px;
+            left: 20px;
+            font-family: 'OCRB', monospace; /* MICR font - needs to be available */
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <div class="check-container">
+        <div class="check-header">
+            <div class="bank-name">
+                <strong>{{ bank_name | default('Your Bank Name') }}</strong><br>
+                <small>{{ bank_address | default('123 Bank Street, Financial City, ST 12345') }}</small>
+            </div>
+            <div class="check-number">
+                Check No: <strong>{{ check_number | default('0001') }}</strong>
+            </div>
+        </div>
+
+        <div class="date-line" style="text-align: right; margin-top: 20px;">
+            Date: {{ date | default('MM/DD/YYYY') }}
+        </div>
+
+        <div class="payee-info">
+            Pay to the<br>
+            Order of: <strong style="font-size: 1.2em;">{{ payee_name | default('PAYEE NAME') }}</strong>
+            <span class="amount-box" style="float: right;">$ {{ amount_numeric | default('0.00') }}</span>
+        </div>
+
+        <div style="margin-top: 20px;">
+            {{ amount_words | default('ZERO DOLLARS AND 00/100') }}
+            <span style="float: right;">Dollars</span>
+        </div>
+
+        <div class="memo-line">
+            Memo: {{ memo | default('') }}
+        </div>
+
+        <div class="signature-line">
+            Authorized Signature
+        </div>
+
+        <div class="routing-account">
+            <span>:{{ routing_number | default('000000000') }}:</span>
+            <span>{{ account_number | default('0000000000') }}<span>'
+            <span>{{ check_number | default('0001') }}<span>'
+        </div>
+
+    </div>
+</body>
+</html>
