@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Check Stub Data Entry</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f8f9fa; }
+        .form-container { max-width: 900px; margin: auto; padding: 25px; border: 1px solid #dee2e6; border-radius: 8px; background-color: #ffffff; box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
+        .form-section { margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #e9ecef; }
+        .form-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0;}
+        .form-group { margin-bottom: 18px; }
+        label { display: block; margin-bottom: 6px; font-weight: bold; color: #495057; }
+        input[type="text"], input[type="number"], input[type="date"], textarea {
+            width: calc(100% - 22px); /* Account for padding and border */
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+        textarea { min-height: 80px; resize: vertical; }
+        .form-row { display: flex; flex-wrap: wrap; margin-left: -10px; margin-right: -10px; }
+        .form-col { flex: 1; padding: 0 10px; min-width: 280px; margin-bottom:10px; }
+        .submit-btn {
+            background-color: #28a745; /* Green color for stub form */
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: background-color 0.2s ease-in-out;
+            display: block;
+            width: auto;
+            margin: 20px auto 0 auto;
+        }
+        .submit-btn:hover { background-color: #218838; }
+        h2 { text-align: center; color: #343a40; margin-bottom: 25px; }
+        h3 { font-size: 1.3rem; color: #007bff; margin-top: 0; margin-bottom: 15px;}
+    </style>
+</head>
+<body>
+
+<div class="form-container">
+    <h2>Generate Check Stub</h2>
+    <form method="POST" action="{{ url_for('generate_check_stub_pdf') }}">
+
+        <div class="form-section">
+            <h3>Company Information</h3>
+            <div class="form-group">
+                <label for="company_name">Company Name:</label>
+                <input type="text" id="company_name" name="company_name" required>
+            </div>
+            <div class="form-group">
+                <label for="company_address">Company Address:</label>
+                <textarea id="company_address" name="company_address" required></textarea>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Employee Information</h3>
+            <div class="form-row">
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="employee_name">Employee Name:</label>
+                        <input type="text" id="employee_name" name="employee_name" required>
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="employee_id">Employee ID:</label>
+                        <input type="text" id="employee_id" name="employee_id">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Pay Period & Date</h3>
+            <div class="form-row">
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="pay_period_start">Pay Period Start:</label>
+                        <input type="date" id="pay_period_start" name="pay_period_start" required>
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="pay_period_end">Pay Period End:</label>
+                        <input type="date" id="pay_period_end" name="pay_period_end" required>
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="pay_date">Pay Date:</label>
+                        <input type="date" id="pay_date" name="pay_date" required>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Earnings</h3>
+            <div class="form-row">
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="earnings_regular_pay">Regular Pay:</label>
+                        <input type="number" id="earnings_regular_pay" name="earnings_regular_pay" step="0.01" min="0">
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="earnings_overtime_pay">Overtime Pay:</label>
+                        <input type="number" id="earnings_overtime_pay" name="earnings_overtime_pay" step="0.01" min="0">
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="earnings_bonus">Bonus:</label>
+                        <input type="number" id="earnings_bonus" name="earnings_bonus" step="0.01" min="0">
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="earnings_total">Total Gross Pay:</label>
+                <input type="number" id="earnings_total" name="earnings_total" step="0.01" min="0" required>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Deductions</h3>
+            <div class="form-row">
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="deductions_federal_tax">Federal Tax:</label>
+                        <input type="number" id="deductions_federal_tax" name="deductions_federal_tax" step="0.01" min="0">
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="deductions_state_tax">State Tax:</label>
+                        <input type="number" id="deductions_state_tax" name="deductions_state_tax" step="0.01" min="0">
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="deductions_medicare">Medicare:</label>
+                        <input type="number" id="deductions_medicare" name="deductions_medicare" step="0.01" min="0">
+                    </div>
+                </div>
+                 <div class="form-col">
+                    <div class="form-group">
+                        <label for="deductions_social_security">Social Security:</label>
+                        <input type="number" id="deductions_social_security" name="deductions_social_security" step="0.01" min="0">
+                    </div>
+                </div>
+                 <div class="form-col">
+                    <div class="form-group">
+                        <label for="deductions_other">Other Deductions:</label>
+                        <input type="number" id="deductions_other" name="deductions_other" step="0.01" min="0">
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="deductions_total">Total Deductions:</label>
+                <input type="number" id="deductions_total" name="deductions_total" step="0.01" min="0" required>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Summary</h3>
+            <div class="form-group">
+                <label for="net_pay">Net Pay:</label>
+                <input type="number" id="net_pay" name="net_pay" step="0.01" min="0" required>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Year-to-Date (YTD) Information</h3>
+            <div class="form-row">
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="ytd_gross_earnings">YTD Gross Earnings:</label>
+                        <input type="number" id="ytd_gross_earnings" name="ytd_gross_earnings" step="0.01" min="0">
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="ytd_deductions">YTD Deductions:</label>
+                        <input type="number" id="ytd_deductions" name="ytd_deductions" step="0.01" min="0">
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="ytd_net_pay">YTD Net Pay:</label>
+                        <input type="number" id="ytd_net_pay" name="ytd_net_pay" step="0.01" min="0">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group" style="text-align: center;">
+            <button type="submit" class="submit-btn">Generate Check Stub PDF</button>
+        </div>
+    </form>
+</div>
+
+</body>
+</html>

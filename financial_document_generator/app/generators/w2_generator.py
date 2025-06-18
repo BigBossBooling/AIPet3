@@ -1,79 +1,103 @@
-from typing import Dict, Any
+import io # Added for io.BytesIO
+from typing import Dict, Any, Union, Optional # For type hinting
+from .base_generator import BaseGenerator # Import BaseGenerator
+from reportlab.pdfgen import canvas # Keep reportlab imports
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.units import inch
 
-class W2Generator:
+class W2Generator(BaseGenerator):
     """
-    Represents a W-2 form with its standard fields.
+    Generates a W-2 form PDF using ReportLab.
+    Inherits from BaseGenerator.
     """
-    def __init__(self,
-                 employee_name: str,
-                 employee_ssn: str,
-                 employer_name: str,
-                 employer_ein: str,
-                 wages_tips_other_compensation: float,
-                 federal_income_tax_withheld: float,
-                 social_security_wages: float = 0.0,
-                 medicare_wages_and_tips: float = 0.0,
-                 social_security_tax_withheld: float = 0.0,
-                 medicare_tax_withheld: float = 0.0,
-                 state_employer_state_id_no: str = "",
-                 state_wages_tips_etc: float = 0.0,
-                 state_income_tax: float = 0.0,
-                 local_wages_tips_etc: float = 0.0,
-                 local_income_tax: float = 0.0,
-                 locality_name: str = ""):
-        self.employee_name: str = employee_name
-        self.employee_ssn: str = employee_ssn
-        self.employer_name: str = employer_name
-        self.employer_ein: str = employer_ein
-        self.wages_tips_other_compensation: float = wages_tips_other_compensation
-        self.federal_income_tax_withheld: float = federal_income_tax_withheld
-        self.social_security_wages: float = social_security_wages
-        self.medicare_wages_and_tips: float = medicare_wages_and_tips
-        self.social_security_tax_withheld: float = social_security_tax_withheld
-        self.medicare_tax_withheld: float = medicare_tax_withheld
-        self.state_employer_state_id_no: str = state_employer_state_id_no
-        self.state_wages_tips_etc: float = state_wages_tips_etc
-        self.state_income_tax: float = state_income_tax
-        self.local_wages_tips_etc: float = local_wages_tips_etc
-        self.local_income_tax: float = local_income_tax
-        self.locality_name: str = locality_name
+    def __init__(self, data: dict):
+        """
+        Initializes W2Generator with data.
+
+        Args:
+            data (dict): A dictionary containing all necessary W-2 form fields.
+        """
+        super().__init__(data) # Call BaseGenerator's __init__
+
+        # Populate instance attributes from data dictionary
+        self.employee_name: str = self.data.get("employee_name", "")
+        self.employee_ssn: str = self.data.get("employee_ssn", "")
+        self.employer_name: str = self.data.get("employer_name", "")
+        self.employer_ein: str = self.data.get("employer_ein", "")
+        self.wages_tips_other_compensation: float = float(self.data.get("wages_tips_other_compensation", 0.0))
+        self.federal_income_tax_withheld: float = float(self.data.get("federal_income_tax_withheld", 0.0))
+        self.social_security_wages: float = float(self.data.get("social_security_wages", 0.0))
+        self.medicare_wages_and_tips: float = float(self.data.get("medicare_wages_and_tips", 0.0))
+        self.social_security_tax_withheld: float = float(self.data.get("social_security_tax_withheld", 0.0))
+        self.medicare_tax_withheld: float = float(self.data.get("medicare_tax_withheld", 0.0))
+        self.state_employer_state_id_no: str = self.data.get("state_employer_state_id_no", "")
+        self.state_wages_tips_etc: float = float(self.data.get("state_wages_tips_etc", 0.0))
+        self.state_income_tax: float = float(self.data.get("state_income_tax", 0.0))
+        self.local_wages_tips_etc: float = float(self.data.get("local_wages_tips_etc", 0.0))
+        self.local_income_tax: float = float(self.data.get("local_income_tax", 0.0))
+        self.locality_name: str = self.data.get("locality_name", "")
 
     def to_dict(self) -> Dict[str, Any]:
-        """Converts the W2Form object to a dictionary."""
-        return self.__dict__
+        """Converts the W2Generator instance attributes to a dictionary."""
+        # This could also leverage self.data if it's kept complete and attributes are just for convenience
+        return {
+            "employee_name": self.employee_name,
+            "employee_ssn": self.employee_ssn,
+            "employer_name": self.employer_name,
+            "employer_ein": self.employer_ein,
+            "wages_tips_other_compensation": self.wages_tips_other_compensation,
+            "federal_income_tax_withheld": self.federal_income_tax_withheld,
+            "social_security_wages": self.social_security_wages,
+            "medicare_wages_and_tips": self.medicare_wages_and_tips,
+            "social_security_tax_withheld": self.social_security_tax_withheld,
+            "medicare_tax_withheld": self.medicare_tax_withheld,
+            "state_employer_state_id_no": self.state_employer_state_id_no,
+            "state_wages_tips_etc": self.state_wages_tips_etc,
+            "state_income_tax": self.state_income_tax,
+            "local_wages_tips_etc": self.local_wages_tips_etc,
+            "local_income_tax": self.local_income_tax,
+            "locality_name": self.locality_name,
+        }
 
+    # from_dict can be removed if initialization is always from a single data dict
+    # Or it can be kept as a convenience constructor for the specific data structure it expects
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'W2Generator':
-        """Creates a W2Generator object from a dictionary."""
-        return cls(
-            employee_name=data.get("employee_name", ""),
-            employee_ssn=data.get("employee_ssn", ""),
-            employer_name=data.get("employer_name", ""),
-            employer_ein=data.get("employer_ein", ""),
-            wages_tips_other_compensation=data.get("wages_tips_other_compensation", 0.0),
-            federal_income_tax_withheld=data.get("federal_income_tax_withheld", 0.0),
-            social_security_wages=data.get("social_security_wages", 0.0),
-            medicare_wages_and_tips=data.get("medicare_wages_and_tips", 0.0),
-            social_security_tax_withheld=data.get("social_security_tax_withheld", 0.0),
-            medicare_tax_withheld=data.get("medicare_tax_withheld", 0.0),
-            state_employer_state_id_no=data.get("state_employer_state_id_no", ""),
-            state_wages_tips_etc=data.get("state_wages_tips_etc", 0.0),
-            state_income_tax=data.get("state_income_tax", 0.0),
-            local_wages_tips_etc=data.get("local_wages_tips_etc", 0.0),
-            local_income_tax=data.get("local_income_tax", 0.0),
-            locality_name=data.get("locality_name", "")
-        )
+        """Creates a W2Generator object from a dictionary.
+           This now primarily serves as a way to ensure data is in the expected structure.
+        """
+        return cls(data)
 
-    def generate_pdf(self, output_path: str) -> None:
+    def generate_pdf(self, output_path_or_buffer: Optional[Union[str, io.BytesIO]] = None) -> Optional[Union[bool, bytes]]:
         """
-        Generates a PDF representation of the W-2 form.
+        Generates a PDF representation of the W-2 form using ReportLab.
+
+        Args:
+            output_path_or_buffer (str or io.BytesIO, optional):
+                If a string, it's the path to save the PDF file.
+                If an io.BytesIO object, the PDF is written to this buffer.
+                If None, the PDF content is returned as bytes.
+
+        Returns:
+            bool: True if PDF was saved to a file path successfully, False on error.
+            bytes: PDF content as bytes if output_path_or_buffer is None and successful.
+            None: If an error occurred when trying to return bytes or save to a buffer.
+                  (When saving to provided buffer, effectively returns None on success via buffer modification)
         """
-        from reportlab.pdfgen import canvas
-        from reportlab.lib.pagesizes import letter
-        from reportlab.lib.units import inch
+        target_buffer = None
+        is_path = isinstance(output_path_or_buffer, str)
+        is_buffer = isinstance(output_path_or_buffer, io.BytesIO)
+
+        if is_path:
+            target_canvas_arg = output_path_or_buffer
+        elif is_buffer:
+            target_canvas_arg = output_path_or_buffer
+        else: # None or other type
+            target_buffer = io.BytesIO()
+            target_canvas_arg = target_buffer
 
         try:
-            c = canvas.Canvas(output_path, pagesize=letter)
+            c = canvas.Canvas(target_canvas_arg, pagesize=letter)
             width, height = letter  # (612, 792)
 
             # Set a title
@@ -136,11 +160,21 @@ class W2Generator:
             current_y = draw_field("20 Locality name", self.locality_name, current_y)
 
             c.save()
-            print(f"W-2 form generated successfully at {output_path}")
+
+            if is_path:
+                print(f"W-2 form generated successfully at {output_path_or_buffer}")
+                return True
+            elif is_buffer:
+                # Data is written to the buffer, caller handles it.
+                return None # Or True, to indicate success writing to buffer. Let's stick to None for now.
+            else: # Was None, so target_buffer was used
+                return target_buffer.getvalue()
 
         except IOError as e:
-            print(f"Error generating PDF: Could not write to file {output_path}. Error: {e}")
+            print(f"IOError generating PDF: {e}")
+            if is_path: return False
+            return None # Error for buffer or None case
         except Exception as e:
             print(f"An unexpected error occurred during PDF generation: {e}")
-
-from typing import Dict, Any
+            if is_path: return False
+            return None # Error for buffer or None case
