@@ -394,6 +394,13 @@ pub mod pallet {
                 // Selectively update personality traits if provided.
                 // This replaces all existing traits with the new set.
                 if let Some(new_traits) = personality_traits {
+                    // COMMENT TO ADD:
+                    // This field is updated by the owner. For the AI Personality system
+                    // (conceptually an off-chain engine detailed in AI_PERSONALITY_ENGINE.md),
+                    // suggestions for new or modified personality traits would be presented to the owner.
+                    // If the owner accepts these suggestions, they would use this extrinsic, providing
+                    // the complete, updated list of traits. This ensures owner agency over on-chain
+                    // personality changes for their Pet NFT.
                     pet_nft.personality_traits = new_traits;
                 }
 

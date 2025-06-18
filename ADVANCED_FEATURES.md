@@ -4,67 +4,73 @@ This document provides a high-level conceptual outline for advanced economic loo
 
 ## 1. User Shops
 
-*   **Concept:** Allow players to set up their own persistent, customizable shops within the CritterCraft ecosystem to sell Pet NFTs, items (from a future Item Pallet), or even services.
+*   **Concept:** Allow players to set up their own persistent, customizable shops within the CritterCraft ecosystem to sell Pet NFTs and, in the future, other items.
+*   **Pallet Name:** `pallet-user-shops`
 *   **Pallet Interactions:**
-    *   **`pallet-critter-nfts` (via `NftManager` trait):** To verify ownership of Pet NFTs being listed by a shop owner and to facilitate the transfer of NFTs upon a successful purchase.
-    *   **`pallet-balances` (via `Currency` trait):** For handling PTCN payments from buyers to sellers.
-    *   **New `pallet-user-shops` (or enhanced `pallet-marketplace`):**
-        *   Manages shop creation, potentially minting "Shopfront NFTs" to represent shop ownership and allow customization.
-        *   Handles shop inventory: tracking which items/NFTs are listed in which shop, their prices, and quantities.
-        *   Stores shop metadata: name, description, category, custom display information (if any).
-*   **Core On-Chain Logic/Data (for `pallet-user-shops`):**
-    *   `ShopId`: A unique identifier for each shop, possibly linked to a `ShopfrontNftId`.
-    *   `ShopDetails` struct: `owner (AccountId), name (Vec<u8>), description (Vec<u8>), metadata_uri (Option<Vec<u8>> for off-chain extended details/cosmetics)`.
-    *   `ShopListings`: `StorageDoubleMap<ShopId, ListingType (enum: NFT/Item), ItemOrNftId, ListingDetails (price, quantity)>`. This allows a shop to list various types of assets.
-    *   `ShopReputation`: `StorageMap<ShopId, (u32_positive_ratings, u32_negative_ratings)>`.
-    *   **Extrinsics:**
-        *   `create_shop(name, description, metadata_uri)`: Creates a new shop, potentially mints a Shopfront NFT to the caller.
-        *   `set_shop_metadata(shop_id, name, description, metadata_uri)`: Allows owner to update shop details.
-        *   `add_to_shop_inventory(shop_id, item_or_nft_id, listing_type, price, quantity)`: Lists an asset for sale in the shop. Requires ownership verification (e.g., NFT owned by shop owner, or items held by shop owner).
-        *   `remove_from_shop_inventory(shop_id, listing_type, item_or_nft_id)`: De-lists an asset.
-        *   `purchase_from_shop(shop_id, listing_type, item_or_nft_id, quantity)`: Orchestrates the purchase:
-            1.  Verifies item/NFT is listed and available.
-            2.  Transfers PTCN from buyer to seller (shop owner) via `T::Currency`.
-            3.  Transfers NFT from seller to buyer via `T::NftHandler` (or item from seller to buyer via a future Item Pallet).
-            4.  Updates shop inventory (e.g., removes/decrements quantity).
-            5.  Emits `ItemSoldFromShop` event.
+    *   **`crittercraft-traits::NftManager`:** Implemented by `pallet-critter-nfts`. Used by `pallet-user-shops` to verify ownership of Pet NFTs being listed and to facilitate the transfer of NFTs upon a successful purchase.
+    *   **`frame_support::traits::Currency`:** For handling PTCN payments from buyers to sellers, typically implemented by `pallet-balances`.
+    *   **(Future) `crittercraft-traits::ItemManager` (or similar):** If/when shops support fungible items or non-NFT items, an interaction trait for `pallet-items` would be needed.
+*   **Core On-Chain Logic/Data (for `pallet-user-shops` - MVP Focus):**
+    *   **`ShopId`**: For MVP, `ShopId` is simply the `AccountId` of the owner (one shop per user).
+    *   **`ShopStatus` Enum:** `Open`, `ClosedTemporarily`.
+    *   **`Shop<BoundedName, BoundedDescription>` Struct:**
+        *   `owner: AccountId`
+        *   `name: BoundedVec<u8, T::MaxShopNameLen>`
+        *   `description: BoundedVec<u8, T::MaxShopDescriptionLen>`
+        *   `status: ShopStatus`
+        *   *(Future fields: `metadata_uri: Option<BoundedVec<u8, T::MaxUriLen>>`, `reputation_score: u32`)*
+    *   **`ListingId` Type:** A unique identifier for each listing, e.g., `u128`.
+    *   **`Listing<Balance, NftIdType>` Struct (MVP focuses on unique NFTs):**
+        *   `listing_id: ListingId`
+        *   `shop_id: AccountId` (Owner of the shop)
+        *   `item_id: NftIdType` (For MVP, this is `PetId` from `pallet-critter-nfts`)
+        *   `price: Balance`
+        *   `quantity: u32` (For MVP, this will always be 1 for unique Pet NFTs)
+        *   *(Future fields: `item_type: ListingItemType` enum { NFT, FungibleItem })*
+    *   **Storage Items:**
+        *   `Shops<AccountId, Shop<T::MaxShopNameLen, T::MaxShopDescriptionLen>>`: Maps an `AccountId` to their `Shop` details.
+        *   `ShopOwnedListings<AccountId, BoundedVec<ListingId, T::MaxListingsPerShop>>`: Maps a `ShopId` (owner's `AccountId`) to a list of `ListingId`s they own.
+        *   `AllListings<ListingId, Listing<BalanceOf<T>, T::NftId>>`: Maps a `ListingId` to its `Listing` details.
+        *   `NextListingId<ListingId>`: A counter to generate unique `ListingId`s.
+*   **Extrinsics (Conceptual Signatures for `pallet-user-shops`):**
+    *   `create_shop(origin, name: BoundedVec<u8, T::MaxShopNameLen>, description: BoundedVec<u8, T::MaxShopDescriptionLen>)`: Creates a shop for the `origin`. Fails if shop already exists for the account.
+    *   `update_shop_details(origin, name: Option<BoundedVec<u8, T::MaxShopNameLen>>, description: Option<BoundedVec<u8, T::MaxShopDescriptionLen>>)`: Allows owner to update shop details.
+    *   `set_shop_status(origin, status: ShopStatus)`: Allows owner to open or temporarily close their shop.
+    *   `close_shop_permanently(origin)`: Allows owner to permanently close their shop (removes shop and all its listings).
+    *   `list_item(origin, item_id: T::NftId, price: BalanceOf<T>)`: Lists a Pet NFT for sale. Verifies ownership via `NftManager`, locks the NFT, and creates a new listing. (MVP: quantity is 1).
+    *   `unlist_item(origin, listing_id: ListingId)`: Removes a listing. Unlocks the NFT via `NftManager`.
+    *   `buy_item(origin, listing_id: ListingId)`: Purchases an item. Transfers PTCN from buyer to seller, transfers NFT from seller to buyer via `NftManager`, and removes the listing. (MVP: quantity is 1).
 *   **Economic Model & Impact:**
-    *   Fosters a player-driven economy, encourages entrepreneurship, and allows for specialized trading hubs.
-    *   **PTCN Sink:** Provides more sinks/uses for PTCN through various fees.
-    *   **Shop Creation/Maintenance Fees (MVP Simplification):** For an initial MVP, User Shop creation could be **free**, meaning no 'Shopfront NFT' minting fee or periodic rental fees. This lowers the barrier to entry for users to participate in the economy. These fees can be introduced post-MVP.
-    *   **Seller-Set Fees (Deferred for Post-MVP):** The ability for shop owners to add their own percentage fees on top of platform fees is deferred.
-    *   **Platform Fees (MVP Simplification):**
-        *   Sales through User Shops, like the general `pallet-marketplace`, will adhere to a simplified fee structure for MVP. This means either **zero transaction fees** or a **small, fixed flat fee** (`MarketplaceFixedFee` from `pallet-marketplace::Config`) per sale. Percentage-based fees (`MarketplaceFeeRate`) are deferred.
-        *   **Fee Application Model (MVP):** If a `MarketplaceFixedFee` is configured and greater than zero, the `listing.price` must be greater than the `MarketplaceFixedFee` for the sale to proceed (ensuring the seller receives a non-zero amount). The buyer pays the total `listing.price`. From this amount, `MarketplaceFixedFee` is transferred to the `FeeDestinationAccountId`, and the remaining `listing.price - MarketplaceFixedFee` is transferred to the seller. This is managed by the `buy_nft` extrinsic in `pallet-marketplace`.
-        *   **General Marketplace Fees (MVP):** As above, the general `pallet-marketplace` (if distinct from user shops or used as a fallback) will also use either **zero fees or a small, fixed flat fee (`MarketplaceFixedFee`)** for MVP, applied as described above (buyer pays total price, which is then split between seller and fee destination).
+    *   Fosters a player-driven economy.
+    *   **Fee Mechanism:** `pallet-user-shops` itself **does not implement an intrinsic fee mechanism** for MVP. Any platform fees on sales would need to be implemented externally (e.g., by runtime logic wrapping the `buy_item` call, or by a separate fee-collection pallet that `pallet-user-shops` could optionally integrate with post-MVP). This keeps the core shop pallet lean.
+    *   Shop creation and listing are free for MVP to encourage participation.
+*   **NFT Interaction:** Uses the `crittercraft-traits::NftManager` for all NFT-related operations like checking ownership, locking NFTs upon listing, unlocking upon unlisting, and transferring upon successful purchase.
 
     #### Conceptual User Interface for User Shops
 
-    The "User Shops District" in the UI Wallet will be the central hub for player-to-player commerce beyond the general marketplace.
+    The "User Shops District" in the UI Wallet will be the central hub for player-to-player commerce.
 
     *   **Browsing and Searching Shops (`#browse-user-shops`):**
-        *   A main view will allow users to see a list of active user shops (`#user-shop-list`), potentially with featured shops or categories.
-        *   A search bar (`#search-shops-input`) will enable finding shops by name or owner.
-        *   Each shop in the list will display its name, owner, a brief description, and a "Visit Shop" button.
+        *   A main view will allow users to see a list of active user shops (`#user-shop-list`).
+        *   A search bar (`#search-shops-input`) will enable finding shops by name or owner `AccountId`.
+        *   Each shop in the list will display its name, owner `AccountId`, description, and a "Visit Shop" button.
 
     *   **Viewing an Individual Shop (`#view-individual-shop`):**
-        *   Clicking "Visit Shop" will navigate the user to a dedicated view for that shop.
-        *   This view will display the shop's name (`#shop-name-display`), owner, and full description (`#shop-description-display`).
-        *   A list (`#shop-item-list`) will show all items (Pet NFTs, future game items like food/clothes/equipment) currently for sale in that shop, along with their prices.
-        *   Each item will have a "Buy Item" button, which would (conceptually) trigger the `purchase_from_shop` extrinsic. A status area (`#buy-from-shop-status`) provides feedback.
-        *   A "Back to Shop Browser" button allows users to return to the main shop list.
+        *   Clicking "Visit Shop" navigates to a dedicated view for that shop.
+        *   Displays shop name, owner, description, and status.
+        *   A list (`#shop-item-list`) shows all Pet NFTs currently for sale in that shop, with their prices.
+        *   Each item has a "Buy Item" button (conceptually triggers `buy_item`). A status area (`#buy-from-shop-status`) provides feedback.
 
     *   **Managing Own Shop (`#manage-my-shop`):**
-        *   This section is for users who want to become shop owners.
-        *   **Initial State:** If the user doesn't have a shop, a "Create My Shop!" button is shown.
-        *   **Shop Dashboard:** Once a shop is created, this area displays the shop's status and provides access to management functions:
-            *   "Customize Shop" button: Reveals a form (`#create-customize-shop-form`) to set/update shop name, description, and potentially other customization options (like a banner image URL). This would call an extrinsic like `create_shop` or `update_shop_metadata`.
-            *   "Manage Inventory" button: Reveals a form (`#manage-inventory-form`) where shop owners can:
-                *   Select Pet NFTs or other items from their personal inventory to list in their shop.
-                *   Set prices for these items.
-                *   Call an extrinsic like `add_item_to_shop`.
-                *   View and manage items currently listed in their shop (`#my-shop-inventory-list`), with options to delist or change prices.
-        *   Status paragraphs (`#save-shop-details-status`, `#add-item-status`, `#manage-my-shop-status`) provide feedback on shop management actions.
+        *   If the user doesn't have a shop: "Create My Shop!" button (triggers `create_shop`).
+        *   If shop exists:
+            *   "Shop Details" form (`#shop-details-form`) to update name/description (triggers `update_shop_details`).
+            *   "Shop Status" control (triggers `set_shop_status`).
+            *   "Manage Listings" area:
+                *   Form (`#list-item-form`) to select owned Pet NFTs, set price (triggers `list_item`).
+                *   View current listings (`#my-shop-listings-list`) with "Unlist Item" buttons (triggers `unlist_item`).
+            *   "Close Shop Permanently" button (triggers `close_shop_permanently`).
+        *   Status paragraphs provide feedback on management actions.
 
     This UI structure aims to support discovery, browsing, purchasing, and shop management within a player-driven economy.
 
@@ -750,13 +756,15 @@ Beyond the immutable charter attributes set at minting, Pet NFTs in CritterCraft
         *   **Effects of Leveling:** For MVP, leveling primarily increases the `level` attribute itself. This `level` is then a crucial input for battle calculations, quest eligibility, breeding eligibility, etc. Future enhancements could see leveling grant skill points or minor base stat increases.
     *   An event like `PetLeveledUp { pet_id, new_level }` is emitted.
 
-### d. Personality Trait Evolution (Conceptual - Post-MVP)
-*   **Concept:** Beyond the initial set (if any), personality traits could evolve based on long-term pet states or specific interactions.
-*   **Implementation Ideas (Future, within `pallet-critter-nfts`):**
-    *   If a pet's `mood_indicator` (checked via `apply_neglect_check` or other interactions) remains very low for an extended period, it might gain a "Grumpy" or "Sad" trait (if `BoundedVec` for traits allows additions).
-    *   Consistently feeding a pet specific types of "luxury" foods (via `pallet-items` and `NftManagerForItems`) might lead to a "Picky" or "Refined" trait.
-    *   Winning many battles could contribute to a "Brave" or "Confident" trait.
-*   **Mechanics:** This would require more sophisticated tracking of historical states or specific interaction counts, adding complexity but also depth to pet individuality. For MVP, `personality_traits` are primarily set at minting or by specific rare items.
+    ### d. Personality Trait Evolution (Driven by AI Personality Engine)
+    *   **Concept:** Personality traits (`personality_traits` field in `PetNft`) are not just static but can evolve based on a pet's cumulative experiences and interactions. This is facilitated by a conceptual **off-chain AI Personality Engine** (see `AI_PERSONALITY_ENGINE.md` for full details).
+    *   **Engine Function:** This engine analyzes a pet's comprehensive on-chain history (care interactions, battle performance, quests completed, items used, etc.) to identify patterns and suggest new traits or modifications to existing ones (e.g., gaining "Brave" after many difficult battle wins, or "Picky" if only fed high-quality food). The engine considers factors like frequency, significance, and type of experiences.
+    *   **Integration with `pallet-critter-nfts` (Owner-Approved for MVP):**
+        *   For the MVP, the AI engine's primary role is to provide *suggestions* for personality changes to the pet owner (e.g., via the UI Wallet or a companion application).
+        *   The owner retains agency and chooses whether to accept these suggestions.
+        *   If accepted, the owner calls the existing `update_pet_metadata` extrinsic in `pallet-critter-nfts`, providing the new, full list of `personality_traits` for their pet. This method ensures player control over on-chain trait modifications while benefiting from AI-driven insights.
+    *   **Data Sources for Engine:** The AI engine would require access to historical event data from multiple pallets (`pallet-critter-nfts`, `pallet-battles`, `pallet-quests`, `pallet-items`, etc.), likely through blockchain indexers.
+    *   **Impact:** This system aims to make pet personalities feel genuinely emergent, deeply personalized, and reflective of their unique journey and the owner's play style within CritterCraft.
 
 This simplified lifecycle focuses on essential on-chain updates (timestamps, mood boosts, XP) for core interactions, while enabling richer off-chain calculations for dynamic states like hunger and energy, reducing on-chain storage and transaction load for the MVP.
 ```

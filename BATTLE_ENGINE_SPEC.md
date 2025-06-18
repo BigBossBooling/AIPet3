@@ -22,6 +22,8 @@ The engine expects the following data for each battle simulation:
         *   `base_vitality: u8`
         *   `primary_elemental_affinity: Option<ElementType>` (where `ElementType` is defined in `pallet-critter-nfts`)
         *   *(Optional MVP addition) current_mood: u8` (0-100, could give minor +/- 5% combat effectiveness, fetched from `PetNft.mood_indicator`)*
+        *   *(Optional MVP addition) personality_traits: Vec<String>` (or Vec<Vec<u8>>, a few key traits that might have simple battle effects)*
+    *   *These on-chain stats from `PetNft` serve as the direct inputs. The Battle Engine will derive battle-instance specific 'Effective Combat Stats' (EHP, EATK, EDEF, ESPD) from these, as detailed in Section 3.*
 *   **`random_seed: Option<[u8; 32]>`**:
     *   An optional shared random seed. If provided, the battle simulation MUST be deterministic.
     *   If `None`, the engine may use its own internal randomness, but the simulation might not be easily verifiable by third parties running the same inputs. For MVP and simplicity of reporting, the on-chain `report_battle_outcome` might not require this seed, but the engine should ideally support it for future verifiability.
@@ -33,14 +35,15 @@ This data would be fetched from `pallet-critter-nfts` (via `NftHandler` or direc
 The simulation proceeds in turns until a win condition is met.
 
 ### a. Initialization
-1.  **Calculate Effective Combat Stats for each pet:**
-    *   **Effective HP (EHP):** `(pet_stats.base_vitality * VITALITY_TO_HP_FACTOR_CONST) + (pet_stats.level * LEVEL_TO_HP_FACTOR_CONST)`
-        *   *Example: `VITALITY_TO_HP_FACTOR_CONST = 10`, `LEVEL_TO_HP_FACTOR_CONST = 5`*
-    *   **Effective Attack (EATK):** `(pet_stats.base_strength * STRENGTH_TO_ATK_FACTOR_CONST) + (pet_stats.level * LEVEL_TO_ATK_FACTOR_CONST)`
-    *   **Effective Defense (EDEF):** `(pet_stats.base_vitality * VITALITY_TO_DEF_FACTOR_CONST) + (pet_stats.level * LEVEL_TO_DEF_FACTOR_CONST)` (Vitality contributes to both HP and Defense)
-    *   **Effective Speed (ESPD):** `(pet_stats.base_agility * AGILITY_TO_SPD_FACTOR_CONST) + (pet_stats.level * LEVEL_TO_SPD_FACTOR_CONST)`
-    *   *(All `_CONST` values are part of game balancing and defined within the engine).*
-    *   *(Optional MVP Mood Influence): If `current_mood` is provided and used: EATK and EDEF might be adjusted by +/- 5% if mood is very high (e.g., >80) or very low (e.g., <20).*
+1.  **Calculate Effective Combat Stats for each pet (from `MvpBattlePetStats`):**
+    *   **Effective HP (EHP):** `(pet_stats.base_vitality * 10) + (pet_stats.level * 5) + 50` (Example: Base 50 HP + 10 HP per Vitality point + 5 HP per Level).
+    *   **Effective Attack (EATK):** `(pet_stats.base_strength * 2) + pet_stats.level` (Example: Base 0 ATK + 2 ATK per Strength point + 1 ATK per Level).
+    *   **Effective Defense (EDEF):** `(pet_stats.base_vitality * 1) + pet_stats.level` (Example: Base 0 DEF + 1 DEF per Vitality point + 1 DEF per Level).
+    *   **Effective Speed (ESPD):** `(pet_stats.base_agility * 2) + pet_stats.level` (Example: Base 0 SPD + 2 SPD per Agility point + 1 SPD per Level).
+    *   *(All multiplication/addition factors are illustrative game balance constants (`*_FACTOR_CONST`, `*_BONUS_CONST`) to be tuned).*
+    *   **(Optional MVP Mood Influence):** If `pet_stats.current_mood` is used:
+        *   If mood < 30 (e.g., Unhappy): `EATK *= 0.9`, `EDEF *= 0.9`.
+        *   If mood > 70 (e.g., Happy): `EATK *= 1.05`, `EDEF *= 1.05`.
 2.  Set `pet1_current_hp = pet1_EHP`, `pet2_current_hp = pet2_EHP`.
 
 ### b. Turn Management
@@ -58,16 +61,31 @@ For MVP, each pet performs a basic "Attack" action.
     *   If `roll_hit < BASE_HIT_CHANCE_PERCENT`, the attack hits. Otherwise, it's a "Miss."
 4.  **Damage Calculation (If Hit - Simplified MVP):**
     *   `base_damage = Attacker_EATK`
-    *   `mitigation = Defender_EDEF / DEFENSE_MITIGATION_FACTOR_CONST` (e.g., `DEFENSE_MITIGATION_FACTOR_CONST = 2`)
+    *   `mitigation = Defender_EDEF / 2` (Example `DEFENSE_MITIGATION_FACTOR_CONST = 2`)
     *   `calculated_damage = base_damage.saturating_sub(mitigation)`
-    *   `actual_damage = calculated_damage.max(MINIMUM_DAMAGE_CONST)` (e.g., `MINIMUM_DAMAGE_CONST = 1`)
+    *   `actual_damage = calculated_damage.max(1)` (Ensures minimum 1 damage if EATK > EDEF/2)
 5.  **Elemental Modifier Application:**
-    *   Fetch `attacker_pet_stats.primary_elemental_affinity` and `defender_pet_stats.primary_elemental_affinity`.
-    *   Apply a multiplier to `actual_damage` based on a predefined elemental matchup table (e.g., Fire vs. Nature: 1.5x; Fire vs. Water: 0.75x; Neutral vs. Any: 1.0x; Same Element vs. Same: 0.9x or 1.0x). The engine defines this table.
-    *   `final_damage = (actual_damage * elemental_multiplier) as u32` (ensure rounding or consistent conversion).
-6.  **Apply Damage:**
+    *   Fetch `attacker.primary_elemental_affinity` and `defender.primary_elemental_affinity`.
+    *   Apply multiplier based on a predefined matrix. Example snippet:
+        *   `Fire > Nature = 1.5x`
+        *   `Nature > Earth = 1.5x`
+        *   `Earth > Air = 1.5x`
+        *   `Air > Water = 1.5x`
+        *   `Water > Fire = 1.5x`
+        *   `Tech vs Mystic = 1.25x (both ways, or one is strong vs other)`
+        *   `Effective against (e.g., Fire vs Nature): damage *= 1.5`
+        *   `Not very effective (e.g., Fire vs Water): damage *= 0.75`
+        *   `Neutral affinity or same vs same: damage *= 1.0`
+        *   *(A full matrix should be defined for all `ElementType` variants).*
+    *   `final_damage = floor(actual_damage * elemental_multiplier);`
+6.  **Personality Trait Influence (Simple MVP Example):**
+    *   `if attacker_pet_stats.personality_traits.contains("Brave") && attacker_current_hp < (attacker_EHP / 4) { final_damage = floor(final_damage * 1.1); /* Log: Brave last stand bonus */ }`
+    *   `if attacker_pet_stats.personality_traits.contains("Aggressive") { final_damage = floor(final_damage * 1.05); /* Log: Aggressive bonus */ }`
+    *   `if defender_pet_stats.personality_traits.contains("Sturdy") { final_damage = floor(final_damage * 0.95); /* Log: Sturdy defense bonus */ }`
+    *   *(These are illustrative. Only a few simple, directly impactful traits would be considered for MVP simulation to reduce complexity).*
+7.  **Apply Damage:**
     *   `defender_current_hp = defender_current_hp.saturating_sub(final_damage)`.
-7.  **Check for Win Condition:**
+8.  **Check for Win Condition:**
     *   If `defender_current_hp == 0`, the Attacker is the winner. The battle ends.
 
 ### d. Winning/Losing Conditions
@@ -97,21 +115,26 @@ Example Log Entry (per turn/action):
 ```json
 {
   "turn": 1,
-  "attacker_pet_id": "PET_ID_1", // Actual PetId
-  "defender_pet_id": "PET_ID_2", // Actual PetId
-  "action_type": "BasicAttack", // Could be "Ability: 'Fireball'" in future
-  "random_roll_hit": 75, // (0-99)
+  "attacker_pet_id": "PET_ID_1",
+  "attacker_species": "RoboDog",
+  "defender_pet_id": "PET_ID_2",
+  "defender_species": "PixelCat",
+  "action_type": "BasicAttack",
+  "roll_for_hit": 75,
   "hit_chance_threshold": 85,
   "did_hit": true,
-  "calculated_damage_pre_modifier": 15, // EATK - (EDEF / Factor)
-  "elemental_modifier_applied": 1.5, // Multiplier value
-  "final_damage_dealt": 22,
-  "defender_hp_before_damage": 150,
-  "defender_hp_after_damage": 128,
-  "status_effects_applied": [] // For future, e.g., ["Burned"]
+  "attacker_effective_stats": { "atk": 55, "def": 30, "spd": 40, "affinity": "Fire" },
+  "defender_effective_stats": { "atk": 50, "def": 35, "spd": 35, "affinity": "Nature" },
+  "base_damage_calc": 38,
+  "elemental_multiplier_applied": 1.5,
+  "personality_trait_modifier_active": "Brave",
+  "final_damage_dealt": 57,
+  "defender_hp_before": 150,
+  "defender_hp_after": 93,
+  "status_effects_applied": []
 }
 ```
-The full log would be an array of such entries, plus initial pet stats (EHP, EATK etc.) and the final outcome summary.
+*The battle log should also include the initial `MvpBattlePetStats` (or derived Effective Combat Stats) for both pets at the start of the battle for full context.*
 
 ## 6. Security & Verifiability Considerations
 
