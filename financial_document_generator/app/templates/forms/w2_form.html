@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>W-2 Form Data Entry</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .form-container { max-width: 800px; margin: auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="text"], input[type="number"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .form-row { display: flex; flex-wrap: wrap; margin-left: -10px; margin-right: -10px; }
+        .form-col { flex: 1; padding: 0 10px; min-width: 250px; }
+        .submit-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .submit-btn:hover { background-color: #45a049; }
+        h2 { text-align: center; color: #333; }
+    </style>
+</head>
+<body>
+
+<div class="form-container">
+    <h2>W-2 Form Data Entry</h2>
+    <form action="/submit_w2_data" method="post">
+        <div class="form-row">
+            <div class="form-col">
+                <div class="form-group">
+                    <label for="employee_name">Employee's Name:</label>
+                    <input type="text" id="employee_name" name="employee_name" required>
+                </div>
+            </div>
+            <div class="form-col">
+                <div class="form-group">
+                    <label for="employee_ssn">Employee's SSN:</label>
+                    <input type="text" id="employee_ssn" name="employee_ssn" pattern="\d{3}-\d{2}-\d{4}" title="Format: XXX-XX-XXXX" required>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-col">
+                <div class="form-group">
+                    <label for="employer_name">Employer's Name:</label>
+                    <input type="text" id="employer_name" name="employer_name" required>
+                </div>
+            </div>
+            <div class="form-col">
+                <div class="form-group">
+                    <label for="employer_ein">Employer's EIN:</label>
+                    <input type="text" id="employer_ein" name="employer_ein" pattern="\d{2}-\d{7}" title="Format: XX-XXXXXXX" required>
+                </div>
+            </div>
+        </div>
+
+        <h3>Federal Amounts:</h3>
+        <div class="form-row">
+            <div class="form-col">
+                <div class="form-group">
+                    <label for="wages_tips_other_compensation">1. Wages, Tips, Other Compensation:</label>
+                    <input type="number" id="wages_tips_other_compensation" name="wages_tips_other_compensation" step="0.01" min="0" required>
+                </div>
+            </div>
+            <div class="form-col">
+                <div class="form-group">
+                    <label for="federal_income_tax_withheld">2. Federal Income Tax Withheld:</label>
+                    <input type="number" id="federal_income_tax_withheld" name="federal_income_tax_withheld" step="0.01" min="0" required>
+                </div>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-col">
+                <div class="form-group">
+                    <label for="social_security_wages">3. Social Security Wages:</label>
+                    <input type="number" id="social_security_wages" name="social_security_wages" step="0.01" min="0">
+                </div>
+            </div>
+            <div class="form-col">
+                <div class="form-group">
+                    <label for="social_security_tax_withheld">4. Social Security Tax Withheld:</label>
+                    <input type="number" id="social_security_tax_withheld" name="social_security_tax_withheld" step="0.01" min="0">
+                </div>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-col">
+                <div class="form-group">
+                    <label for="medicare_wages_and_tips">5. Medicare Wages and Tips:</label>
+                    <input type="number" id="medicare_wages_and_tips" name="medicare_wages_and_tips" step="0.01" min="0">
+                </div>
+            </div>
+            <div class="form-col">
+                <div class="form-group">
+                    <label for="medicare_tax_withheld">6. Medicare Tax Withheld:</label>
+                    <input type="number" id="medicare_tax_withheld" name="medicare_tax_withheld" step="0.01" min="0">
+                </div>
+            </div>
+        </div>
+
+        <h3>State Amounts:</h3>
+        <div class="form-row">
+            <div class="form-col">
+                <div class="form-group">
+                    <label for="state_employer_state_id_no">15. Employer's State ID No.:</label>
+                    <input type="text" id="state_employer_state_id_no" name="state_employer_state_id_no">
+                </div>
+            </div>
+            <div class="form-col">
+                <div class="form-group">
+                    <label for="state_wages_tips_etc">16. State Wages, Tips, etc.:</label>
+                    <input type="number" id="state_wages_tips_etc" name="state_wages_tips_etc" step="0.01" min="0">
+                </div>
+            </div>
+             <div class="form-col">
+                <div class="form-group">
+                    <label for="state_income_tax">17. State Income Tax:</label>
+                    <input type="number" id="state_income_tax" name="state_income_tax" step="0.01" min="0">
+                </div>
+            </div>
+        </div>
+
+        <h3>Local Amounts:</h3>
+        <div class="form-row">
+            <div class="form-col">
+                <div class="form-group">
+                    <label for="local_wages_tips_etc">18. Local Wages, Tips, etc.:</label>
+                    <input type="number" id="local_wages_tips_etc" name="local_wages_tips_etc" step="0.01" min="0">
+                </div>
+            </div>
+            <div class="form-col">
+                <div class="form-group">
+                    <label for="local_income_tax">19. Local Income Tax:</label>
+                    <input type="number" id="local_income_tax" name="local_income_tax" step="0.01" min="0">
+                </div>
+            </div>
+            <div class="form-col">
+                <div class="form-group">
+                    <label for="locality_name">20. Locality Name:</label>
+                    <input type="text" id="locality_name" name="locality_name">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <button type="submit" class="submit-btn">Generate W-2</button>
+        </div>
+    </form>
+</div>
+
+</body>
+</html>
