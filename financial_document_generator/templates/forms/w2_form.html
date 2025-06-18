@@ -3,159 +3,175 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>W-2 Form Data Entry</title>
+    <title>{{ title | default('W-2 Form Data Entry') }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    {# Minimal inline styles if global style.css is not comprehensive for errors #}
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .form-container { max-width: 800px; margin: auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input[type="text"], input[type="number"] {
-            width: calc(100% - 22px);
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-        .form-row { display: flex; flex-wrap: wrap; margin-left: -10px; margin-right: -10px; }
-        .form-col { flex: 1; padding: 0 10px; min-width: 250px; }
-        .submit-btn {
-            background-color: #4CAF50;
-            color: white;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        .submit-btn:hover { background-color: #45a049; }
-        h2 { text-align: center; color: #333; }
+        .errors { list-style-type: none; padding-left: 0; margin-top: 4px; }
+        .errors li { color: #dc3545; /* Bootstrap's danger color */ font-size: 0.875em; }
+        .form-label { font-weight: bold; display: block; margin-bottom: .5rem; }
+        .form-control { display: block; width: 100%; padding: .375rem .75rem; font-size: 1rem;
+                        line-height: 1.5; color: #495057; background-color: #fff;
+                        background-clip: padding-box; border: 1px solid #ced4da;
+                        border-radius: .25rem; transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+                        box-sizing: border-box; /* Ensure padding and border don't make it overflow */
+                      }
+        input[type="checkbox"] { width: auto; margin-right: 5px; }
     </style>
 </head>
 <body>
 
 <div class="form-container">
-    <h2>W-2 Form Data Entry</h2>
-    <form action="/submit_w2_data" method="post">
-        <div class="form-row">
-            <div class="form-col">
-                <div class="form-group">
-                    <label for="employee_name">Employee's Name:</label>
-                    <input type="text" id="employee_name" name="employee_name" required>
+    <h2>{{ title | default('W-2 Form Data Entry') }}</h2>
+    <form method="POST" action="{{ url_for('generate_w2_pdf_route') }}">
+        {{ form.hidden_tag() }} {# Includes CSRF token #}
+
+        <div class="form-section">
+            <h3>Employer Information</h3>
+            <div class="form-row">
+                <div class="form-col">
+                    <div class="form-group">
+                        {{ form.employer_name.label(class_="form-label") }}
+                        {{ form.employer_name(class_="form-control", placeholder="Employer's full name") }}
+                        {% if form.employer_name.errors %}<ul class="errors">{% for e in form.employer_name.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        {{ form.employer_ein.label(class_="form-label") }}
+                        {{ form.employer_ein(class_="form-control", placeholder="XX-XXXXXXX") }}
+                        {% if form.employer_ein.errors %}<ul class="errors">{% for e in form.employer_ein.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}
+                    </div>
                 </div>
             </div>
-            <div class="form-col">
-                <div class="form-group">
-                    <label for="employee_ssn">Employee's SSN:</label>
-                    <input type="text" id="employee_ssn" name="employee_ssn" pattern="\d{3}-\d{2}-\d{4}" title="Format: XXX-XX-XXXX" required>
-                </div>
+            <div class="form-group">
+                {{ form.employer_address.label(class_="form-label") }}
+                {{ form.employer_address(class_="form-control", placeholder="Street address, P.O. Box") }}
+                {% if form.employer_address.errors %}<ul class="errors">{% for e in form.employer_address.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}
+            </div>
+            <div class="form-group">
+                {{ form.employer_city_state_zip.label(class_="form-label") }}
+                {{ form.employer_city_state_zip(class_="form-control", placeholder="City, State, ZIP Code") }}
+                {% if form.employer_city_state_zip.errors %}<ul class="errors">{% for e in form.employer_city_state_zip.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}
+            </div>
+             <div class="form-group">
+                {{ form.control_number.label(class_="form-label") }}
+                {{ form.control_number(class_="form-control", placeholder="Optional") }}
+                {% if form.control_number.errors %}<ul class="errors">{% for e in form.control_number.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}
             </div>
         </div>
 
-        <div class="form-row">
-            <div class="form-col">
-                <div class="form-group">
-                    <label for="employer_name">Employer's Name:</label>
-                    <input type="text" id="employer_name" name="employer_name" required>
+        <div class="form-section">
+            <h3>Employee Information</h3>
+            <div class="form-row">
+                <div class="form-col">
+                    <div class="form-group">
+                        {{ form.employee_name.label(class_="form-label") }}
+                        {{ form.employee_name(class_="form-control", placeholder="First name, initial, last name, suffix") }}
+                        {% if form.employee_name.errors %}<ul class="errors">{% for e in form.employee_name.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        {{ form.employee_ssn.label(class_="form-label") }}
+                        {{ form.employee_ssn(class_="form-control", placeholder="XXX-XX-XXXX") }}
+                        {% if form.employee_ssn.errors %}<ul class="errors">{% for e in form.employee_ssn.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}
+                    </div>
                 </div>
             </div>
-            <div class="form-col">
-                <div class="form-group">
-                    <label for="employer_ein">Employer's EIN:</label>
-                    <input type="text" id="employer_ein" name="employer_ein" pattern="\d{2}-\d{7}" title="Format: XX-XXXXXXX" required>
-                </div>
+            <div class="form-group">
+                {{ form.employee_address.label(class_="form-label") }}
+                {{ form.employee_address(class_="form-control", placeholder="Street address") }}
+                {% if form.employee_address.errors %}<ul class="errors">{% for e in form.employee_address.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}
             </div>
-        </div>
-
-        <h3>Federal Amounts:</h3>
-        <div class="form-row">
-            <div class="form-col">
-                <div class="form-group">
-                    <label for="wages_tips_other_compensation">1. Wages, Tips, Other Compensation:</label>
-                    <input type="number" id="wages_tips_other_compensation" name="wages_tips_other_compensation" step="0.01" min="0" required>
-                </div>
-            </div>
-            <div class="form-col">
-                <div class="form-group">
-                    <label for="federal_income_tax_withheld">2. Federal Income Tax Withheld:</label>
-                    <input type="number" id="federal_income_tax_withheld" name="federal_income_tax_withheld" step="0.01" min="0" required>
-                </div>
-            </div>
-        </div>
-        <div class="form-row">
-            <div class="form-col">
-                <div class="form-group">
-                    <label for="social_security_wages">3. Social Security Wages:</label>
-                    <input type="number" id="social_security_wages" name="social_security_wages" step="0.01" min="0">
-                </div>
-            </div>
-            <div class="form-col">
-                <div class="form-group">
-                    <label for="social_security_tax_withheld">4. Social Security Tax Withheld:</label>
-                    <input type="number" id="social_security_tax_withheld" name="social_security_tax_withheld" step="0.01" min="0">
-                </div>
-            </div>
-        </div>
-        <div class="form-row">
-            <div class="form-col">
-                <div class="form-group">
-                    <label for="medicare_wages_and_tips">5. Medicare Wages and Tips:</label>
-                    <input type="number" id="medicare_wages_and_tips" name="medicare_wages_and_tips" step="0.01" min="0">
-                </div>
-            </div>
-            <div class="form-col">
-                <div class="form-group">
-                    <label for="medicare_tax_withheld">6. Medicare Tax Withheld:</label>
-                    <input type="number" id="medicare_tax_withheld" name="medicare_tax_withheld" step="0.01" min="0">
-                </div>
+            <div class="form-group">
+                {{ form.employee_city_state_zip.label(class_="form-label") }}
+                {{ form.employee_city_state_zip(class_="form-control", placeholder="City, State, ZIP Code") }}
+                {% if form.employee_city_state_zip.errors %}<ul class="errors">{% for e in form.employee_city_state_zip.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}
             </div>
         </div>
 
-        <h3>State Amounts:</h3>
-        <div class="form-row">
-            <div class="form-col">
-                <div class="form-group">
-                    <label for="state_employer_state_id_no">15. Employer's State ID No.:</label>
-                    <input type="text" id="state_employer_state_id_no" name="state_employer_state_id_no">
-                </div>
+        <div class="form-section">
+            <h3>Federal Income & Taxes</h3>
+            <div class="form-row">
+                <div class="form-col">{{ form.wages_tips_other_compensation.label(class_="form-label") }}{{ form.wages_tips_other_compensation(class_="form-control") }}{% if form.wages_tips_other_compensation.errors %}<ul class="errors">{% for e in form.wages_tips_other_compensation.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}</div>
+                <div class="form-col">{{ form.federal_income_tax_withheld.label(class_="form-label") }}{{ form.federal_income_tax_withheld(class_="form-control") }}{% if form.federal_income_tax_withheld.errors %}<ul class="errors">{% for e in form.federal_income_tax_withheld.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}</div>
             </div>
-            <div class="form-col">
-                <div class="form-group">
-                    <label for="state_wages_tips_etc">16. State Wages, Tips, etc.:</label>
-                    <input type="number" id="state_wages_tips_etc" name="state_wages_tips_etc" step="0.01" min="0">
-                </div>
+            <div class="form-row">
+                <div class="form-col">{{ form.social_security_wages.label(class_="form-label") }}{{ form.social_security_wages(class_="form-control") }}{% if form.social_security_wages.errors %}<ul class="errors">{% for e in form.social_security_wages.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}</div>
+                <div class="form-col">{{ form.social_security_tax_withheld.label(class_="form-label") }}{{ form.social_security_tax_withheld(class_="form-control") }}{% if form.social_security_tax_withheld.errors %}<ul class="errors">{% for e in form.social_security_tax_withheld.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}</div>
             </div>
-             <div class="form-col">
-                <div class="form-group">
-                    <label for="state_income_tax">17. State Income Tax:</label>
-                    <input type="number" id="state_income_tax" name="state_income_tax" step="0.01" min="0">
-                </div>
+            <div class="form-row">
+                <div class="form-col">{{ form.medicare_wages_and_tips.label(class_="form-label") }}{{ form.medicare_wages_and_tips(class_="form-control") }}{% if form.medicare_wages_and_tips.errors %}<ul class="errors">{% for e in form.medicare_wages_and_tips.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}</div>
+                <div class="form-col">{{ form.medicare_tax_withheld.label(class_="form-label") }}{{ form.medicare_tax_withheld(class_="form-control") }}{% if form.medicare_tax_withheld.errors %}<ul class="errors">{% for e in form.medicare_tax_withheld.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}</div>
             </div>
-        </div>
-
-        <h3>Local Amounts:</h3>
-        <div class="form-row">
-            <div class="form-col">
-                <div class="form-group">
-                    <label for="local_wages_tips_etc">18. Local Wages, Tips, etc.:</label>
-                    <input type="number" id="local_wages_tips_etc" name="local_wages_tips_etc" step="0.01" min="0">
-                </div>
+            <div class="form-row">
+                <div class="form-col">{{ form.social_security_tips.label(class_="form-label") }}{{ form.social_security_tips(class_="form-control") }}{% if form.social_security_tips.errors %}<ul class="errors">{% for e in form.social_security_tips.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}</div>
+                <div class="form-col">{{ form.allocated_tips.label(class_="form-label") }}{{ form.allocated_tips(class_="form-control") }}{% if form.allocated_tips.errors %}<ul class="errors">{% for e in form.allocated_tips.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}</div>
             </div>
-            <div class="form-col">
-                <div class="form-group">
-                    <label for="local_income_tax">19. Local Income Tax:</label>
-                    <input type="number" id="local_income_tax" name="local_income_tax" step="0.01" min="0">
-                </div>
-            </div>
-            <div class="form-col">
-                <div class="form-group">
-                    <label for="locality_name">20. Locality Name:</label>
-                    <input type="text" id="locality_name" name="locality_name">
-                </div>
+            <div class="form-row">
+                <div class="form-col">{{ form.dependent_care_benefits.label(class_="form-label") }}{{ form.dependent_care_benefits(class_="form-control") }}{% if form.dependent_care_benefits.errors %}<ul class="errors">{% for e in form.dependent_care_benefits.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}</div>
+                <div class="form-col">{{ form.nonqualified_plans.label(class_="form-label") }}{{ form.nonqualified_plans(class_="form-control") }}{% if form.nonqualified_plans.errors %}<ul class="errors">{% for e in form.nonqualified_plans.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}</div>
             </div>
         </div>
 
-        <div class="form-group">
-            <button type="submit" class="submit-btn">Generate W-2</button>
+        <div class="form-section">
+            <h3>Box 12</h3>
+            <div class="form-row">
+                <div class="form-col">{{ form.box_12a_code.label(class_="form-label") }}{{ form.box_12a_code(class_="form-control") }}{% if form.box_12a_code.errors %}<ul class="errors">{% for e in form.box_12a_code.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}</div>
+                <div class="form-col">{{ form.box_12a_amount.label(class_="form-label") }}{{ form.box_12a_amount(class_="form-control") }}{% if form.box_12a_amount.errors %}<ul class="errors">{% for e in form.box_12a_amount.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}</div>
+            </div>
+            <div class="form-row">
+                <div class="form-col">{{ form.box_12b_code.label(class_="form-label") }}{{ form.box_12b_code(class_="form-control") }}{% if form.box_12b_code.errors %}<ul class="errors">{% for e in form.box_12b_code.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}</div>
+                <div class="form-col">{{ form.box_12b_amount.label(class_="form-label") }}{{ form.box_12b_amount(class_="form-control") }}{% if form.box_12b_amount.errors %}<ul class="errors">{% for e in form.box_12b_amount.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}</div>
+            </div>
+            {# Add more Box 12 fields (c, d) here if implemented in W2FormWTF #}
+        </div>
+
+        <div class="form-section">
+            <h3>Box 13</h3>
+            <div class="form-group">
+                {{ form.statutory_employee.label(class_="form-label-inline") }} {{ form.statutory_employee(class_="form-check-input") }}
+                {% if form.statutory_employee.errors %}<ul class="errors">{% for e in form.statutory_employee.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}
+            </div>
+            <div class="form-group">
+                {{ form.retirement_plan.label(class_="form-label-inline") }} {{ form.retirement_plan(class_="form-check-input") }}
+                {% if form.retirement_plan.errors %}<ul class="errors">{% for e in form.retirement_plan.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}
+            </div>
+            <div class="form-group">
+                {{ form.third_party_sick_pay.label(class_="form-label-inline") }} {{ form.third_party_sick_pay(class_="form-check-input") }}
+                {% if form.third_party_sick_pay.errors %}<ul class="errors">{% for e in form.third_party_sick_pay.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Box 14 (Other)</h3>
+            <div class="form-row">
+                <div class="form-col">{{ form.other_description_code_d.label(class_="form-label") }}{{ form.other_description_code_d(class_="form-control") }}{% if form.other_description_code_d.errors %}<ul class="errors">{% for e in form.other_description_code_d.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}</div>
+                <div class="form-col">{{ form.other_amount_code_d.label(class_="form-label") }}{{ form.other_amount_code_d(class_="form-control") }}{% if form.other_amount_code_d.errors %}<ul class="errors">{% for e in form.other_amount_code_d.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}</div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>State Taxes (Primary State)</h3>
+            <div class="form-row">
+                <div class="form-col">{{ form.state_employer_state_id_no.label(class_="form-label") }}{{ form.state_employer_state_id_no(class_="form-control") }}{% if form.state_employer_state_id_no.errors %}<ul class="errors">{% for e in form.state_employer_state_id_no.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}</div>
+                <div class="form-col">{{ form.state_wages_tips_etc.label(class_="form-label") }}{{ form.state_wages_tips_etc(class_="form-control") }}{% if form.state_wages_tips_etc.errors %}<ul class="errors">{% for e in form.state_wages_tips_etc.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}</div>
+                <div class="form-col">{{ form.state_income_tax.label(class_="form-label") }}{{ form.state_income_tax(class_="form-control") }}{% if form.state_income_tax.errors %}<ul class="errors">{% for e in form.state_income_tax.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}</div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Local Taxes (Primary Locality)</h3>
+            <div class="form-row">
+                <div class="form-col">{{ form.local_wages_tips_etc.label(class_="form-label") }}{{ form.local_wages_tips_etc(class_="form-control") }}{% if form.local_wages_tips_etc.errors %}<ul class="errors">{% for e in form.local_wages_tips_etc.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}</div>
+                <div class="form-col">{{ form.local_income_tax.label(class_="form-label") }}{{ form.local_income_tax(class_="form-control") }}{% if form.local_income_tax.errors %}<ul class="errors">{% for e in form.local_income_tax.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}</div>
+                <div class="form-col">{{ form.locality_name.label(class_="form-label") }}{{ form.locality_name(class_="form-control") }}{% if form.locality_name.errors %}<ul class="errors">{% for e in form.locality_name.errors %}<li>{{e}}</li>{% endfor %}</ul>{% endif %}</div>
+            </div>
+        </div>
+
+        <div class="form-group" style="text-align: center;">
+            {{ form.submit(class_="submit-btn") }}
         </div>
     </form>
 </div>

@@ -1,180 +1,197 @@
-import io # Added for io.BytesIO
-from typing import Dict, Any, Union, Optional # For type hinting
-from .base_generator import BaseGenerator # Import BaseGenerator
-from reportlab.pdfgen import canvas # Keep reportlab imports
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.units import inch
+import io
+from typing import Dict, Any, Union, Optional, List # Updated imports
+from .base_generator import BaseGenerator
+from weasyprint import HTML, FontConfiguration # WeasyPrint imports
 
 class W2Generator(BaseGenerator):
     """
-    Generates a W-2 form PDF using ReportLab.
+    Generates a W-2 form PDF using a Jinja2 HTML template and WeasyPrint.
     Inherits from BaseGenerator.
     """
     def __init__(self, data: dict):
         """
         Initializes W2Generator with data.
-
         Args:
-            data (dict): A dictionary containing all necessary W-2 form fields.
+            data (dict): A dictionary containing W-2 form fields.
+                         It can be a flat dictionary (e.g., from a form or simple API)
+                         or already contain structured items like 'box_12_items'.
         """
-        super().__init__(data) # Call BaseGenerator's __init__
+        super().__init__(data) # self.data is now populated
+        self._prepare_template_data() # Process and structure data for the template
 
-        # Populate instance attributes from data dictionary
-        self.employee_name: str = self.data.get("employee_name", "")
-        self.employee_ssn: str = self.data.get("employee_ssn", "")
-        self.employer_name: str = self.data.get("employer_name", "")
-        self.employer_ein: str = self.data.get("employer_ein", "")
-        self.wages_tips_other_compensation: float = float(self.data.get("wages_tips_other_compensation", 0.0))
-        self.federal_income_tax_withheld: float = float(self.data.get("federal_income_tax_withheld", 0.0))
-        self.social_security_wages: float = float(self.data.get("social_security_wages", 0.0))
-        self.medicare_wages_and_tips: float = float(self.data.get("medicare_wages_and_tips", 0.0))
-        self.social_security_tax_withheld: float = float(self.data.get("social_security_tax_withheld", 0.0))
-        self.medicare_tax_withheld: float = float(self.data.get("medicare_tax_withheld", 0.0))
-        self.state_employer_state_id_no: str = self.data.get("state_employer_state_id_no", "")
-        self.state_wages_tips_etc: float = float(self.data.get("state_wages_tips_etc", 0.0))
-        self.state_income_tax: float = float(self.data.get("state_income_tax", 0.0))
-        self.local_wages_tips_etc: float = float(self.data.get("local_wages_tips_etc", 0.0))
-        self.local_income_tax: float = float(self.data.get("local_income_tax", 0.0))
-        self.locality_name: str = self.data.get("locality_name", "")
+    def _get_bool_from_data(self, key: str, default: bool = False) -> bool:
+        """Helper to convert various truthy/falsy inputs to boolean."""
+        val = self.data.get(key)
+        if isinstance(val, str):
+            return val.lower() in ['true', '1', 't', 'y', 'yes']
+        return bool(val) if val is not None else default
 
-    def to_dict(self) -> Dict[str, Any]:
-        """Converts the W2Generator instance attributes to a dictionary."""
-        # This could also leverage self.data if it's kept complete and attributes are just for convenience
-        return {
-            "employee_name": self.employee_name,
-            "employee_ssn": self.employee_ssn,
-            "employer_name": self.employer_name,
-            "employer_ein": self.employer_ein,
-            "wages_tips_other_compensation": self.wages_tips_other_compensation,
-            "federal_income_tax_withheld": self.federal_income_tax_withheld,
-            "social_security_wages": self.social_security_wages,
-            "medicare_wages_and_tips": self.medicare_wages_and_tips,
-            "social_security_tax_withheld": self.social_security_tax_withheld,
-            "medicare_tax_withheld": self.medicare_tax_withheld,
-            "state_employer_state_id_no": self.state_employer_state_id_no,
-            "state_wages_tips_etc": self.state_wages_tips_etc,
-            "state_income_tax": self.state_income_tax,
-            "local_wages_tips_etc": self.local_wages_tips_etc,
-            "local_income_tax": self.local_income_tax,
-            "locality_name": self.locality_name,
-        }
-
-    # from_dict can be removed if initialization is always from a single data dict
-    # Or it can be kept as a convenience constructor for the specific data structure it expects
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'W2Generator':
-        """Creates a W2Generator object from a dictionary.
-           This now primarily serves as a way to ensure data is in the expected structure.
+    def _prepare_template_data(self) -> None:
         """
-        return cls(data)
+        Prepares and structures self.data for the w2_template.html.
+        This involves converting flat data for Box 12, 14, state, and local taxes
+        into lists of dictionaries expected by the template.
+        It also ensures all expected top-level fields from the old __init__ are present in self.data,
+        defaulting them if necessary (though BaseGenerator's self.data already holds them).
+        """
+
+        # Ensure base numeric fields are floats (original __init__ did this)
+        numeric_fields = [
+            "wages_tips_other_compensation", "federal_income_tax_withheld",
+            "social_security_wages", "medicare_wages_and_tips",
+            "social_security_tax_withheld", "medicare_tax_withheld",
+            "social_security_tips", "allocated_tips", "dependent_care_benefits",
+            "nonqualified_plans", "other_amount_code_d", # Assuming this is a specific Box 14 item
+            "state_wages_tips_etc", "state_income_tax", # For the first state
+            "state_wages_tips_etc_2", "state_income_tax_2", # For a second state
+            "local_wages_tips_etc", "local_income_tax", # For the first locality
+            "local_wages_tips_etc_2", "local_income_tax_2"  # For a second locality
+        ]
+        for field in numeric_fields:
+            self.data[field] = float(self.data.get(field, 0.0))
+
+        # Ensure string fields default to empty string if not present
+        string_fields = [
+            "employee_name", "employee_ssn", "employee_address", "employee_city_state_zip",
+            "employer_name", "employer_address", "employer_city_state_zip", "employer_ein",
+            "control_number", "state_employer_state_id_no", "locality_name", # For first state/locality
+            "state_code_1", "state_employer_state_id_no_1", # For explicit first state
+            "state_code_2", "state_employer_state_id_no_2", # For explicit second state
+            "locality_name_1", "locality_name_2", # For explicit localities
+            "other_description_code_d" # Assuming this is a specific Box 14 item
+        ]
+        for field in string_fields:
+            self.data[field] = str(self.data.get(field, '')).strip()
+
+        # Box 12 items
+        self.data['box_12_items'] = []
+        for char_code in ['a', 'b', 'c', 'd']:
+            code = self.data.get(f'box_12{char_code}_code', '').strip()
+            amount_val = self.data.get(f'box_12{char_code}_amount')
+            if code: # Only add if code is present
+                amount = 0.0
+                if amount_val is not None:
+                    try:
+                        amount = float(amount_val)
+                    except (ValueError, TypeError):
+                        amount = 0.0 # Or log warning
+                self.data['box_12_items'].append({'code': code, 'amount': amount})
+
+        # Box 13 checkboxes
+        self.data['statutory_employee'] = self._get_bool_from_data('statutory_employee')
+        self.data['retirement_plan'] = self._get_bool_from_data('retirement_plan')
+        self.data['third_party_sick_pay'] = self._get_bool_from_data('third_party_sick_pay')
+
+        # Box 14 "Other" items
+        self.data['box_14_items'] = []
+        # Example for a primary "other" item, can be expanded for more from flat data
+        if self.data.get('other_description_code_d') or self.data.get('other_amount_code_d', 0.0) != 0.0:
+             self.data['box_14_items'].append({
+                 'description': self.data.get('other_description_code_d', ''),
+                 'amount': self.data.get('other_amount_code_d', 0.0)
+             })
+        # Allow passing 'box_14_items' directly as a list in input data for more flexibility
+        if 'box_14_items_input' in self.data and isinstance(self.data['box_14_items_input'], list):
+            for item in self.data['box_14_items_input']:
+                if isinstance(item, dict) and 'description' in item and 'amount' in item:
+                    try:
+                        item_amount = float(item['amount'])
+                        self.data['box_14_items'].append({'description': str(item['description']), 'amount': item_amount})
+                    except (ValueError, TypeError): pass # Skip malformed item
+
+
+        # State Tax Items (up to 2 states)
+        self.data['state_tax_items'] = []
+        # First state (using primary fields or specific _1 fields)
+        state_code_1 = self.data.get('state_code_1', self.data.get('state', '')) # 'state' for backward compatibility
+        emp_id_1 = self.data.get('state_employer_state_id_no_1', self.data.get('state_employer_state_id_no', ''))
+        wages_1 = self.data.get('state_wages_tips_etc_1', self.data.get('state_wages_tips_etc', 0.0))
+        tax_1 = self.data.get('state_income_tax_1', self.data.get('state_income_tax', 0.0))
+        if state_code_1 or emp_id_1 or wages_1 > 0 or tax_1 > 0:
+            self.data['state_tax_items'].append({
+                'state_code': state_code_1, 'employer_state_id': emp_id_1,
+                'state_wages': wages_1, 'state_income_tax': tax_1
+            })
+        # Second state (using specific _2 fields)
+        state_code_2 = self.data.get('state_code_2', '')
+        emp_id_2 = self.data.get('state_employer_state_id_no_2', '')
+        wages_2 = self.data.get('state_wages_tips_etc_2', 0.0)
+        tax_2 = self.data.get('state_income_tax_2', 0.0)
+        if state_code_2 or emp_id_2 or wages_2 > 0 or tax_2 > 0:
+             self.data['state_tax_items'].append({
+                'state_code': state_code_2, 'employer_state_id': emp_id_2,
+                'state_wages': wages_2, 'state_income_tax': tax_2
+            })
+
+        # Local Tax Items (up to 2 localities)
+        self.data['local_tax_items'] = []
+        # First locality
+        loc_wages_1 = self.data.get('local_wages_tips_etc_1', self.data.get('local_wages_tips_etc', 0.0))
+        loc_tax_1 = self.data.get('local_income_tax_1', self.data.get('local_income_tax', 0.0))
+        loc_name_1 = self.data.get('locality_name_1', self.data.get('locality_name', ''))
+        if loc_wages_1 > 0 or loc_tax_1 > 0 or loc_name_1:
+            self.data['local_tax_items'].append({
+                'local_wages': loc_wages_1, 'local_income_tax': loc_tax_1, 'locality_name': loc_name_1
+            })
+        # Second locality
+        loc_wages_2 = self.data.get('local_wages_tips_etc_2', 0.0)
+        loc_tax_2 = self.data.get('local_income_tax_2', 0.0)
+        loc_name_2 = self.data.get('locality_name_2', '')
+        if loc_wages_2 > 0 or loc_tax_2 > 0 or loc_name_2:
+             self.data['local_tax_items'].append({
+                'local_wages': loc_wages_2, 'local_income_tax': loc_tax_2, 'locality_name': loc_name_2
+            })
+
+        # Ensure all keys expected by the template are present, even if empty/default
+        for key in ['void_checkbox', 'employer_address', 'employer_city_state_zip',
+                    'employee_address', 'employee_city_state_zip']:
+            if key not in self.data: self.data[key] = '' # Or appropriate default (False for checkbox)
+
 
     def generate_pdf(self, output_path_or_buffer: Optional[Union[str, io.BytesIO]] = None) -> Optional[Union[bool, bytes]]:
-        """
-        Generates a PDF representation of the W-2 form using ReportLab.
-
-        Args:
-            output_path_or_buffer (str or io.BytesIO, optional):
-                If a string, it's the path to save the PDF file.
-                If an io.BytesIO object, the PDF is written to this buffer.
-                If None, the PDF content is returned as bytes.
-
-        Returns:
-            bool: True if PDF was saved to a file path successfully, False on error.
-            bytes: PDF content as bytes if output_path_or_buffer is None and successful.
-            None: If an error occurred when trying to return bytes or save to a buffer.
-                  (When saving to provided buffer, effectively returns None on success via buffer modification)
-        """
-        target_buffer = None
-        is_path = isinstance(output_path_or_buffer, str)
-        is_buffer = isinstance(output_path_or_buffer, io.BytesIO)
-
-        if is_path:
-            target_canvas_arg = output_path_or_buffer
-        elif is_buffer:
-            target_canvas_arg = output_path_or_buffer
-        else: # None or other type
-            target_buffer = io.BytesIO()
-            target_canvas_arg = target_buffer
-
         try:
-            c = canvas.Canvas(target_canvas_arg, pagesize=letter)
-            width, height = letter  # (612, 792)
+            # self.data should already be prepared by __init__ -> _prepare_template_data
+            html_string = self._render_template('w2_template.html', self.data)
 
-            # Set a title
-            c.setFont("Helvetica-Bold", 16)
-            c.drawString(0.5 * inch, height - 0.5 * inch, "Form W-2: Wage and Tax Statement")
+            font_config = FontConfiguration()
+            html_doc = HTML(string=html_string, base_url=self._get_project_root())
 
-            # Basic layout - simplified for brevity
-            text_y_start = height - 1.5 * inch
-            line_height = 0.25 * inch
-            current_y = text_y_start
-            left_margin_label = 0.5 * inch
-            left_margin_value = 2.5 * inch
-
-            c.setFont("Helvetica", 10)
-
-            def draw_field(label: str, value: Any, y_pos: float):
-                c.drawString(left_margin_label, y_pos, f"{label}:")
-                c.drawString(left_margin_value, y_pos, str(value))
-                return y_pos - line_height
-
-            current_y = draw_field("Employee's SSN", self.employee_ssn, current_y)
-            current_y = draw_field("Employer identification number (EIN)", self.employer_ein, current_y)
-
-            current_y = draw_field("Employer's name, address, and ZIP code", self.employer_name, current_y)
-            # For address, you'd typically have more fields or a formatted block.
-            # c.drawString(left_margin_value, current_y, "Employer Address Line 1")
-            # current_y -= 0.18 * inch
-            # c.drawString(left_margin_value, current_y, "City, State, ZIP")
-            # current_y -= line_height (adjust as needed)
-
-
-            current_y = draw_field("Employee's first name and initial Last name", self.employee_name, current_y)
-            # Similar for employee's address
-
-            current_y = text_y_start - (4 * line_height) # Jump to a section for monetary values for simplicity
-
-            # Box 1: Wages, tips, other compensation
-            current_y = draw_field("1 Wages, tips, other compensation", f"${self.wages_tips_other_compensation:,.2f}", current_y)
-            # Box 2: Federal income tax withheld
-            current_y = draw_field("2 Federal income tax withheld", f"${self.federal_income_tax_withheld:,.2f}", current_y)
-            # Box 3: Social security wages
-            current_y = draw_field("3 Social security wages", f"${self.social_security_wages:,.2f}", current_y)
-            # Box 4: Social security tax withheld
-            current_y = draw_field("4 Social security tax withheld", f"${self.social_security_tax_withheld:,.2f}", current_y)
-            # Box 5: Medicare wages and tips
-            current_y = draw_field("5 Medicare wages and tips", f"${self.medicare_wages_and_tips:,.2f}", current_y)
-            # Box 6: Medicare tax withheld
-            current_y = draw_field("6 Medicare tax withheld", f"${self.medicare_tax_withheld:,.2f}", current_y)
-
-            # State Information (Simplified)
-            current_y -= line_height # Extra space before state info
-            current_y = draw_field("15 State | Employer's state ID number", self.state_employer_state_id_no, current_y)
-            current_y = draw_field("16 State wages, tips, etc.", f"${self.state_wages_tips_etc:,.2f}", current_y)
-            current_y = draw_field("17 State income tax", f"${self.state_income_tax:,.2f}", current_y)
-
-            # Local Information (Simplified)
-            current_y -= line_height # Extra space before local info
-            current_y = draw_field("18 Local wages, tips, etc.", f"${self.local_wages_tips_etc:,.2f}", current_y)
-            current_y = draw_field("19 Local income tax", f"${self.local_income_tax:,.2f}", current_y)
-            current_y = draw_field("20 Locality name", self.locality_name, current_y)
-
-            c.save()
+            is_path = isinstance(output_path_or_buffer, str)
+            is_buffer = isinstance(output_path_or_buffer, io.BytesIO)
 
             if is_path:
-                print(f"W-2 form generated successfully at {output_path_or_buffer}")
+                html_doc.write_pdf(output_path_or_buffer, font_config=font_config)
                 return True
             elif is_buffer:
-                # Data is written to the buffer, caller handles it.
-                return None # Or True, to indicate success writing to buffer. Let's stick to None for now.
-            else: # Was None, so target_buffer was used
-                return target_buffer.getvalue()
-
-        except IOError as e:
-            print(f"IOError generating PDF: {e}")
-            if is_path: return False
-            return None # Error for buffer or None case
+                # WeasyPrint's write_pdf can write to a buffer if target is provided
+                # but it returns None in that case. To be consistent for buffer writes,
+                # we get bytes and write them. Or, rely on caller to handle buffer.
+                # For now, let's make it similar to path: write and return True.
+                # The prompt had: output_path_or_buffer.write(pdf_bytes)
+                # So, first get bytes, then write.
+                pdf_bytes_val = html_doc.write_pdf(font_config=font_config)
+                if pdf_bytes_val:
+                    output_path_or_buffer.write(pdf_bytes_val)
+                    return True
+                return False # Error if no bytes
+            else: # None, return bytes
+                pdf_bytes = html_doc.write_pdf(font_config=font_config)
+                return pdf_bytes
         except Exception as e:
-            print(f"An unexpected error occurred during PDF generation: {e}")
-            if is_path: return False
-            return None # Error for buffer or None case
+            print(f"Error generating W2 PDF with WeasyPrint: {e}")
+            # import traceback
+            # traceback.print_exc()
+            return None if output_path_or_buffer is None else False
+
+    # to_dict and from_dict might need review if self.data is the primary source
+    # and attributes are mainly for convenience or internal use.
+    # For now, keeping them as they were, but they reflect the flat structure mostly.
+    def to_dict(self) -> Dict[str, Any]:
+        """Converts the W2Generator instance attributes to a dictionary."""
+        # This should ideally return self.data after preparation, or a selection from it
+        return self.data # Return the prepared data
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'W2Generator':
+        """Creates a W2Generator object from a dictionary."""
+        return cls(data)

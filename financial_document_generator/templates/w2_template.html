@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Form W-2 Wage and Tax Statement</title>
+    <!--
+    The url_for will not work directly when rendering with WeasyPrint from a script
+    unless Flask's app context is available or a custom url_fetcher is provided to WeasyPrint.
+    For WeasyPrint to find style.css, it's better if W2Generator (or BaseGenerator)
+    sets a base_url for WeasyPrint.HTML() to the project's root or static directory,
+    and this href becomes an absolute path like /static/style.css or a relative path
+    from that base_url.
+    For now, keeping {{ url_for(...) }} as per instruction, but most styling will be inline.
+    -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-size: 8pt; /* Base font size for W-2 is small */
+            color: #000;
+            margin: 0;
+            padding: 0;
+        }
+        .w2-form-container {
+            width: 8in; /* Standard letter width, W-2 is often landscape but this is for one W-2 copy */
+            /* height: 5.5in; /* Half of letter height, often 2 per page */
+            padding: 0.25in;
+            margin: 10px auto;
+            border: 1px solid #ccc; /* Light border for the whole page */
+            box-sizing: border-box;
+        }
+        .w2-box {
+            border: 1px solid #000;
+            padding: 2px 3px;
+            position: relative; /* For absolute positioning of box numbers if needed */
+            /* min-height: 20px; */
+        }
+        .w2-box .box-number {
+            font-size: 6pt;
+            font-weight: bold;
+            display: inline-block; /* Keep it with the label */
+            margin-right: 5px;
+        }
+        .w2-box .box-label {
+            font-size: 6.5pt;
+            display: block;
+            margin-bottom: 1px;
+        }
+        .w2-box .box-value {
+            font-size: 8pt; /* Data font size */
+            display: block;
+            word-wrap: break-word;
+        }
+        .w2-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr); /* Example: 12-column grid */
+            grid-gap: 1px; /* Minimal gap to show thin lines if not using borders */
+            margin-bottom: 1px;
+        }
+
+        /* Specific column spans */
+        .c1-2 { grid-column: span 2; }
+        .c1-3 { grid-column: span 3; }
+        .c1-4 { grid-column: span 4; }
+        .c1-5 { grid-column: span 5; }
+        .c1-6 { grid-column: span 6; }
+        .c1-8 { grid-column: span 8; }
+        .c1-9 { grid-column: span 9; }
+        .c1-12 { grid-column: span 12; }
+
+        .void-checkbox {
+            text-align: right;
+            font-size: 10pt;
+            font-weight: bold;
+        }
+        .header-text {
+            text-align: center;
+        }
+        .header-text h1 { font-size: 12pt; margin: 0; }
+        .header-text p { font-size: 7pt; margin: 0; }
+
+        .employee-info, .employer-info {
+            padding: 3px;
+            border: 1px solid #000;
+            margin-bottom: 1px;
+        }
+        .employee-info div, .employer-info div {
+            margin-bottom: 2px;
+        }
+        .checkbox-label {
+            margin-left: 5px;
+        }
+        .checkbox-container span {
+            display: inline-block;
+            width: 15px; /* Width of the checkbox box */
+            height: 15px;
+            border: 1px solid #000;
+            text-align: center;
+            line-height: 15px;
+            margin-right: 3px;
+        }
+        .small-text { font-size: 6pt; }
+        .bold { font-weight: bold; }
+        .text-right { text-align: right; }
+
+        /* Adjusting for multi-line addresses */
+        .address-block { min-height: 2.5em; } /* Approx 2-3 lines */
+        .box-12-item, .box-14-item { display: flex; justify-content: space-between; }
+        .box-12-item .code, .box-14-item .desc { flex-basis: 30%; }
+        .box-12-item .amount, .box-14-item .amount { flex-basis: 65%; text-align: right;}
+
+        .state-local-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            grid-gap: 1px;
+        }
+        .state-local-grid .w2-box {
+            /* Default to span 2 for ID, 2 for wages, 2 for tax */
+            grid-column: span 2;
+        }
+
+
+    </style>
+</head>
+<body>
+<div class="w2-form-container">
+    <div class="w2-grid">
+        <div class="w2-box c1-2 void-checkbox">
+            <input type="checkbox" {% if void_checkbox %}checked{% endif %}> Void
+        </div>
+        <div class="c1-8 header-text">
+            <h1>Wage and Tax Statement</h1>
+            <p>Copy A&mdash;For Social Security Administration.</p>
+        </div>
+        <div class="c1-2 header-text">
+            <p class="bold">Form W-2</p>
+            <p>Department of the Treasury&mdash;Internal Revenue Service</p>
+            <p class="bold">OMB No. 1545-0008</p>
+        </div>
+    </div>
+
+    <div class="w2-grid">
+        <!-- Employer Info -->
+        <div class="c1-4 employer-info">
+            <div class="w2-box">
+                <span class="box-label">a Employee's social security number</span>
+                <span class="box-value">{{ employee_ssn | default('') }}</span>
+            </div>
+            <div class="w2-box">
+                <span class="box-label">b Employer identification number (EIN)</span>
+                <span class="box-value">{{ employer_ein | default('') }}</span>
+            </div>
+            <div class="w2-box address-block">
+                <span class="box-label">c Employer's name, address, and ZIP code</span>
+                <span class="box-value">
+                    {{ employer_name | default('') }}<br>
+                    {{ employer_address | default('') }}<br>
+                    {{ employer_city_state_zip | default('') }}
+                </span>
+            </div>
+            <div class="w2-box">
+                <span class="box-label">d Control number</span>
+                <span class="box-value">{{ control_number | default('') }}</span>
+            </div>
+        </div>
+
+        <!-- Employee Info -->
+        <div class="c1-4 employee-info">
+             <div class="w2-box address-block" style="min-height: 4.2em;"> <!-- Taller for name + 2 address lines -->
+                <span class="box-label">e Employee's first name and initial Last name</span>
+                <span class="box-value">
+                    {{ employee_name | default('') }}<br>
+                    {{ employee_address | default('') }}<br>
+                    {{ employee_city_state_zip | default('') }}
+                </span>
+            </div>
+             <div class="w2-box small-text" style="border:none;">
+                For Official Use Only
+            </div>
+        </div>
+
+        <!-- Federal Income section (Boxes 1-14) -->
+        <div class="c1-4">
+            <div class="w2-grid" style="grid-template-columns: 1fr 1fr;">
+                <div class="w2-box">
+                    <span class="box-number">1</span> <span class="box-label">Wages, tips, other comp.</span>
+                    <span class="box-value text-right">{{ "%.2f"|format(wages_tips_other_compensation | default(0.0) | float) }}</span>
+                </div>
+                <div class="w2-box">
+                    <span class="box-number">2</span> <span class="box-label">Federal income tax withheld</span>
+                    <span class="box-value text-right">{{ "%.2f"|format(federal_income_tax_withheld | default(0.0) | float) }}</span>
+                </div>
+                <div class="w2-box">
+                    <span class="box-number">3</span> <span class="box-label">Social security wages</span>
+                    <span class="box-value text-right">{{ "%.2f"|format(social_security_wages | default(0.0) | float) }}</span>
+                </div>
+                <div class="w2-box">
+                    <span class="box-number">4</span> <span class="box-label">Social security tax withheld</span>
+                    <span class="box-value text-right">{{ "%.2f"|format(social_security_tax_withheld | default(0.0) | float) }}</span>
+                </div>
+                <div class="w2-box">
+                    <span class="box-number">5</span> <span class="box-label">Medicare wages and tips</span>
+                    <span class="box-value text-right">{{ "%.2f"|format(medicare_wages_and_tips | default(0.0) | float) }}</span>
+                </div>
+                <div class="w2-box">
+                    <span class="box-number">6</span> <span class="box-label">Medicare tax withheld</span>
+                    <span class="box-value text-right">{{ "%.2f"|format(medicare_tax_withheld | default(0.0) | float) }}</span>
+                </div>
+                <div class="w2-box">
+                    <span class="box-number">7</span> <span class="box-label">Social security tips</span>
+                    <span class="box-value text-right">{{ "%.2f"|format(social_security_tips | default(0.0) | float) }}</span>
+                </div>
+                <div class="w2-box">
+                    <span class="box-number">8</span> <span class="box-label">Allocated tips</span>
+                    <span class="box-value text-right">{{ "%.2f"|format(allocated_tips | default(0.0) | float) }}</span>
+                </div>
+                 <div class="w2-box">
+                    <span class="box-number">9</span> <span class="box-label"></span> <!-- W-2s from 2020 no longer use Box 9 for verification code -->
+                    <span class="box-value">&nbsp;</span>
+                </div>
+                <div class="w2-box">
+                    <span class="box-number">10</span> <span class="box-label">Dependent care benefits</span>
+                    <span class="box-value text-right">{{ "%.2f"|format(dependent_care_benefits | default(0.0) | float) }}</span>
+                </div>
+                <div class="w2-box">
+                    <span class="box-number">11</span> <span class="box-label">Nonqualified plans</span>
+                    <span class="box-value text-right">{{ "%.2f"|format(nonqualified_plans | default(0.0) | float) }}</span>
+                </div>
+                 <div class="w2-box checkbox-container"> <!-- Box 13 -->
+                    <span class="box-number">13</span>
+                    <span class="box-label" style="text-align:center; margin-bottom:2px;">Check all that apply:</span>
+                    <div>
+                        <span class="checkbox">{% if statutory_employee %}X{% else %}&nbsp;{% endif %}</span><span class="checkbox-label small-text">Statutory employee</span>
+                    </div>
+                    <div>
+                        <span class="checkbox">{% if retirement_plan %}X{% else %}&nbsp;{% endif %}</span><span class="checkbox-label small-text">Retirement plan</span>
+                    </div>
+                    <div>
+                        <span class="checkbox">{% if third_party_sick_pay %}X{% else %}&nbsp;{% endif %}</span><span class="checkbox-label small-text">Third-party sick pay</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="w2-grid">
+        <div class="w2-box c1-8"> <!-- Box 12 -->
+            <span class="box-number">12a-d</span> <span class="box-label">Codes</span>
+            {% for item in box_12_items | default([]) %}
+                <div class="box-12-item">
+                    <span class="code">{{ item.code | default('') }}</span>
+                    <span class="amount">{{ "%.2f"|format(item.amount | default(0.0) | float) }}</span>
+                </div>
+            {% else %}
+                {% for i in ['a','b','c','d'] %}
+                <div class="box-12-item"><span class="code">&nbsp;</span><span class="amount">&nbsp;</span></div>
+                {% endfor %}
+            {% endfor %}
+        </div>
+        <div class="w2-box c1-4"> <!-- Box 14 -->
+            <span class="box-number">14</span> <span class="box-label">Other</span>
+             {% for item in box_14_items | default([]) %}
+                <div class="box-14-item">
+                    <span class="desc">{{ item.description | default('') }}</span>
+                    <span class="amount">{{ "%.2f"|format(item.amount | default(0.0) | float) }}</span>
+                </div>
+            {% else %}
+                 <div class="box-14-item"><span class="desc">&nbsp;</span><span class="amount">&nbsp;</span></div>
+                 <div class="box-14-item"><span class="desc">&nbsp;</span><span class="amount">&nbsp;</span></div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="state-local-grid"> <!-- Boxes 15-20 -->
+        {% for item in state_tax_items | default([]) %}
+            <div class="w2-box">
+                <span class="box-number">15</span> <span class="box-label">State</span>
+                <span class="box-value">{{ item.state_code | default('') }}</span>
+            </div>
+            <div class="w2-box">
+                <span class="box-label">Employer's state ID no.</span>
+                <span class="box-value">{{ item.employer_state_id | default('') }}</span>
+            </div>
+            <div class="w2-box">
+                <span class="box-number">16</span> <span class="box-label">State wages, tips, etc.</span>
+                <span class="box-value text-right">{{ "%.2f"|format(item.state_wages | default(0.0) | float) }}</span>
+            </div>
+            <div class="w2-box">
+                <span class="box-number">17</span> <span class="box-label">State income tax</span>
+                <span class="box-value text-right">{{ "%.2f"|format(item.state_income_tax | default(0.0) | float) }}</span>
+            </div>
+        {% endfor %}
+        {% if (state_tax_items | default([]) | length) < 1 %} {# Placeholder for first state if none provided #}
+            <div class="w2-box"><span class="box-number">15</span> <span class="box-label">State</span><span class="box-value">&nbsp;</span></div>
+            <div class="w2-box"><span class="box-label">Employer's state ID no.</span><span class="box-value">&nbsp;</span></div>
+            <div class="w2-box"><span class="box-number">16</span> <span class="box-label">State wages, tips, etc.</span><span class="box-value">&nbsp;</span></div>
+            <div class="w2-box"><span class="box-number">17</span> <span class="box-label">State income tax</span><span class="box-value">&nbsp;</span></div>
+        {% endif %}
+         {% if (state_tax_items | default([]) | length) < 2 %} {# Placeholder for second state if less than 2 provided #}
+            <div class="w2-box"><span class="box-number">15</span> <span class="box-label">State</span><span class="box-value">&nbsp;</span></div>
+            <div class="w2-box"><span class="box-label">Employer's state ID no.</span><span class="box-value">&nbsp;</span></div>
+            <div class="w2-box"><span class="box-number">16</span> <span class="box-label">State wages, tips, etc.</span><span class="box-value">&nbsp;</span></div>
+            <div class="w2-box"><span class="box-number">17</span> <span class="box-label">State income tax</span><span class="box-value">&nbsp;</span></div>
+        {% endif %}
+
+
+        {% for item in local_tax_items | default([]) %}
+            <div class="w2-box">
+                <span class="box-number">18</span> <span class="box-label">Local wages, tips, etc.</span>
+                <span class="box-value text-right">{{ "%.2f"|format(item.local_wages | default(0.0) | float) }}</span>
+            </div>
+            <div class="w2-box">
+                <span class="box-number">19</span> <span class="box-label">Local income tax</span>
+                <span class="box-value text-right">{{ "%.2f"|format(item.local_income_tax | default(0.0) | float) }}</span>
+            </div>
+            <div class="w2-box">
+                <span class="box-number">20</span> <span class="box-label">Locality name</span>
+                <span class="box-value">{{ item.locality_name | default('') }}</span>
+            </div>
+        {% endfor %}
+         {% if (local_tax_items | default([]) | length) < 1 %} {# Placeholder for first locality #}
+            <div class="w2-box"><span class="box-number">18</span><span class="box-label">Local wages, tips, etc.</span><span class="box-value">&nbsp;</span></div>
+            <div class="w2-box"><span class="box-number">19</span><span class="box-label">Local income tax</span><span class="box-value">&nbsp;</span></div>
+            <div class="w2-box"><span class="box-number">20</span><span class="box-label">Locality name</span><span class="box-value">&nbsp;</span></div>
+        {% endif %}
+        {% if (local_tax_items | default([]) | length) < 2 %} {# Placeholder for second locality #}
+            <div class="w2-box"><span class="box-number">18</span><span class="box-label">Local wages, tips, etc.</span><span class="box-value">&nbsp;</span></div>
+            <div class="w2-box"><span class="box-number">19</span><span class="box-label">Local income tax</span><span class="box-value">&nbsp;</span></div>
+            <div class="w2-box"><span class="box-number">20</span><span class="box-label">Locality name</span><span class="box-value">&nbsp;</span></div>
+        {% endif %}
+    </div>
+</div>
+</body>
+</html>

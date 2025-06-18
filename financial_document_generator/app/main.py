@@ -1,6 +1,8 @@
 import io
-import logging
-from flask import Flask, render_template, request, send_file, abort, jsonify # Added jsonify
+import logging # Ensure logging is imported
+import os # Ensure os is imported
+from financial_document_generator.config import config_by_name, get_config_name # Import from config
+from flask import Flask, render_template, request, send_file, abort, jsonify
 from datetime import datetime
 from financial_document_generator.app.generators.w2_generator import W2Generator
 from financial_document_generator.app.generators.check_generator import CheckGenerator # Updated import
@@ -15,8 +17,12 @@ from financial_document_generator.app.generators.income_statement_generator impo
 
 from financial_document_generator.app.generators.earning_statement_generator import EarningStatementGenerator # Added import
 
+from .forms_wtf import W2FormWTF # Import W2FormWTF
+
 # Static files are in 'financial_document_generator/static/'
+config_name = get_config_name() # Get current config name ('development', 'testing', 'production', or 'default')
 app = Flask(__name__, template_folder='../templates', static_folder='../static')
+app.config.from_object(config_by_name[config_name])
 
 # --- Helper functions for form data processing ---
 def _get_form_text(form_data, key, default=''):
@@ -46,22 +52,24 @@ def _get_form_date(form_data, key):
     return None
 
 # --- Logging Configuration ---
-# Configure logging before routes are defined, after app instantiation
-if not app.debug: # Example: More structured logging for production
-    # For simplicity in this step, we'll rely on Flask's default logger which logs to stderr.
-    # In a real app, you might add file handlers, formatters, etc.
-    # e.g., from logging.handlers import RotatingFileHandler
-    # file_handler = RotatingFileHandler('app.log', maxBytes=10240, backupCount=10)
-    # file_handler.setFormatter(logging.Formatter(
-    #    '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
-    # ))
-    # file_handler.setLevel(logging.INFO)
-    # app.logger.addHandler(file_handler)
-    app.logger.setLevel(logging.INFO)
-else: # For debug mode, Flask's default logger is usually sufficient and quite verbose.
-    app.logger.setLevel(logging.DEBUG)
+# Configure logging based on app.config
+log_level = logging.DEBUG if app.config.get('DEBUG') else logging.INFO
+if app.config.get('TESTING'): # Or a specific LOG_LEVEL config var
+    log_level = logging.DEBUG # Often tests also want DEBUG logging
 
-app.logger.info('Financial Document Generator application starting up...')
+app.logger.setLevel(log_level)
+
+# Example: Add a StreamHandler to ensure logs go to console if not already configured
+# This is often handled by Flask's default logger, but can be made explicit:
+# if not app.logger.handlers:
+#     stream_handler = logging.StreamHandler()
+#     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+#     stream_handler.setFormatter(formatter)
+#     app.logger.addHandler(stream_handler)
+
+app.logger.info(f"Application starting with '{config_name}' configuration.")
+app.logger.info(f"DEBUG mode: {app.config.get('DEBUG')}")
+app.logger.info(f"TESTING mode: {app.config.get('TESTING')}")
 
 # --- Error Handlers ---
 @app.errorhandler(404)
@@ -85,70 +93,116 @@ def index():
 
 @app.route('/w2', methods=['GET'])
 def w2_form_page():
-    # The template path is relative to the `template_folder` defined above.
-    # So, 'forms/w2_form.html' will resolve to '../templates/forms/w2_form.html'
-    # which correctly points to 'financial_document_generator/templates/forms/w2_form.html'
-    return render_template('forms/w2_form.html')
+    form = W2FormWTF()
+    return render_template('forms/w2_form.html', form=form, title="W-2 Form")
 
 @app.route('/w2/generate', methods=['POST'])
 def generate_w2_pdf_route():
-    form_data = request.form
-
-    # Convert form data to the types expected by W2Generator
-    # It's crucial to handle potential ValueError if conversion fails for numeric fields
-    try:
-        app.logger.info(f"Processing W2 form data for employee: {form_data.get('employee_name', 'N/A')}")
-        data = {
-            "employee_name": form_data.get("employee_name", ""),
-            "employee_ssn": form_data.get("employee_ssn", ""),
-            "employer_name": form_data.get("employer_name", ""),
-            "employer_ein": form_data.get("employer_ein", ""),
-            "wages_tips_other_compensation": float(form_data.get("wages_tips_other_compensation", 0.0)),
-            "federal_income_tax_withheld": float(form_data.get("federal_income_tax_withheld", 0.0)),
-            "social_security_wages": float(form_data.get("social_security_wages", 0.0)),
-            "medicare_wages_and_tips": float(form_data.get("medicare_wages_and_tips", 0.0)),
-            "social_security_tax_withheld": float(form_data.get("social_security_tax_withheld", 0.0)),
-            "medicare_tax_withheld": float(form_data.get("medicare_tax_withheld", 0.0)),
-            "state_employer_state_id_no": form_data.get("state_employer_state_id_no", ""),
-            "state_wages_tips_etc": float(form_data.get("state_wages_tips_etc", 0.0)),
-            "state_income_tax": float(form_data.get("state_income_tax", 0.0)),
-            "local_wages_tips_etc": float(form_data.get("local_wages_tips_etc", 0.0)),
-            "local_income_tax": float(form_data.get("local_income_tax", 0.0)),
-            "locality_name": form_data.get("locality_name", "")
+    form = W2FormWTF() # This automatically gets data from request.form on POST
+    if form.validate_on_submit():
+        app.logger.info(f"Processing W2 form (WTF) data for employee: {form.employee_name.data}")
+        data_dict = {
+            'employer_ein': form.employer_ein.data,
+            'employer_name': form.employer_name.data,
+            'employer_address': form.employer_address.data,
+            'employer_city_state_zip': form.employer_city_state_zip.data,
+            'control_number': form.control_number.data,
+            'employee_ssn': form.employee_ssn.data,
+            'employee_name': form.employee_name.data,
+            'employee_address': form.employee_address.data,
+            'employee_city_state_zip': form.employee_city_state_zip.data,
+            'wages_tips_other_compensation': form.wages_tips_other_compensation.data,
+            'federal_income_tax_withheld': form.federal_income_tax_withheld.data,
+            'social_security_wages': form.social_security_wages.data,
+            'medicare_wages_and_tips': form.medicare_wages_and_tips.data,
+            'social_security_tax_withheld': form.social_security_tax_withheld.data,
+            'medicare_tax_withheld': form.medicare_tax_withheld.data,
+            'social_security_tips': form.social_security_tips.data,
+            'allocated_tips': form.allocated_tips.data,
+            'dependent_care_benefits': form.dependent_care_benefits.data,
+            'nonqualified_plans': form.nonqualified_plans.data,
+            'box_12a_code': form.box_12a_code.data,
+            'box_12a_amount': form.box_12a_amount.data,
+            'box_12b_code': form.box_12b_code.data,
+            'box_12b_amount': form.box_12b_amount.data,
+            # Add other box 12 fields if they were added to W2FormWTF:
+            # 'box_12c_code': form.box_12c_code.data,
+            # 'box_12c_amount': form.box_12c_amount.data,
+            # 'box_12d_code': form.box_12d_code.data,
+            # 'box_12d_amount': form.box_12d_amount.data,
+            'statutory_employee': form.statutory_employee.data,
+            'retirement_plan': form.retirement_plan.data,
+            'third_party_sick_pay': form.third_party_sick_pay.data,
+            'other_description_code_d': form.other_description_code_d.data,
+            'other_amount_code_d': form.other_amount_code_d.data,
+            'state_employer_state_id_no': form.state_employer_state_id_no.data,
+            'state_wages_tips_etc': form.state_wages_tips_etc.data,
+            'state_income_tax': form.state_income_tax.data,
+            'local_wages_tips_etc': form.local_wages_tips_etc.data,
+            'local_income_tax': form.local_income_tax.data,
+            'locality_name': form.locality_name.data,
         }
-    except ValueError as e:
-        app.logger.error(f"ValueError processing W2 form data: {e}", exc_info=True)
-        return f"Error in form data: one of the numeric fields has an invalid value. Details: {e}", 400
-    except Exception as e:
-        app.logger.error(f"Unexpected error processing W2 form data: {e}", exc_info=True)
-        abort(500) # Let the 500 handler take over
+        # W2Generator's _prepare_template_data will structure this flat dict
+        # e.g. for state_tax_items, box_12_items etc.
 
-    w2_instance = W2Generator(data)
+        w2_generator = W2Generator(data_dict)
+        try:
+            pdf_bytes = w2_generator.generate_pdf() # Get bytes
+            if pdf_bytes:
+                app.logger.info(f"W2 PDF generated successfully via WTForm for employee: {form.employee_name.data}")
+                return send_file(
+                    io.BytesIO(pdf_bytes),
+                    mimetype='application/pdf',
+                    as_attachment=True,
+                    download_name='w2_form.pdf'
+                )
+            else:
+                app.logger.error(f"W2 PDF generation failed (no bytes returned) for employee: {form.employee_name.data}")
+                abort(500) # Or render error template
+        except Exception as e:
+            app.logger.error(f"Exception during W2 PDF generation (WTForm) for {form.employee_name.data}: {e}", exc_info=True)
+            abort(500)
+    else:
+        app.logger.warning(f"W2 form (WTF) validation failed: {form.errors}")
+        # Re-render the form, passing the form object to display errors
+        return render_template('forms/w2_form.html', form=form, title="W-2 Form"), 400
 
-    pdf_buffer = io.BytesIO()
-    try:
-        # W2Generator.generate_pdf will write to pdf_buffer if it's passed as an argument.
-        # It returns None in this case on success (for buffer write), or False on error (for path write).
-        result = w2_instance.generate_pdf(output_path_or_buffer=pdf_buffer)
-
-        # For buffer operations, a successful write often means the method doesn't return an error,
-        # and the buffer itself is modified. W2Generator returns None for successful buffer write.
-        # It returns False for path write errors, or None for other internal errors.
-        if result is False : # Explicit False means path write error or other specific error.
-             app.logger.error(f"W2 PDF generation failed for employee {data.get('employee_name')}. Generator returned False.")
-             return "Error generating PDF.", 500
-
-        if pdf_buffer.getbuffer().nbytes == 0:
-            app.logger.error(f"W2 PDF generation resulted in an empty buffer for employee {data.get('employee_name')}.")
-            return "Error generating PDF: No data written to buffer.", 500
-
-        pdf_buffer.seek(0)
-        app.logger.info(f"Successfully generated W2 PDF for employee: {data.get('employee_name')}")
-    except Exception as e:
-        app.logger.error(f"Exception during W2 PDF generation for employee {data.get('employee_name', 'N/A')}: {e}", exc_info=True)
-        abort(500) # Let the 500 handler take over
-
-    return send_file(
+# --- Fallback data extraction for W2 (if not using WTForms or for different content type) ---
+# This is the old generate_w2_pdf_route logic, which might be removed or adapted
+# if WTForms is the sole method for this route. For now, keeping it distinct means
+# the old POST handling logic is still there if needed or if WTForms path is conditional.
+# However, the prompt implies replacing it. I will comment it out.
+#
+# @app.route('/w2/generate_old', methods=['POST']) # Renamed to avoid conflict
+# def generate_w2_pdf_route_old():
+#     form_data = request.form
+#     try:
+#         app.logger.info(f"Processing W2 form data (OLD) for employee: {form_data.get('employee_name', 'N/A')}")
+#         data = { ... } # Old data extraction
+#     except ValueError as e:
+#         app.logger.error(f"ValueError processing W2 form data (OLD): {e}", exc_info=True)
+#         return f"Error in form data (OLD): one of the numeric fields has an invalid value. Details: {e}", 400
+#     except Exception as e:
+#         app.logger.error(f"Unexpected error processing W2 form data (OLD): {e}", exc_info=True)
+#         abort(500)
+#
+#     w2_instance = W2Generator(data)
+#     pdf_buffer = io.BytesIO()
+#     try:
+#         result = w2_instance.generate_pdf(output_path_or_buffer=pdf_buffer)
+#         if result is False :
+#              app.logger.error(f"W2 PDF generation failed (OLD) for employee {data.get('employee_name')}. Generator returned False.")
+#              return "Error generating PDF.", 500
+#         if pdf_buffer.getbuffer().nbytes == 0:
+#             app.logger.error(f"W2 PDF generation resulted in an empty buffer (OLD) for employee {data.get('employee_name')}.")
+#             return "Error generating PDF: No data written to buffer.", 500
+#         pdf_buffer.seek(0)
+#         app.logger.info(f"Successfully generated W2 PDF (OLD) for employee: {data.get('employee_name')}")
+#     except Exception as e:
+#         app.logger.error(f"Exception during W2 PDF generation (OLD) for {data.get('employee_name', 'N/A')}: {e}", exc_info=True)
+#         abort(500)
+#
+#     return send_file(
         pdf_buffer,
         as_attachment=True,
         download_name='w2_form.pdf', # Changed from filename to download_name for newer Flask versions
@@ -702,6 +756,146 @@ def api_generate_w2_pdf():
         # Do not return jsonify here if already sent headers or if it's an unhandled exception type for Flask.
         # The @app.errorhandler(500) should ideally catch this if it's an unhandled server error.
         # However, if send_file fails mid-stream, it's complex. For now, let 500 handler try.
+        abort(500)
+
+@app.route('/api/v1/earning-statement/generate', methods=['POST'])
+def api_generate_earning_statement_pdf():
+    """
+    API endpoint to generate an Earning Statement PDF from JSON data.
+    """
+    app.logger.info("Received API request for Earning Statement PDF generation.")
+
+    if not request.is_json:
+        app.logger.warning("API request for Earning Statement generation is not JSON.")
+        return jsonify({'error': 'Request must be JSON'}), 415
+
+    json_data = request.get_json()
+    if json_data is None:
+        app.logger.warning("API request for Earning Statement generation contained invalid JSON payload.")
+        return jsonify({'error': 'Invalid JSON payload'}), 400
+
+    # Define required and optional fields based on EarningStatementGenerator and its template
+    # This is similar to CheckStub data structure
+    required_str_fields = ['company_name', 'employee_name', 'pay_period_start', 'pay_period_end', 'pay_date']
+    required_num_fields = ['earnings_total', 'deductions_total', 'net_pay'] # Assuming these totals are required
+
+    optional_str_fields = ['company_address', 'employee_id', 'corporate_notes']
+    optional_num_fields = [ # Individual earnings/deductions can be optional if totals are given, or vice-versa
+        'earnings.regular_pay', 'earnings.overtime_pay', 'earnings.bonus',
+        'deductions.federal_tax', 'deductions.state_tax', 'deductions.medicare',
+        'deductions.social_security', 'deductions.other',
+        'ytd_gross_earnings', 'ytd_deductions', 'ytd_net_pay'
+    ]
+    # Itemized lists are also optional and can be processed if provided
+    # 'earnings_items': [{'description': 'desc', 'amount': 0.0}, ...],
+    # 'deduction_items': [{'description': 'desc', 'amount': 0.0}, ...],
+
+    data_dict = {}
+    try:
+        for field in required_str_fields:
+            value = json_data.get(field)
+            if field in ['pay_period_start', 'pay_period_end', 'pay_date']: # These are date strings
+                if not value or not isinstance(value, str) or not value.strip():
+                    app.logger.error(f"API Earning Stmt: Missing or invalid required date string field: {field}")
+                    return jsonify({'error': f'Missing or invalid required field: {field} (expected YYYY-MM-DD string)'}), 400
+                try:
+                    data_dict[field] = datetime.strptime(value.strip(), '%Y-%m-%d').date()
+                except ValueError:
+                    app.logger.error(f"API Earning Stmt: Invalid date format for {field}: {value}")
+                    return jsonify({'error': f'Invalid date format for {field}. Expected YYYY-MM-DD.'}), 400
+            else: # Other string fields
+                if not value or not isinstance(value, str) or not value.strip():
+                    app.logger.error(f"API Earning Stmt: Missing or invalid required string field: {field}")
+                    return jsonify({'error': f'Missing or invalid required field: {field}'}), 400
+                data_dict[field] = value.strip()
+
+        for field in required_num_fields:
+            value = json_data.get(field)
+            if value is None:
+                app.logger.error(f"API Earning Stmt: Missing required numeric field: {field}")
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+            try:
+                data_dict[field] = float(value)
+            except (ValueError, TypeError):
+                app.logger.error(f"API Earning Stmt: Invalid type for numeric field: {field} (value: {value})")
+                return jsonify({'error': f'Invalid type for numeric field: {field}'}), 400
+
+        for field in optional_str_fields:
+            data_dict[field] = str(json_data.get(field, '')).strip()
+
+        # Handling nested optional numeric fields (e.g., earnings.regular_pay)
+        # and top-level optional numeric fields (e.g., ytd_gross_earnings)
+        data_dict['earnings'] = {}
+        data_dict['deductions'] = {}
+
+        nested_optional_num_fields_map = {
+            'earnings.regular_pay': ('earnings','regular_pay'), 'earnings.overtime_pay': ('earnings','overtime_pay'),
+            'earnings.bonus': ('earnings','bonus'), 'deductions.federal_tax': ('deductions','federal_tax'),
+            'deductions.state_tax': ('deductions','state_tax'), 'deductions.medicare': ('deductions','medicare'),
+            'deductions.social_security': ('deductions','social_security'), 'deductions.other': ('deductions','other')
+        }
+
+        for json_key, (outer_key, inner_key) in nested_optional_num_fields_map.items():
+            value = json_data.get(json_key, 0.0) # Default to 0.0 if not present
+            try:
+                data_dict[outer_key][inner_key] = float(value)
+            except (ValueError, TypeError):
+                app.logger.warning(f"API Earning Stmt: Invalid type for optional field {json_key} (value: {value}). Defaulting to 0.0.")
+                data_dict[outer_key][inner_key] = 0.0
+
+        ytd_fields = ['ytd_gross_earnings', 'ytd_deductions', 'ytd_net_pay']
+        for field in ytd_fields:
+            value = json_data.get(field, 0.0)
+            try:
+                data_dict[field] = float(value)
+            except (ValueError, TypeError):
+                app.logger.warning(f"API Earning Stmt: Invalid type for YTD field {field} (value: {value}). Defaulting to 0.0.")
+                data_dict[field] = 0.0
+
+        # Process itemized lists if provided
+        for item_list_name in ['earnings_items', 'deduction_items']:
+            items_data = json_data.get(item_list_name)
+            if isinstance(items_data, list):
+                processed_items = []
+                for item in items_data:
+                    if isinstance(item, dict) and 'description' in item and 'amount' in item:
+                        try:
+                            amount = float(item['amount'])
+                            processed_items.append({'description': str(item['description']), 'amount': amount})
+                        except (ValueError, TypeError):
+                            app.logger.warning(f"API Earning Stmt: Invalid amount in {item_list_name} item: {item}. Skipping.")
+                    else:
+                        app.logger.warning(f"API Earning Stmt: Invalid item structure in {item_list_name}: {item}. Skipping.")
+                if processed_items: # Only add if there are valid items
+                    data_dict[item_list_name] = processed_items
+            elif items_data is not None: # If key exists but is not a list
+                 app.logger.warning(f"API Earning Stmt: {item_list_name} should be a list, but got {type(items_data)}. Ignoring.")
+
+
+    except Exception as e:
+        app.logger.error(f"Unexpected error during API Earning Statement data extraction: {e}", exc_info=True)
+        return jsonify({'error': 'Error processing request data.'}), 400
+
+    employee_name_log = data_dict.get('employee_name', 'N/A')
+    app.logger.info(f"API Earning Statement generation: Data validated for employee: {employee_name_log}")
+
+    try:
+        generator = EarningStatementGenerator(data_dict)
+        pdf_bytes = generator.generate_pdf()
+
+        if not pdf_bytes:
+            app.logger.error(f"API Earning Stmt: EarningStatementGenerator.generate_pdf returned None for {employee_name_log}")
+            return jsonify({'error': 'Failed to generate Earning Statement PDF'}), 500
+
+        app.logger.info(f"API Earning Stmt: Successfully generated PDF for employee: {employee_name_log}")
+        return send_file(
+            io.BytesIO(pdf_bytes),
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name='earning_statement.pdf'
+        )
+    except Exception as e:
+        app.logger.error(f"API Earning Stmt: Exception during PDF generation or sending for {employee_name_log}: {e}", exc_info=True)
         abort(500)
 
 @app.route('/api/v1/check/generate', methods=['POST'])
