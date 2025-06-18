@@ -1,6 +1,6 @@
 from typing import Dict, Any
 
-class W2Form:
+class W2Generator:
     """
     Represents a W-2 form with its standard fields.
     """
@@ -43,8 +43,8 @@ class W2Form:
         return self.__dict__
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'W2Form':
-        """Creates a W2Form object from a dictionary."""
+    def from_dict(cls, data: Dict[str, Any]) -> 'W2Generator':
+        """Creates a W2Generator object from a dictionary."""
         return cls(
             employee_name=data.get("employee_name", ""),
             employee_ssn=data.get("employee_ssn", ""),

@@ -1,5 +1,5 @@
 import unittest
-from ..app.earning_statement_generator import generate_earning_statement
+from ..app.generators.earning_statement_generator import generate_earning_statement
 
 class TestEarningStatementGenerator(unittest.TestCase):
 

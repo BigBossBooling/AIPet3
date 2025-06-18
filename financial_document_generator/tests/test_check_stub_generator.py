@@ -1,5 +1,5 @@
 import unittest
-from ..app.check_stub_generator import generate_check_stub
+from ..app.generators.check_stub_generator import generate_check_stub
 
 class TestCheckStubGenerator(unittest.TestCase):
 

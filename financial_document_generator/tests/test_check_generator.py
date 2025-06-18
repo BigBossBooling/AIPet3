@@ -2,7 +2,7 @@ import unittest
 import os
 import pathlib
 import datetime # Import datetime
-from ..app.check_generator import generate_check
+from ..app.generators.check_generator import generate_check
 
 class TestCheckGenerator(unittest.TestCase):
 

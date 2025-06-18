@@ -1,8 +1,8 @@
 import unittest
 import os
-from financial_document_generator.app.forms.w2_form_generator import W2Form
+from financial_document_generator.app.generators.w2_generator import W2Generator
 
-class TestW2Form(unittest.TestCase):
+class TestW2Generator(unittest.TestCase):
 
     def setUp(self):
         self.sample_data = {
@@ -23,7 +23,7 @@ class TestW2Form(unittest.TestCase):
             "local_income_tax": 0.0,
             "locality_name": ""
         }
-        self.w2_form_instance = W2Form(**self.sample_data)
+        self.w2_form_instance = W2Generator(**self.sample_data)
         self.temp_pdf_path = "temp_test_w2_form.pdf" # Will be created in the repo root
 
     def tearDown(self):
@@ -31,7 +31,7 @@ class TestW2Form(unittest.TestCase):
             os.remove(self.temp_pdf_path)
 
     def test_create_w2form_instance(self):
-        self.assertIsInstance(self.w2_form_instance, W2Form)
+        self.assertIsInstance(self.w2_form_instance, W2Generator)
         for key, value in self.sample_data.items():
             self.assertEqual(getattr(self.w2_form_instance, key), value)
 
@@ -44,8 +44,8 @@ class TestW2Form(unittest.TestCase):
             self.assertIn(key, form_dict)
             self.assertEqual(form_dict[key], self.sample_data[key])
 
-        new_w2_instance = W2Form.from_dict(form_dict)
-        self.assertIsInstance(new_w2_instance, W2Form)
+        new_w2_instance = W2Generator.from_dict(form_dict)
+        self.assertIsInstance(new_w2_instance, W2Generator)
 
         for key in self.sample_data.keys():
             self.assertEqual(getattr(new_w2_instance, key), self.sample_data[key])

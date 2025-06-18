@@ -1,7 +1,7 @@
 import unittest
 import os
 # Adjust import path to correctly locate the module
-from ..app.bank_statement_generator import generate_bank_statement
+from ..app.generators.bank_statement_generator import generate_bank_statement
 
 class TestBankStatementGenerator(unittest.TestCase):
 
