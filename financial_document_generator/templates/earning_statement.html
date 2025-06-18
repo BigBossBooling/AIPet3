@@ -2,11 +2,243 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Earning Statement</title>
-    <link rel="stylesheet" href="../static/style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Earning Statement - {{ employee_name | default('Employee') }} - {{ pay_date | default('N/A') }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .stub-container { /* Renaming to statement-container for generality, or keep stub-container if style.css uses it */
+            width: 800px; /* Adjust as needed */
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .header-info, .employee-info, .pay-period-info {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        /* Company name styling from check_stub.html */
+        .company-name {
+            font-size: 1.8em;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        .company-address {
+            text-align: center;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+        }
+        .employee-info p, .pay-period-info p {
+            margin: 4px 0;
+            font-size: 0.9em;
+        }
+        .section-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            color: #555;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            font-size: 0.9em;
+        }
+        th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+        .total-row td {
+            font-weight: bold;
+            background-color: #f9f9f9;
+        }
+        .net-pay-section {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 2px solid #333;
+            text-align: right;
+        }
+        .net-pay-section h3 {
+            font-size: 1.3em;
+            margin: 0;
+        }
+        .ytd-section {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f0f8ff; /* Light Alice Blue */
+            border-radius: 5px;
+        }
+        .ytd-section h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+            color: #0056b3;
+        }
+        .ytd-section p {
+            margin: 5px 0;
+            font-size: 0.9em;
+        }
+        .corporate-notes-section {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #fafafa;
+            border-top: 1px dashed #ccc;
+        }
+        .corporate-notes-section h4 {
+            margin-top: 0;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+            color: #444;
+        }
+        .corporate-notes-section p {
+            font-size: 0.85em;
+            color: #555;
+            white-space: pre-wrap; /* Preserve line breaks in notes */
+        }
+        .document-title { /* For "Earning Statement" title */
+            text-align: center;
+            font-size: 1.6em;
+            color: #333;
+            margin-bottom: 20px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Earning Statement</h1>
-    <!-- Add document-specific content here -->
+    <div class="stub-container"> <!-- Can rename class to statement-container if preferred -->
+        <div class="header-info">
+            <p class="company-name">{{ company_name | default(employer_info.name | default('N/A Company')) }}</p>
+            <p class="company-address">{{ company_address | default(employer_info.address | default('N/A Address')) }}</p>
+            <h2 class="document-title">Earning Statement</h2>
+        </div>
+
+        <div class="employee-info">
+            <p><strong>Employee:</strong> {{ employee_name | default('N/A') }}</p>
+            <p><strong>Employee ID:</strong> {{ employee_id | default('N/A') }}</p>
+        </div>
+
+        <div class="pay-period-info">
+            <p><strong>Pay Period:</strong> {{ pay_period_start | default('N/A') }} to {{ pay_period_end | default('N/A') }}</p>
+            <p><strong>Pay Date:</strong> {{ pay_date | default('N/A') }}</p>
+        </div>
+
+        <div class="section-title">Earnings</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if earnings_items %}
+                    {% for item in earnings_items %}
+                    <tr>
+                        <td>{{ item.description | default('N/A') }}</td>
+                        <td>{{ "%.2f"|format(item.amount | default(0.0) | float) }}</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td>Regular Pay</td>
+                        <td>{{ "%.2f"|format(earnings.regular_pay | default(0.0) | float) }}</td>
+                    </tr>
+                    <tr>
+                        <td>Overtime Pay</td>
+                        <td>{{ "%.2f"|format(earnings.overtime_pay | default(0.0) | float) }}</td>
+                    </tr>
+                    <tr>
+                        <td>Bonus</td>
+                        <td>{{ "%.2f"|format(earnings.bonus | default(0.0) | float) }}</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+            <tfoot>
+                <tr class="total-row">
+                    <td><strong>Total Earnings</strong></td>
+                    <td><strong>{{ "%.2f"|format(earnings_total | default(0.0) | float) }}</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <div class="section-title">Deductions</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if deduction_items %}
+                    {% for item in deduction_items %}
+                    <tr>
+                        <td>{{ item.description | default('N/A') }}</td>
+                        <td>{{ "%.2f"|format(item.amount | default(0.0) | float) }}</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                     <tr>
+                        <td>Federal Tax</td>
+                        <td>{{ "%.2f"|format(deductions.federal_tax | default(0.0) | float) }}</td>
+                    </tr>
+                    <tr>
+                        <td>State Tax</td>
+                        <td>{{ "%.2f"|format(deductions.state_tax | default(0.0) | float) }}</td>
+                    </tr>
+                    <tr>
+                        <td>Medicare</td>
+                        <td>{{ "%.2f"|format(deductions.medicare | default(0.0) | float) }}</td>
+                    </tr>
+                     <tr>
+                        <td>Social Security</td>
+                        <td>{{ "%.2f"|format(deductions.social_security | default(0.0) | float) }}</td>
+                    </tr>
+                    <tr>
+                        <td>Other</td>
+                        <td>{{ "%.2f"|format(deductions.other | default(0.0) | float) }}</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+            <tfoot>
+                <tr class="total-row">
+                    <td><strong>Total Deductions</strong></td>
+                    <td><strong>{{ "%.2f"|format(deductions_total | default(0.0) | float) }}</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <div class="net-pay-section">
+            <h3>Net Pay: {{ "%.2f"|format(net_pay | default(0.0) | float) }}</h3>
+        </div>
+
+        <div class="ytd-section">
+            <h4>Year-to-Date Summary</h4>
+            <p><strong>Gross Earnings:</strong> {{ "%.2f"|format(ytd_gross_earnings | default(0.0) | float) }}</p>
+            <p><strong>Deductions:</strong> {{ "%.2f"|format(ytd_deductions | default(0.0) | float) }}</p>
+            <p><strong>Net Pay:</strong> {{ "%.2f"|format(ytd_net_pay | default(0.0) | float) }}</p>
+        </div>
+
+        <div class="corporate-notes-section">
+            <h4>Notes</h4>
+            <p>{{ corporate_notes | default('Thank you for your hard work!') }}</p>
+        </div>
+
+    </div>
 </body>
 </html>

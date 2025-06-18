@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Income Statement Data Entry</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="form-container">
+    <h2>Generate Income Statement</h2>
+    <form method="POST" action="{{ url_for('generate_income_statement_pdf') }}">
+
+        <div class="form-section">
+            <h3>Header Information</h3>
+            <div class="form-group">
+                <label for="company_name">Company Name:</label>
+                <input type="text" id="company_name" name="company_name" required>
+            </div>
+            <div class="form-row">
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="report_title">Report Title:</label>
+                        <input type="text" id="report_title" name="report_title" value="Income Statement">
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="period_description">Period Description:</label>
+                        <input type="text" id="period_description" name="period_description" placeholder="e.g., For the Year Ended December 31, 2023" required>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Revenues</h3>
+            <div class="form-group">
+                <label for="revenues_total">Total Revenues:</label>
+                <input type="number" id="revenues_total" name="revenues_total" step="0.01" placeholder="0.00" required>
+            </div>
+            <!-- Optional: Add a few fixed item fields for revenues if desired -->
+            <!-- Example:
+            <div class="form-row">
+                <div class="form-col"><input type="text" name="revenue_item_1_description" placeholder="Revenue Item 1 Desc"></div>
+                <div class="form-col"><input type="number" name="revenue_item_1_amount" step="0.01" placeholder="0.00"></div>
+            </div>
+            -->
+        </div>
+
+        <div class="form-section">
+            <h3>Cost of Goods Sold (COGS) / Cost of Revenue</h3>
+            <div class="form-group">
+                <label for="cogs_total">Total Cost of Goods Sold:</label>
+                <input type="number" id="cogs_total" name="cogs_total" step="0.01" placeholder="0.00 (Enter 0 if not applicable)">
+            </div>
+            <!-- Optional: Add a few fixed item fields for COGS if desired -->
+        </div>
+        <p style="text-align:center; font-size:0.9em; color:#555;">(Gross Profit will be calculated: Total Revenues - Total COGS)</p>
+
+
+        <div class="form-section">
+            <h3>Operating Expenses</h3>
+            <p style="font-size:0.9em; color:#555;">Provide individual expense items. If you also provide 'Total Operating Expenses' below, it will be used directly. Otherwise, it will be summed from these items.</p>
+
+            {% for i in range(1, 4) %} {# Provides 3 item rows #}
+            <div class="form-row" style="align-items: flex-end; margin-bottom: 5px;">
+                <div class="form-col" style="flex-grow: 3;">
+                    <div class="form-group">
+                        <label for="operating_expense_{{i}}_description">Op. Expense {{i}} Description:</label>
+                        <input type="text" id="operating_expense_{{i}}_description" name="operating_expense_{{i}}_description" placeholder="e.g., Selling, General & Admin">
+                    </div>
+                </div>
+                <div class="form-col" style="flex-grow: 1;">
+                    <div class="form-group">
+                        <label for="operating_expense_{{i}}_amount">Op. Expense {{i}} Amount:</label>
+                        <input type="number" id="operating_expense_{{i}}_amount" name="operating_expense_{{i}}_amount" step="0.01" placeholder="0.00">
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            <div class="form-group" style="margin-top:15px;">
+                <label for="operating_expenses_total">Total Operating Expenses (Optional):</label>
+                <input type="number" id="operating_expenses_total" name="operating_expenses_total" step="0.01" placeholder="0.00 (Calculated if blank)">
+            </div>
+        </div>
+        <p style="text-align:center; font-size:0.9em; color:#555;">(Operating Income will be calculated: Gross Profit - Total Operating Expenses)</p>
+
+
+        <div class="form-section">
+            <h3>Other Income / (Expenses)</h3>
+            <div class="form-group">
+                <label for="other_income_total">Total Other Income or (Expense):</label>
+                <input type="number" id="other_income_total" name="other_income_total" step="0.01" placeholder="0.00 (Use negative for expense)">
+            </div>
+            <!-- Optional: Add fixed item fields for other income/expenses if desired -->
+        </div>
+        <p style="text-align:center; font-size:0.9em; color:#555;">(Income Before Tax will be calculated)</p>
+
+
+        <div class="form-section">
+            <h3>Taxation</h3>
+            <div class="form-group">
+                <label for="income_tax_expense">Income Tax Expense:</label>
+                <input type="number" id="income_tax_expense" name="income_tax_expense" step="0.01" placeholder="0.00">
+            </div>
+        </div>
+        <p style="text-align:center; font-size:0.9em; color:#555;">(Net Income will be calculated)</p>
+
+
+        <div class="form-group" style="text-align: center; margin-top: 30px;">
+            <button type="submit" class="submit-btn">Generate Income Statement PDF</button>
+        </div>
+    </form>
+</div>
+
+</body>
+</html>

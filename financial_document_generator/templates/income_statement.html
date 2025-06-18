@@ -2,11 +2,219 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Income Statement</title>
-    <link rel="stylesheet" href="../static/style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ company_name | default('Company') }} - Income Statement</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+            color: #212529;
+        }
+        .statement-container {
+            max-width: 800px;
+            margin: 30px auto;
+            padding: 30px;
+            background-color: #fff;
+            border: 1px solid #dee2e6;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            border-radius: 0.25rem;
+        }
+        .statement-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .statement-header h1 { /* Company Name */
+            font-size: 2em;
+            margin: 0;
+            color: #343a40;
+        }
+        .statement-header h2 { /* Report Title */
+            font-size: 1.6em;
+            margin: 5px 0;
+            color: #495057;
+        }
+        .statement-header p { /* Period Description */
+            font-size: 1em;
+            margin: 5px 0;
+            color: #6c757d;
+        }
+        .financial-section {
+            margin-bottom: 25px;
+        }
+        .financial-section h3 {
+            font-size: 1.3em;
+            color: #007bff;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+        }
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 0.95em;
+        }
+        .item-row:last-child {
+            border-bottom: none;
+        }
+        .item-row .description {
+            flex-basis: 70%;
+            text-align: left;
+        }
+        .item-row .amount {
+            flex-basis: 25%;
+            text-align: right;
+        }
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            margin-top: 8px;
+            font-weight: bold;
+            font-size: 1em;
+            border-top: 1px solid #343a40;
+        }
+        .total-row.grand-total { /* For Net Income */
+             border-top: 2px solid #343a40;
+             border-bottom: 2px solid #343a40;
+             padding-top: 10px;
+             padding-bottom: 10px;
+             font-size: 1.1em;
+             background-color: #f0f0f0;
+        }
+        .total-row .description {
+            flex-basis: 70%;
+            text-align: left;
+        }
+        .total-row .amount {
+            flex-basis: 25%;
+            text-align: right;
+        }
+        .indent {
+            padding-left: 20px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Income Statement</h1>
-    <!-- Add document-specific content here -->
+    <div class="statement-container">
+        <div class="statement-header">
+            <h1>{{ company_name | default('N/A Company') }}</h1>
+            <h2>{{ report_title | default('Income Statement') }}</h2>
+            <p>{{ period_description | default('For the Period Ended N/A') }}</p>
+        </div>
+
+        <div class="financial-section">
+            <h3>Revenues</h3>
+            {% if revenue_items %}
+                {% for item in revenue_items %}
+                <div class="item-row">
+                    <span class="description">{{ item.description | default('N/A') }}</span>
+                    <span class="amount">{{ "%.2f"|format(item.amount | default(0.0) | float) }}</span>
+                </div>
+                {% endfor %}
+            {% endif %}
+            <div class="total-row">
+                <span class="description">Total Revenues</span>
+                <span class="amount">{{ "%.2f"|format(revenues_total | default(0.0) | float) }}</span>
+            </div>
+        </div>
+
+        {% if cogs_total is defined or cogs_items is defined %}
+        <div class="financial-section">
+            <h3>Cost of Goods Sold / Cost of Revenue</h3>
+            {% if cogs_items %}
+                {% for item in cogs_items %}
+                <div class="item-row">
+                    <span class="description">{{ item.description | default('N/A') }}</span>
+                    <span class="amount">{{ "%.2f"|format(item.amount | default(0.0) | float) }}</span>
+                </div>
+                {% endfor %}
+            {% endif %}
+            <div class="total-row">
+                <span class="description">Total Cost of Goods Sold</span>
+                <span class="amount">({{ "%.2f"|format(cogs_total | default(0.0) | float) }})</span> {# Typically shown as negative or subtracted #}
+            </div>
+        </div>
+
+        <div class="financial-section">
+            <div class="total-row">
+                <span class="description">Gross Profit</span>
+                <span class="amount">{{ "%.2f"|format(gross_profit | default(0.0) | float) }}</span>
+            </div>
+        </div>
+        {% endif %}
+
+
+        <div class="financial-section">
+            <h3>Operating Expenses</h3>
+            {% if operating_expense_items %}
+                {% for item in operating_expense_items %}
+                <div class="item-row {% if item.is_sub_category_total %}indent total-row{% elif item.is_sub_category_item %}indent{% endif %}">
+                    <span class="description">{{ item.description | default('N/A') }}</span>
+                    <span class="amount">{{ "%.2f"|format(item.amount | default(0.0) | float) }}</span>
+                </div>
+                {% endfor %}
+            {% else %}
+                 <div class="item-row"><span class="description">Selling Expenses</span><span class="amount">{{ "%.2f"|format(selling_expenses | default(0.0) | float) }}</span></div>
+                 <div class="item-row"><span class="description">General & Administrative Expenses</span><span class="amount">{{ "%.2f"|format(general_administrative_expenses | default(0.0) | float) }}</span></div>
+                 <div class="item-row"><span class="description">Research & Development</span><span class="amount">{{ "%.2f"|format(research_development_expenses | default(0.0) | float) }}</span></div>
+            {% endif %}
+            <div class="total-row">
+                <span class="description">Total Operating Expenses</span>
+                <span class="amount">({{ "%.2f"|format(operating_expenses_total | default(0.0) | float) }})</span>
+            </div>
+        </div>
+
+        <div class="financial-section">
+            <div class="total-row">
+                <span class="description">Operating Income</span>
+                <span class="amount">{{ "%.2f"|format(operating_income | default(0.0) | float) }}</span>
+            </div>
+        </div>
+
+        {% if other_income_total is defined or other_income_expense_items is defined %}
+        <div class="financial-section">
+            <h3>Other Income/(Expenses)</h3>
+            {% if other_income_expense_items %}
+                {% for item in other_income_expense_items %}
+                <div class="item-row">
+                    <span class="description">{{ item.description | default('N/A') }}</span>
+                    <span class="amount">{{ "%.2f"|format(item.amount | default(0.0) | float) }}</span> {# Positive for income, negative for expense #}
+                </div>
+                {% endfor %}
+            {% endif %}
+            <div class="total-row">
+                <span class="description">Total Other Income/(Expenses)</span>
+                <span class="amount">{{ "%.2f"|format(other_income_total | default(0.0) | float) }}</span>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="financial-section">
+            <div class="total-row">
+                <span class="description">Income Before Tax</span>
+                <span class="amount">{{ "%.2f"|format(income_before_tax | default(0.0) | float) }}</span>
+            </div>
+        </div>
+
+        <div class="financial-section">
+             <div class="item-row"> {# Often shown as a line item before Net Income #}
+                <span class="description">Income Tax Expense</span>
+                <span class="amount">({{ "%.2f"|format(income_tax_expense | default(0.0) | float) }})</span>
+            </div>
+        </div>
+
+        <div class="financial-section">
+            <div class="total-row grand-total">
+                <span class="description">Net Income</span>
+                <span class="amount">{{ "%.2f"|format(net_income | default(0.0) | float) }}</span>
+            </div>
+        </div>
+
+    </div>
 </body>
 </html>

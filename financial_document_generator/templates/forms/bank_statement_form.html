@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bank Statement Data Entry</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="form-container">
+    <h2>Generate Bank Statement</h2>
+    <form method="POST" action="{{ url_for('generate_bank_statement_pdf') }}">
+
+        <div class="form-section">
+            <h3>Bank Details</h3>
+            <div class="form-group">
+                <label for="bank_name">Bank Name:</label>
+                <input type="text" id="bank_name" name="bank_name" required>
+            </div>
+            <div class="form-group">
+                <label for="bank_address">Bank Address:</label>
+                <textarea id="bank_address" name="bank_address" rows="3" required></textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="bank_phone">Bank Phone:</label>
+                        <input type="text" id="bank_phone" name="bank_phone">
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="bank_website">Bank Website:</label>
+                        <input type="text" id="bank_website" name="bank_website" placeholder="e.g., www.examplebank.com">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Account Holder</h3>
+            <div class="form-group">
+                <label for="holder_name">Account Holder Name:</label>
+                <input type="text" id="holder_name" name="holder_name" required>
+            </div>
+            <div class="form-group">
+                <label for="holder_address_line1">Address Line 1:</label>
+                <input type="text" id="holder_address_line1" name="holder_address_line1" required>
+            </div>
+            <div class="form-group">
+                <label for="holder_address_line2">Address Line 2 (City, State, ZIP):</label>
+                <input type="text" id="holder_address_line2" name="holder_address_line2" required>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Account Details</h3>
+            <div class="form-row">
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="account_number">Account Number:</label>
+                        <input type="text" id="account_number" name="account_number" required>
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="account_type">Account Type:</label>
+                        <input type="text" id="account_type" name="account_type" placeholder="e.g., Checking, Savings">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Statement Period & Date</h3>
+            <div class="form-row">
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="statement_period_start_date">Period Start Date:</label>
+                        <input type="date" id="statement_period_start_date" name="statement_period_start_date" required>
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="statement_period_end_date">Period End Date:</label>
+                        <input type="date" id="statement_period_end_date" name="statement_period_end_date" required>
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="statement_date">Statement Date:</label>
+                        <input type="date" id="statement_date" name="statement_date" required>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Summary Balances</h3>
+            <div class="form-row">
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="summary_beginning_balance">Beginning Balance:</label>
+                        <input type="number" id="summary_beginning_balance" name="summary_beginning_balance" step="0.01" required placeholder="0.00">
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="summary_total_deposits">Total Deposits:</label>
+                        <input type="number" id="summary_total_deposits" name="summary_total_deposits" step="0.01" required placeholder="0.00">
+                    </div>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="summary_total_withdrawals">Total Withdrawals:</label>
+                        <input type="number" id="summary_total_withdrawals" name="summary_total_withdrawals" step="0.01" required placeholder="0.00">
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="summary_ending_balance">Ending Balance:</label>
+                        <input type="number" id="summary_ending_balance" name="summary_ending_balance" step="0.01" required placeholder="0.00">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Transactions (Enter up to 5)</h3>
+            {% for i in range(5) %}
+            <div class="form-row transaction-row" style="padding: 10px; border: 1px solid #eee; margin-bottom:10px; border-radius:5px;">
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="transaction_{{i}}_date">Date (Row {{i+1}}):</label>
+                        <input type="date" id="transaction_{{i}}_date" name="transaction_{{i}}_date">
+                    </div>
+                </div>
+                <div class="form-col" style="flex-grow: 2;"> <!-- Description can be wider -->
+                    <div class="form-group">
+                        <label for="transaction_{{i}}_description">Description (Row {{i+1}}):</label>
+                        <input type="text" id="transaction_{{i}}_description" name="transaction_{{i}}_description">
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="transaction_{{i}}_withdrawal">Withdrawal (Row {{i+1}}):</label>
+                        <input type="number" id="transaction_{{i}}_withdrawal" name="transaction_{{i}}_withdrawal" step="0.01" placeholder="0.00">
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="transaction_{{i}}_deposit">Deposit (Row {{i+1}}):</label>
+                        <input type="number" id="transaction_{{i}}_deposit" name="transaction_{{i}}_deposit" step="0.01" placeholder="0.00">
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        <label for="transaction_{{i}}_balance">Balance (Row {{i+1}}):</label>
+                        <input type="number" id="transaction_{{i}}_balance" name="transaction_{{i}}_balance" step="0.01" placeholder="Optional">
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="form-group" style="text-align: center;">
+            <button type="submit" class="submit-btn">Generate Bank Statement PDF</button>
+        </div>
+    </form>
+</div>
+
+</body>
+</html>

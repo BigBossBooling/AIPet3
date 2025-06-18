@@ -1,116 +1,74 @@
 import os
-from jinja2 import Environment, FileSystemLoader
+import io # Added for io.BytesIO
+from typing import Union, Optional, Dict # Added for type hinting
+
+from .base_generator import BaseGenerator
 from weasyprint import HTML
-from weasyprint.text.fonts import FontConfiguration # Corrected import
+# FontConfiguration might be needed if CSS uses @font-face, import for consistency
+from weasyprint.fonts import FontConfiguration
 
-def generate_bank_statement(statement_data, output_path=None):
-    '''
-    Generates a bank statement PDF from data.
+class BankStatementGenerator(BaseGenerator):
+    def __init__(self, data: Dict):
+        """
+        Initializes BankStatementGenerator with statement data.
+        Args:
+            data (dict): A dictionary containing all bank statement details.
+        """
+        super().__init__(data)
+        # Any specific data preparation for bank statements can be done here if needed.
+        # For example, converting date strings in transactions to datetime objects,
+        # or ensuring numeric fields are floats/decimals.
+        # For now, assume data is pre-processed or template handles formatting.
 
-    Args:
-        statement_data (dict): A dictionary containing all bank statement details.
-                               Expected structure:
-                               {
-                                   'bank_details': {'name': '', 'address': '', 'phone': '', 'website': ''},
-                                   'account_holder': {'name': '', 'address_line1': '', 'address_line2': ''},
-                                   'account_details': {'number': '', 'type': ''},
-                                   'statement_period': {'start_date': '', 'end_date': ''},
-                                   'statement_date': '',
-                                   'summary': {
-                                       'beginning_balance': '',
-                                       'total_deposits': '',
-                                       'total_withdrawals': '',
-                                       'ending_balance': ''
-                                   },
-                                   'transactions': [
-                                       {'date': '', 'description': '', 'withdrawal': '', 'deposit': '', 'balance': ''},
-                                       # ... more transactions
-                                   ]
-                               }
-        output_path (str, optional): If provided, saves the PDF to this path.
-                                     Otherwise, returns the PDF as bytes.
+    def generate_pdf(self, output_path_or_buffer: Optional[Union[str, io.BytesIO]] = None) -> Optional[Union[bool, bytes]]:
+        """
+        Generates a bank statement PDF from HTML template and data.
 
-    Returns:
-        bytes or bool: PDF content as bytes if output_path is None,
-                       True if file is saved successfully,
-                       None on error.
-    '''
-    try:
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        template_dir = os.path.join(base_dir, 'templates')
+        Args:
+            output_path_or_buffer (str or io.BytesIO, optional):
+                If a string, path to save PDF.
+                If io.BytesIO, PDF is written to this buffer.
+                If None, PDF content is returned as bytes.
 
-        env = Environment(loader=FileSystemLoader(template_dir), autoescape=True)
-        template = env.get_template('bank_statement.html')
+        Returns:
+            bool: True if PDF was saved to path/buffer successfully, False on error.
+            bytes: PDF content as bytes if output_path_or_buffer is None and successful.
+            None: If an error occurred and returning bytes was intended.
+        """
+        try:
+            # Render HTML using BaseGenerator's utility
+            # Template name is 'bank_statement.html'
+            rendered_html = self._render_template('bank_statement.html', self.data)
 
-        html_string = template.render(statement_data)
+            # Base URL for WeasyPrint to resolve relative paths (e.g., for static files)
+            font_config = FontConfiguration() # Default font configuration
+            html_doc = HTML(string=rendered_html, base_url=self._get_project_root())
 
-        html_obj = HTML(string=html_string, base_url=template_dir) # base_url for resolving static/style.css
+            is_path = isinstance(output_path_or_buffer, str)
+            is_buffer = isinstance(output_path_or_buffer, io.BytesIO)
 
-        if output_path:
-            html_obj.write_pdf(output_path)
-            print(f"Bank statement PDF generated and saved to {output_path}")
-            return True
-        else:
-            pdf_bytes = html_obj.write_pdf()
-            print("Bank statement PDF generated as bytes.")
-            return pdf_bytes
+            if is_path:
+                html_doc.write_pdf(output_path_or_buffer, font_config=font_config)
+                # print(f"Bank statement PDF generated and saved to {output_path_or_buffer}") # Optional
+                return True
+            elif is_buffer:
+                html_doc.write_pdf(target=output_path_or_buffer, font_config=font_config)
+                return True # Indicate success
+            else: # output_path_or_buffer is None, return bytes
+                pdf_bytes = html_doc.write_pdf(font_config=font_config)
+                # print("Bank statement PDF generated as bytes.") # Optional
+                return pdf_bytes
 
-    except Exception as e:
-        print(f"Error generating bank statement: {e}")
-        return None
+        except Exception as e:
+            print(f"Error generating bank statement PDF: {e}")
+            # import traceback
+            # traceback.print_exc() # For detailed debugging
+            return None if output_path_or_buffer is None else False
 
-if __name__ == '__main__':
-    # Example Usage (for testing purposes)
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# '''
+# def generate_bank_statement(statement_data, output_path=None):
+#    # ... old code ...
 
-    sample_statement_data = {
-        'bank_details': {
-            'name': 'Global Finance Corp',
-            'address': '1 Corporate Drive, Metropolis, USA 10001',
-            'phone': '(800) 555-0100',
-            'website': 'www.globalfinancecorp.com'
-        },
-        'account_holder': {
-            'name': 'Alice B. Wonderland',
-            'address_line1': '456 Looking Glass Lane',
-            'address_line2': 'Fantasyland, FL 67890'
-        },
-        'account_details': {
-            'number': 'ACCT-9876543210',
-            'type': 'Premium Checking Account'
-        },
-        'statement_period': {
-            'start_date': '10/01/2023',
-            'end_date': '10/31/2023'
-        },
-        'statement_date': '11/05/2023',
-        'summary': {
-            'beginning_balance': '$5,250.75',
-            'total_deposits': '$2,100.00',
-            'total_withdrawals': '$850.25',
-            'ending_balance': '$6,500.50'
-        },
-        'transactions': [
-            {'date': '10/02/2023', 'description': 'Direct Deposit - Employer A', 'withdrawal': '', 'deposit': '$1,500.00', 'balance': '$6,750.75'},
-            {'date': '10/05/2023', 'description': 'Online Purchase - BookStore.com', 'withdrawal': '$50.25', 'deposit': '', 'balance': '$6,700.50'},
-            {'date': '10/10/2023', 'description': 'ATM Withdrawal - Branch ATM', 'withdrawal': '$200.00', 'deposit': '', 'balance': '$6,500.50'},
-            {'date': '10/15/2023', 'description': 'Check #1234 Cashed', 'withdrawal': '$600.00', 'deposit': '', 'balance': '$5,900.50'},
-            {'date': '10/20/2023', 'description': 'Incoming Wire Transfer - Client B', 'withdrawal': '', 'deposit': '$600.00', 'balance': '$6,500.50'},
-        ]
-    }
-
-    output_file = os.path.join(project_root, 'generated_bank_statement_test.pdf')
-    if generate_bank_statement(sample_statement_data, output_path=output_file):
-        print(f"Test bank statement saved to {output_file}")
-    else:
-        print(f"Failed to save test bank statement to {output_file}")
-
-    # To test byte generation:
-    # pdf_bytes = generate_bank_statement(sample_statement_data)
-    # if pdf_bytes:
-    #     bytes_output_file = os.path.join(project_root, 'generated_bank_statement_bytes_test.pdf')
-    #     with open(bytes_output_file, 'wb') as f:
-    #         f.write(pdf_bytes)
-    #     print(f"Test bank statement from bytes saved to {bytes_output_file}")
-    # else:
-    #     print("Failed to generate test bank statement as bytes.")
+# if __name__ == '__main__':
+#    # ... old main block ...
+# '''
