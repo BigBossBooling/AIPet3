@@ -3,20 +3,6 @@
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
-// Definition of the NftManager trait
-// This trait will be implemented by Pallet<T>
-// It's defined here to be in the same crate as its implementor.
-// In a multi-crate workspace, this might live in a shared traits crate,
-// or be part of pallet-critter-nfts's public API for other pallets to depend on.
-pub trait NftManager<AccountId, PetId, DispatchResult> {
-    fn owner_of(pet_id: &PetId) -> Option<AccountId>;
-    fn is_transferable(pet_id: &PetId) -> bool;
-    fn lock_nft(owner: &AccountId, pet_id: &PetId) -> DispatchResult;
-    fn unlock_nft(owner: &AccountId, pet_id: &PetId) -> DispatchResult;
-    fn transfer_nft(from: &AccountId, to: &AccountId, pet_id: &PetId) -> DispatchResult;
-}
-
-
 #[frame_support::pallet]
 pub mod pallet {
     use frame_support::{
@@ -25,9 +11,24 @@ pub mod pallet {
         traits::{Currency, Randomness},
     };
     use frame_system::pallet_prelude::*;
-    use super::NftManager;
+    // Use shared traits and types
+    use crate::traits::{
+        NftManager as SharedNftManager,
+        NftBreedingHandler,
+        NftManagerForItems,
+        QuestNftRequirementChecker,
+        // BasicCareItemConsumer is used by Config::ItemHandler, not directly by this pallet's code after Config setup
+        SimpleGeneticInfo,
+        PetId as SharedPetId, // Using SharedPetId to distinguish from local PetId if needed
+        ItemId as SharedItemId, // Using SharedItemId
+        DnaHashType,
+        SpeciesType,
+        TraitTypeString,
+        // ItemCategoryTag // Will be used in consume_item_of_category call
+    };
     use sp_std::vec::Vec;
     use scale_info::TypeInfo;
+    use log; // Added for logging in NftManagerForItems::apply_breeding_assist_effect
 
     // Define PetId type alias for clarity
     pub type PetId = u32;
@@ -88,22 +89,13 @@ pub mod pallet {
     //    what `pallet-items` must provide for basic care item consumption logic called by this pallet).
     //    This pallet (`pallet-critter-nfts`) would then declare `type ItemHandler: pallet_items::BasicCareItemConsumer<...>;`
     //    in its Config, and `pallet-items` would implement that trait.
-    // This current local definition approach is for self-contained conceptual outlining here.
+    // Local type aliases can still be used for convenience if they match the shared trait types.
+    // pub type PetId = SharedPetId; // Or u32 directly if SharedPetId is u32
+    // pub type ItemId = SharedItemId; // Or u32 directly
 
-    // Conceptual: Trait to be implemented by pallet-items for basic care item consumption
-    pub trait BasicCareItemConsumer<AccountId, ItemId> {
-        fn consume_item_if_category(
-            user: &AccountId,
-            item_id: ItemId,
-            category: pallet_items::ItemCategory, // Assuming pallet_items::ItemCategory exists locally or is imported
-        ) -> DispatchResult;
-    }
-
-    // Placeholder for pallet_items::ItemCategory if not directly importing
-    pub mod pallet_items {
-        #[derive(PartialEq, Clone, Copy)] // For comparison in consume_item_if_category
-        pub enum ItemCategory { Food, Toy, Other } // Simplified for this context
-    }
+    // Define placeholder constants for ItemCategoryTag
+    const FOOD_CATEGORY_TAG: crate::traits::ItemCategoryTag = 0;
+    const TOY_CATEGORY_TAG: crate::traits::ItemCategoryTag = 1;
 
     pub(crate) type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
@@ -141,8 +133,8 @@ pub mod pallet {
         type NeglectThresholdBlocks: Get<Self::BlockNumber>; // Blocks after which neglect effects might apply
 
         // Handler for consuming basic care items (Food, Toys)
-        // This trait should be implemented by pallet-items.
-        type ItemHandler: BasicCareItemConsumer<Self::AccountId, ItemId>;
+        // This trait is now from crate::traits and should be implemented by pallet-items.
+        type ItemHandler: crate::traits::BasicCareItemConsumer<Self::AccountId, SharedItemId, crate::traits::ItemCategoryTag, DispatchResult>;
     }
 
     #[pallet::pallet]
@@ -494,7 +486,7 @@ pub mod pallet {
 
             // 2. Consume the specified food item via the ItemHandler.
             // This interaction confirms the item exists, is of the correct category (Food), and deducts it from inventory.
-            T::ItemHandler::consume_item_if_category(&owner, food_item_id, pallet_items::ItemCategory::Food)
+            T::ItemHandler::consume_item_of_category(&owner, &food_item_id, FOOD_CATEGORY_TAG)
                 .map_err(|_| Error::<T>::ItemInteractionFailed)?;
 
             // 3. Update pet's attributes.
@@ -530,7 +522,7 @@ pub mod pallet {
             ensure!(PetNftOwner::<T>::get(pet_id) == Some(owner.clone()), Error::<T>::NotOwner);
 
             // 2. Consume the specified toy item via the ItemHandler.
-            T::ItemHandler::consume_item_if_category(&owner, toy_item_id, pallet_items::ItemCategory::Toy)
+            T::ItemHandler::consume_item_of_category(&owner, &toy_item_id, TOY_CATEGORY_TAG)
                 .map_err(|_| Error::<T>::ItemInteractionFailed)?;
 
             // 3. Update pet's attributes.
@@ -615,8 +607,8 @@ pub mod pallet {
     }
 }
 
-// Implementation of the NftManager trait for our Pallet
-impl<T: Config> NftManager<T::AccountId, PetId, DispatchResult> for Pallet<T> {
+// Implementation of the SharedNftManager trait for our Pallet
+impl<T: Config> SharedNftManager<T::AccountId, PetId> for Pallet<T> { // DispatchResultType is DispatchResult by default from trait
     /// Get the owner of an NFT.
     fn owner_of(pet_id: &PetId) -> Option<T::AccountId> {
         Self::pet_nft_owner(pet_id)
@@ -660,7 +652,7 @@ impl<T: Config> NftManager<T::AccountId, PetId, DispatchResult> for Pallet<T> {
     /// Note: This is a direct transfer, typically called by another pallet (e.g., marketplace after a sale).
     /// It assumes any necessary lock/unlock logic specific to the calling context (like marketplace listing)
     /// has been handled by the caller. This function itself does not check `is_transferable`.
-    fn transfer_nft(from: &T::AccountId, to: &T::AccountId, pet_id: &PetId) -> DispatchResult {
+    fn transfer_nft(from: &T::AccountId, to: &T::AccountId, pet_id: &PetId) -> DispatchResult { // DispatchResultType is DispatchResult
         // 1. Verify 'from' is the current owner.
         let current_owner = Self::pet_nft_owner(pet_id).ok_or(Error::<T>::PetNotFound)?;
         ensure!(current_owner == *from, Error::<T>::NotOwner);
@@ -697,26 +689,22 @@ impl<T: Config> NftManager<T::AccountId, PetId, DispatchResult> for Pallet<T> {
 }
 
 
-// Conceptual Implementation of NftManagerForItems trait (defined in pallet-items)
-// This allows pallet-items to call functions on this pallet to apply specific effects to PetNfts.
-// Assumes pallet_items::NftManagerForItems is correctly defined in pallet_items's lib.rs.
-// Generics for MVP: AccountId, PetId, TraitTypeString (Vec<u8>), DispatchResultType.
-// `pallet_items::Config` bound on `T` might be needed if using types from pallet_items directly,
-// but for now, we assume basic types like Vec<u8> are used for trait method signatures.
-impl<T: Config> crate::pallet_items::NftManagerForItems<T::AccountId, PetId, Vec<u8>, DispatchResult> for Pallet<T> {
+// --- Implementation of traits from `crate::traits` ---
+
+// Implementation of NftManagerForItems trait (now defined in `crate::traits`)
+impl<T: Config> NftManagerForItems<T::AccountId, PetId, TraitTypeString, BlockNumberFor<T>, DispatchResult> for Pallet<T> {
     /// Get the owner of a pet. Called by pallet-items to verify item use permissions.
-    fn get_pet_owner(pet_id: &PetId) -> Option<T::AccountId> {
-        Self::pet_nft_owner(pet_id) // Uses existing getter from NftManager.
+    fn get_pet_owner_for_item_use(pet_id: &PetId) -> Option<T::AccountId> { // Renamed in trait
+        Self::pet_nft_owner(pet_id)
     }
 
     /// Grant a fixed amount of XP to a pet.
-    fn grant_fixed_xp_to_pet(
+    fn apply_fixed_xp_to_pet( // Renamed in trait
         caller: &T::AccountId,
         pet_id: &PetId,
         amount: u32
     ) -> DispatchResult {
-        // 1. Ensure the caller owns the pet (or has other relevant permissions if design changes).
-        // For now, assume direct ownership is required for an item to be applied by the caller.
+        // 1. Ensure the caller owns the pet
         ensure!(Self::pet_nft_owner(pet_id) == Some(caller.clone()), Error::<T>::NotOwner);
 
         // 2. Mutate the PetNft to update XP and potentially level.
@@ -733,7 +721,7 @@ impl<T: Config> crate::pallet_items::NftManagerForItems<T::AccountId, PetId, Vec
     }
 
     /// Modify the mood indicator of a pet.
-    fn modify_mood_of_pet(
+    fn apply_mood_modification_to_pet( // Renamed in trait
         caller: &T::AccountId,
         pet_id: &PetId,
         amount: i16 // Positive to increase mood, negative to decrease.
@@ -755,10 +743,10 @@ impl<T: Config> crate::pallet_items::NftManagerForItems<T::AccountId, PetId, Vec
     }
 
     /// Grant a new personality trait to a pet.
-    fn grant_personality_trait_to_pet(
+    fn apply_personality_trait_to_pet( // Renamed in trait
         caller: &T::AccountId,
         pet_id: &PetId,
-        trait_to_grant: Vec<u8>, // The trait string.
+        trait_to_grant: TraitTypeString, // The trait string (Vec<u8>)
     ) -> DispatchResult {
         ensure!(Self::pet_nft_owner(pet_id) == Some(caller.clone()), Error::<T>::NotOwner);
 
@@ -785,9 +773,7 @@ impl<T: Config> crate::pallet_items::NftManagerForItems<T::AccountId, PetId, Vec
     }
 
     /// Apply a generic breeding-assist effect to a pet.
-    /// The actual interpretation of `effect_type_id` and `value` is conceptual
-    /// and depends on how breeding mechanics are further defined or if `pallet-breeding` exists.
-    fn apply_breeding_assist_effect_to_pet(
+    fn apply_breeding_assist_effect( // Renamed in trait
         caller: &T::AccountId,
         pet_id: &PetId,
         effect_type_id: u8, // Identifier for the type of breeding effect.
@@ -795,28 +781,106 @@ impl<T: Config> crate::pallet_items::NftManagerForItems<T::AccountId, PetId, Vec
     ) -> DispatchResult {
         ensure!(Self::pet_nft_owner(pet_id) == Some(caller.clone()), Error::<T>::NotOwner);
 
-        // Conceptual: This function's logic is highly dependent on future pallet-breeding or
-        // specific breeding-related fields added to PetNft.
-        // For MVP, this might just record that an interaction happened.
         PetNfts::<T>::try_mutate(pet_id, |pet_nft_opt| -> DispatchResult {
             let pet = pet_nft_opt.as_mut().ok_or(Error::<T>::PetNotFound)?;
             pet.last_state_update_block = frame_system::Pallet::<T>::block_number();
+            // Actual logic for applying breeding assist effect would be here,
+            // potentially interacting with breeding-specific fields on PetNft or calling pallet-breeding.
+            // For now, just updating timestamp and logging.
             Ok(())
         })?;
 
-        // Log the conceptual effect application.
-        // In a real implementation, this might:
-        // 1. Modify a `fertility_score` field on `PetNft`.
-        // 2. Call a method on a `BreedingManager` trait (implemented by `pallet-breeding`)
-        //    to reduce a breeding cooldown for `pet_id` by `value` blocks if `effect_type_id` indicates so.
         log::info!(
+            target: "runtime::critter_nfts_pallet",
             "Conceptual breeding assist effect (type ID: {}, value: {}) applied to pet ID: {} by owner: {:?}",
-            effect_type_id,
-            value,
-            pet_id,
-            caller
+            effect_type_id, value, pet_id, caller
         );
-        // Consider emitting a generic event like PetBreedingAssistApplied { pet_id, effect_type_id, value }.
         Ok(())
     }
+}
+
+// Implementation of NftBreedingHandler trait (now defined in `crate::traits`)
+impl<T: Config> NftBreedingHandler<T::AccountId, PetId, DnaHashType, SpeciesType> for Pallet<T> {
+    fn get_pet_simple_genetics(pet_id: &PetId) -> Option<SimpleGeneticInfo<DnaHashType, SpeciesType>> {
+        if let Some(pet_nft) = Self::pet_nfts(pet_id) {
+            Some(SimpleGeneticInfo {
+                dna_hash: pet_nft.dna_hash,
+                species: pet_nft.initial_species.clone(), // Assuming initial_species is Vec<u8>
+            })
+        } else {
+            None
+        }
+    }
+
+    fn mint_pet_from_breeding(
+        owner: &T::AccountId,
+        species: SpeciesType,
+        dna_hash: DnaHashType,
+        parent1_id: PetId,
+        parent2_id: PetId,
+        initial_name: Vec<u8>,
+    ) -> Result<PetId, DispatchResult> {
+        // This logic is similar to mint_pet_nft but uses provided DNA and species.
+        let pet_id = NextPetId::<T>::try_mutate(|next_id| -> Result<PetId, DispatchError> {
+            let current_id = *next_id;
+            *next_id = next_id.checked_add(1).ok_or(Error::<T>::NextPetIdOverflow)?;
+            Ok(current_id)
+        })?;
+
+        // Derive charter attributes from the given dna_hash (same logic as in mint_pet_nft)
+        let val_s = ((dna_hash[0] as u16) << 8 | dna_hash[1] as u16) % 100;
+        let base_strength = (5 + (val_s * 15) / 99) as u8;
+        let val_a = ((dna_hash[2] as u16) << 8 | dna_hash[3] as u16) % 100;
+        let base_agility = (5 + (val_a * 15) / 99) as u8;
+        let val_i = ((dna_hash[4] as u16) << 8 | dna_hash[5] as u16) % 100;
+        let base_intelligence = (5 + (val_i * 15) / 99) as u8;
+        let val_v = ((dna_hash[6] as u16) << 8 | dna_hash[7] as u16) % 100;
+        let base_vitality = (5 + (val_v * 15) / 99) as u8;
+        let primary_elemental_affinity = match dna_hash[8] % 8 {
+            0 => Some(ElementType::Fire), 1 => Some(ElementType::Water), 2 => Some(ElementType::Earth),
+            3 => Some(ElementType::Air), 4 => Some(ElementType::Tech), 5 => Some(ElementType::Nature),
+            6 => Some(ElementType::Mystic),
+            _ => None,
+        };
+
+        let current_block_number = frame_system::Pallet::<T>::block_number();
+        let new_pet = PetNft {
+            id: pet_id,
+            dna_hash,
+            initial_species: species.clone(), // Use determined species
+            current_pet_name: initial_name, // Use provided initial name
+            base_strength,
+            base_agility,
+            base_intelligence,
+            base_vitality,
+            primary_elemental_affinity,
+            level: 1,
+            experience_points: 0,
+            mood_indicator: T::MaxMoodValue::get(),
+            last_fed_block: current_block_number,
+            last_played_block: current_block_number,
+            personality_traits: BoundedVec::new(),
+            last_state_update_block: current_block_number,
+            // TODO: Add parent1_id, parent2_id fields to PetNft struct and set them here
+        };
+
+        PetNfts::<T>::insert(pet_id, new_pet);
+        OwnerOfPet::<T>::try_mutate(owner, |owned_pets_vec| {
+            owned_pets_vec.try_push(pet_id).map_err(|_| Error::<T>::ExceedMaxOwnedPets)
+        })?;
+        PetNftOwner::<T>::insert(pet_id, owner.clone());
+        Self::deposit_event(Event::PetNftMinted { owner: owner.clone(), pet_id });
+        Ok(pet_id)
+    }
+}
+
+// Implementation of QuestNftRequirementChecker trait (now defined in `crate::traits`)
+impl<T: Config> QuestNftRequirementChecker<T::AccountId, PetId, SpeciesType> for Pallet<T> {
+    fn get_pet_owner_for_quest(pet_id: &PetId) -> Option<T::AccountId> {
+        Self::pet_nft_owner(pet_id)
+    }
+    fn get_pet_level_for_quest(pet_id: &PetId) -> Option<u32> {
+        Self::pet_nfts(pet_id).map(|pet| pet.level)
+    }
+    // get_pet_species_for_quest was deferred in trait for MVP
 }
