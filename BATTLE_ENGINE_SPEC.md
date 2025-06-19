@@ -24,6 +24,7 @@ The engine expects the following data for each battle simulation:
         *   *(Optional MVP addition) current_mood: u8` (0-100, could give minor +/- 5% combat effectiveness, fetched from `PetNft.mood_indicator`)*
         *   *(Optional MVP addition) personality_traits: Vec<String>` (or Vec<Vec<u8>>, a few key traits that might have simple battle effects)*
     *   *These on-chain stats from `PetNft` serve as the direct inputs. The Battle Engine will derive battle-instance specific 'Effective Combat Stats' (EHP, EATK, EDEF, ESPD) from these, as detailed in Section 3.*
+    *   **Note on Data Sourcing for Simulation:** For a specific battle instance (`battle_id`), these `MvpBattlePetStats` should be sourced from the `pet_stats_snapshot` field within the `BattleParticipant` structs stored in `pallet-battles::BattleRegistry(battle_id)`. This ensures the simulation uses the stats as they were when each participant committed to the battle, rather than live (potentially changed) stats from `pallet-critter-nfts`.
 *   **`random_seed: Option<[u8; 32]>`**:
     *   An optional shared random seed. If provided, the battle simulation MUST be deterministic.
     *   If `None`, the engine may use its own internal randomness, but the simulation might not be easily verifiable by third parties running the same inputs. For MVP and simplicity of reporting, the on-chain `report_battle_outcome` might not require this seed, but the engine should ideally support it for future verifiability.
@@ -40,7 +41,7 @@ The simulation proceeds in turns until a win condition is met.
     *   **Effective Attack (EATK):** `(pet_stats.base_strength * 2) + pet_stats.level` (Example: Base 0 ATK + 2 ATK per Strength point + 1 ATK per Level).
     *   **Effective Defense (EDEF):** `(pet_stats.base_vitality * 1) + pet_stats.level` (Example: Base 0 DEF + 1 DEF per Vitality point + 1 DEF per Level).
     *   **Effective Speed (ESPD):** `(pet_stats.base_agility * 2) + pet_stats.level` (Example: Base 0 SPD + 2 SPD per Agility point + 1 SPD per Level).
-    *   *(All multiplication/addition factors are illustrative game balance constants (`*_FACTOR_CONST`, `*_BONUS_CONST`) to be tuned).*
+    *   *(All multiplication/addition factors are illustrative game balance constants (`*_FACTOR_CONST`, `*_BONUS_CONST`) to be tuned within the engine).*
     *   **(Optional MVP Mood Influence):** If `pet_stats.current_mood` is used:
         *   If mood < 30 (e.g., Unhappy): `EATK *= 0.9`, `EDEF *= 0.9`.
         *   If mood > 70 (e.g., Happy): `EATK *= 1.05`, `EDEF *= 1.05`.
@@ -65,7 +66,7 @@ For MVP, each pet performs a basic "Attack" action.
     *   `calculated_damage = base_damage.saturating_sub(mitigation)`
     *   `actual_damage = calculated_damage.max(1)` (Ensures minimum 1 damage if EATK > EDEF/2)
 5.  **Elemental Modifier Application:**
-    *   Fetch `attacker.primary_elemental_affinity` and `defender.primary_elemental_affinity`.
+    *   Fetch `attacker_pet_stats.primary_elemental_affinity` and `defender_pet_stats.primary_elemental_affinity`.
     *   Apply multiplier based on a predefined matrix. Example snippet:
         *   `Fire > Nature = 1.5x`
         *   `Nature > Earth = 1.5x`
@@ -146,8 +147,8 @@ Example Log Entry (per turn/action):
 ## 7. Interaction with `pallet-battles`
 
 The off-chain engine (or the client/server operating it) is responsible for:
-1.  Gathering input data for the participating pets (likely via RPC calls to the CritterChain node to query `pallet-critter-nfts`).
-2.  Running the simulation as described above.
+1.  Gathering input data for the participating pets: This involves fetching the `BattleDetails` for the given `battle_id` from `pallet-battles` (e.g., via RPC query), which contains the `pet_stats_snapshot` for each participant within their respective `BattleParticipant` struct.
+2.  Running the simulation using these snapshotted stats as described above.
 3.  Submitting the `winner_pet_id` (and other relevant data post-MVP) by calling the `report_battle_outcome` extrinsic on `pallet-battles`.
 
 This specification provides a clear guideline for an MVP off-chain battle engine, focusing on core mechanics while allowing for future expansion.

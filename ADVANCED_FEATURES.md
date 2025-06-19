@@ -344,35 +344,70 @@ This combination of explicit on-chain charter attributes and the richer informat
 
 ## 13. Competitive Pet Battles
 
-CritterCraft will feature a robust system for competitive pet battles, where Pet NFTs engage in strategic combat. `pallet-battles` is the core on-chain component for managing battle registration, state, and outcomes, simplified for an MVP.
+CritterCraft will feature a robust system for competitive pet battles, where Pet NFTs engage in strategic combat. `pallet-battles` is the core on-chain component for managing battle registration, state, and outcomes.
 
-    ### 1. Core Concepts (Recap from pallet-battles design - MVP Focus)
-    *   **Registration:** Players register one of their eligible Pet NFTs for battle.
-    *   **Matchmaking:** (Conceptual) For MVP, this is likely a simple queue or direct challenge system. ELO ratings or complex brackets are post-MVP.
-    *   **Outcome Reporting (Simplified for MVP):** A designated reporter (e.g., player 1, or a future trusted oracle) reports only the `winner_pet_id`. The `loser_pet_id` is inferred on-chain.
-    *   **Rewards (Simplified for MVP):** A fixed PTCN amount (`BattleRewardAmount` from `Config`) is distributed to the winner.
+    ### 1. Core Concepts (MVP Focus)
+    *   **Battle Lifecycle:** Battles are initiated by one player (`register_battle`), joined by another (`join_battle`), resolved by an off-chain simulation whose result is submitted (`report_battle_outcome`), and can be cancelled under certain conditions (`cancel_battle_registration`).
+    *   **Pet Eligibility & Locking:** Pets must be eligible (e.g., not already in a battle, not locked for other reasons like marketplace listings). `pallet-battles` will use an `NftBattleManager` trait (implemented by `pallet-critter-nfts`, defined in `crittercraft-traits`) to check eligibility and lock/unlock pets for battle.
+    *   **Off-Chain Simulation:** The actual turn-by-turn battle logic is performed by an off-chain engine (see `BATTLE_ENGINE_SPEC.md`). `pallet-battles` primarily manages state and records the verified outcome.
+    *   **Outcome Reporting (MVP):** A single designated reporter (e.g., the battle initiator or a future oracle) reports the winner.
+    *   **Rewards (MVP):** A fixed PTCN amount (defined in `Config::BattleRewardAmount`) is distributed to the winner.
 
-    ### 2. Core On-Chain Logic/Data (`pallet-battles` - MVP Focus)
-    *   **`BattleDetails` Struct:** Stores `player1`, `pet1_id`, `player2` (Option), `pet2_id` (Option), `status` (`PendingMatch`, `Concluded`), `winner` (Option<AccountId>).
-    *   **`PetInBattle` Storage:** Tracks if a `PetId` is currently in an active `BattleId`.
-    *   **`register_for_battle` Extrinsic:**
-        *   Allows `player1` to register their `pet1_id`.
-        *   Performs checks: pet not already in battle, player owns pet, pet is eligible (e.g., not locked elsewhere via `NftHandler::is_transferable`).
-        *   Creates a new battle record with `status = PendingMatch`, `player2` and `pet2_id` as `None`.
-        *   Marks `pet1_id` in `PetInBattle`.
-    *   **`report_battle_outcome` Extrinsic (Simplified for MVP):**
-        *   Takes `battle_id` and `winner_pet_id` as inputs.
-        *   **Authority (MVP):** Only `player1` of the battle can report the outcome. (Future: Oracle or consensus from both players).
-        *   **Logic:**
-            *   Retrieves `BattleDetails`. Ensures battle exists and is not already `Concluded`.
-            *   Determines `winner_account`, `loser_account`, and `loser_pet_id` based on the provided `winner_pet_id` and the stored `BattleDetails`.
-            *   Updates `BattleDetails` status to `Concluded` and records the `winner_account`.
-            *   If a `winner_account` is determined and `BattleRewardAmount` (from `Config`) is greater than zero, the reward is distributed to the `winner_account` (e.g., via `T::Currency::deposit_creating`).
-            *   Clears `PetInBattle` entries for both `pet1_id` and `pet2_id` (if `pet2_id` was Some).
-            *   Emits a `BattleConcluded` event with all relevant details (winner/loser accounts and pet IDs, reward amount).
-        *   Storing a `battle_log_hash` is deferred for post-MVP.
+    ### 2. Core On-Chain Data Structures (`pallet-battles`)
+    *   **`BattleId` Type:** A unique identifier for each battle (e.g., `u128`).
+    *   **`BattleStatus` Enum:** `Created` (awaiting opponent), `Active` (opponent joined, awaiting outcome), `Concluded` (outcome reported), `Cancelled`.
+    *   **`BattleParticipant<AccountId, PetId, PetStatsSnapshot>` Struct:**
+        *   `account_id: AccountId`
+        *   `pet_id: PetId`
+        *   `pet_stats_snapshot: PetStatsSnapshot` (Key stats like level, base_strength, base_agility, base_vitality, primary_elemental_affinity, current_mood, relevant personality_traits, taken at battle registration/join time via `NftBattleManager` to ensure fairness if pet levels up mid-battle registration).
+    *   **`BattleDetails<AccountId, PetId, PetStatsSnapshot, BlockNumber, Balance>` Struct:**
+        *   `battle_id: BattleId`
+        *   `participant1: Option<BattleParticipant<...>>`
+        *   `participant2: Option<BattleParticipant<...>>`
+        *   `status: BattleStatus`
+        *   `created_at: BlockNumber`
+        *   `last_action_at: Option<BlockNumber>`
+        *   `winner: Option<AccountId>`
+        *   `battle_log_hash: Option<[u8; 32]>` (Hash of the detailed off-chain battle log - Post-MVP)
+        *   `reward_amount: Option<Balance>` (Amount of PTCN distributed)
 
-    ### 3. Conceptual Battle Mechanics & Formulas (Inputs to Off-Chain Simulation - MVP Focus)
+    ### 3. On-Chain Storage Items (`pallet-battles`)
+    *   **`NextBattleId<BattleId>`:** Counter for new `BattleId`s.
+    *   **`BattleRegistry<BattleId, BattleDetails<...>>`:** Stores the details of each battle.
+    *   **`PetBattleStatus<PetId, BattleId>`:** Maps a `PetId` to an active `BattleId` if the pet is currently participating in a battle. Used to prevent a pet from joining multiple battles.
+    *   **`OpenBattles<BoundedVec<BattleId, T::MaxOpenBattles>>`:** A list of `BattleId`s that are in `Created` status, awaiting an opponent. Used for simple matchmaking.
+
+    ### 4. Key Extrinsics (`pallet-battles` - MVP Focus)
+    *   **`register_battle(origin, pet_id: T::PetId)`:**
+        *   Allows a player to register one of their eligible pets for a new battle.
+        *   Uses `T::NftBattleManager` to check pet ownership, eligibility (e.g., not already in battle, not locked for other activities like marketplace), and to get the `PetStatsSnapshot`.
+        *   Locks the pet for battle via `T::NftBattleManager::lock_pet_for_battle()`.
+        *   Creates a new `BattleDetails` entry with `participant1` filled, `status = Created`.
+        *   Adds the new `BattleId` to `OpenBattles` and `PetBattleStatus`.
+        *   Emits `BattleRegistered { battle_id, player1_account, player1_pet_id }`.
+    *   **`join_battle(origin, battle_id: BattleId, pet_id: T::PetId)`:**
+        *   Allows a second player to join an existing open battle.
+        *   Checks that `battle_id` is in `OpenBattles` and `status == Created`.
+        *   Uses `T::NftBattleManager` for `pet_id` checks (ownership, eligibility, stats snapshot) and locks the pet.
+        *   Updates `BattleDetails` with `participant2` and sets `status = Active`.
+        *   Removes `battle_id` from `OpenBattles`. Updates `PetBattleStatus` for the second pet.
+        *   Emits `BattleJoined { battle_id, player2_account, player2_pet_id }`.
+    *   **`report_battle_outcome(origin, battle_id: BattleId, winner_pet_id: T::PetId)`:**
+        *   **Authority (MVP):** For MVP, this might be restricted to one of the participants (e.g., `participant1.account_id`) or a trusted oracle/admin.
+        *   Retrieves `BattleDetails`. Ensures battle is `Active`.
+        *   Determines `winner_account` and `loser_account` based on `winner_pet_id`.
+        *   Updates `BattleDetails` status to `Concluded`, records `winner`, and sets `reward_amount`.
+        *   Distributes `T::BattleRewardAmount` to `winner_account` via `T::Currency`.
+        *   Unlocks both participating pets via `T::NftBattleManager::unlock_pet_from_battle()`.
+        *   Clears entries from `PetBattleStatus`.
+        *   Emits `BattleConcluded { battle_id, winner_account, loser_account, reward_amount }`.
+    *   **`cancel_battle_registration(origin, battle_id: BattleId)`:**
+        *   Allows the player who registered a battle (participant1) to cancel it if no opponent has joined (`status == Created`).
+        *   Removes the battle from `BattleRegistry` and `OpenBattles`.
+        *   Unlocks `participant1.pet_id` via `T::NftBattleManager`. Clears `PetBattleStatus`.
+        *   Emits `BattleCancelled { battle_id }`.
+
+    ### 5. Conceptual Battle Mechanics & Formulas (Inputs to Off-Chain Simulation - MVP Focus)
 
     The actual battle simulation (determining `winner_pet_id`) is performed **off-chain** for MVP. The result is then submitted to `report_battle_outcome`. The on-chain pet attributes from `pallet-critter-nfts` (obtained via `NftHandler`) serve as the primary input to this simulation.
 
