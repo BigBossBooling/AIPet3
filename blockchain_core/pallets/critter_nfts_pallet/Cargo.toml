@@ -1,0 +1,19 @@
+[package]
+name = "pallet-critter-nfts"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "pallet_critter_nfts"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+frame-support = { version = "x.y.z", default-features = false }
+frame-system = { version = "x.y.z", default-features = false }
+sp-runtime = { version = "x.y.z", default-features = false }
+sp-core = { version = "x.y.z", default-features = false }
+sp-std = { version = "x.y.z", default-features = false }
+
+[features]
+default = ["std"]
+std = []
