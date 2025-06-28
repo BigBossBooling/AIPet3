@@ -1,0 +1,126 @@
+{
+  "name": "Sparkle",
+  "species": "sprite_glow",
+  "aura_color": "aura-blue",
+  "id": "7b7b5f0c-416d-4142-8e83-81ae89dae53d",
+  "hunger": 40,
+  "energy": 39,
+  "happiness": 96,
+  "iq": 19,
+  "charisma": 10,
+  "cleanliness": 90,
+  "social": 69,
+  "base_animal": "chameleon",
+  "materials": [
+    {
+      "type": "scales",
+      "color": "green",
+      "coverage": 0.8,
+      "position": "body"
+    },
+    {
+      "type": "scales",
+      "color": "blue",
+      "coverage": 0.2,
+      "position": "head"
+    }
+  ],
+  "adaptations": [
+    {
+      "type": "camouflage",
+      "strength": 8,
+      "position": "body"
+    }
+  ],
+  "facts_learned": [
+    "Chameleons have long, sticky tongues to catch insects.",
+    "Many chameleons can change color to blend with their environment.",
+    "Chameleons can move their eyes independently of each other."
+  ],
+  "personality_traits": {
+    "playfulness": 50,
+    "curiosity": 50,
+    "sociability": 50,
+    "independence": 50,
+    "loyalty": 50
+  },
+  "creation_timestamp": 1751065261058236476,
+  "last_active_timestamp": 1751072461058239919,
+  "interaction_history": [
+    {
+      "timestamp": 1751065261058529351,
+      "type": "feed",
+      "details": "Fed the pet"
+    },
+    {
+      "timestamp": 1751065261058592455,
+      "type": "play",
+      "details": "Played with the pet"
+    },
+    {
+      "timestamp": 1751065261058722439,
+      "type": "chat",
+      "details": "Chatted: 'Hello! How are you feeling tod...' if len(message) > 30 else message"
+    },
+    {
+      "timestamp": 1751065261058767357,
+      "type": "groom",
+      "details": "Groomed the pet"
+    },
+    {
+      "timestamp": 1751065261058977519,
+      "type": "tick_decay",
+      "details": "Applied decay for 2 intervals"
+    },
+    {
+      "timestamp": 1751065261059057071,
+      "type": "craft",
+      "details": "Set base animal to chameleon"
+    },
+    {
+      "timestamp": 1751065261059084188,
+      "type": "learn",
+      "details": "Learned: Chameleons can move their eyes independently of ea..."
+    },
+    {
+      "timestamp": 1751065261059093443,
+      "type": "learn",
+      "details": "Learned: Many chameleons can change color to blend with the..."
+    },
+    {
+      "timestamp": 1751065261059101135,
+      "type": "learn",
+      "details": "Learned: Chameleons have long, sticky tongues to catch inse..."
+    },
+    {
+      "timestamp": 1751065261059163313,
+      "type": "craft",
+      "details": "Added green scales to body"
+    },
+    {
+      "timestamp": 1751065261059171111,
+      "type": "craft",
+      "details": "Added blue scales to head"
+    },
+    {
+      "timestamp": 1751065261059388501,
+      "type": "craft",
+      "details": "Added camouflage to body"
+    },
+    {
+      "timestamp": 1751065261059471486,
+      "type": "learn",
+      "details": "Simulated in forest environment"
+    }
+  ],
+  "zoologist_level": "novice",
+  "critters_created": 0,
+  "unlocked_materials": [
+    "scales",
+    "fur"
+  ],
+  "unlocked_adaptations": [
+    "specialized_limbs",
+    "camouflage"
+  ]
+}

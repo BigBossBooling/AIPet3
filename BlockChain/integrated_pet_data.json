@@ -1,0 +1,122 @@
+{
+  "pet": {
+    "name": "dawn",
+    "species": "sprite_glow",
+    "aura_color": "aura-red",
+    "id": "01ec8882-7aff-4125-a1f8-8b72a687184b",
+    "hunger": 50,
+    "energy": 100,
+    "happiness": 68,
+    "iq": 43,
+    "charisma": 10,
+    "cleanliness": 80,
+    "social": 60,
+    "base_animal": null,
+    "materials": [],
+    "adaptations": [],
+    "facts_learned": [],
+    "personality_traits": {
+      "playfulness": 50,
+      "curiosity": 50,
+      "sociability": 50,
+      "independence": 50,
+      "loyalty": 50
+    },
+    "creation_timestamp": 1751078848971337753,
+    "last_active_timestamp": 1751078848971364734,
+    "interaction_history": [
+      {
+        "timestamp": 1751079371119236016,
+        "type": "chat",
+        "details": "Chatted: 'Hi Love...' if len(message) > 30 else message"
+      }
+    ],
+    "zoologist_level": "novice",
+    "critters_created": 0,
+    "unlocked_materials": [
+      "scales",
+      "fur"
+    ],
+    "unlocked_adaptations": [
+      "camouflage",
+      "specialized_limbs"
+    ]
+  },
+  "ai": {
+    "personality": {
+      "traits": {
+        "playfulness": 50,
+        "curiosity": 51,
+        "sociability": 52,
+        "independence": 50,
+        "loyalty": 50
+      },
+      "trait_history": {
+        "playfulness": [
+          [
+            1751078848973548102,
+            50
+          ]
+        ],
+        "curiosity": [
+          [
+            1751078848973551780,
+            50
+          ],
+          [
+            1751079371118670132,
+            51
+          ]
+        ],
+        "sociability": [
+          [
+            1751078848973552654,
+            50
+          ],
+          [
+            1751079371118664224,
+            52
+          ]
+        ],
+        "independence": [
+          [
+            1751078848973553314,
+            50
+          ]
+        ],
+        "loyalty": [
+          [
+            1751078848973553977,
+            50
+          ]
+        ]
+      }
+    },
+    "memory_system": {
+      "memories": [
+        {
+          "memory_type": "interaction",
+          "content": "Performed chat interaction",
+          "timestamp": 1751079371118684939,
+          "importance": 0.7,
+          "context": {
+            "message": "Hi Love"
+          },
+          "recall_count": 0,
+          "last_recalled": null
+        },
+        {
+          "memory_type": "interaction",
+          "content": "User said: 'Hi Love', Pet responded: 'dawn calm acknowledges your presence. \"Greetings! How nice of you to chat with me\" *glows brightly*.'",
+          "timestamp": 1751079371116195516,
+          "importance": 0.6,
+          "context": {
+            "topic": "greeting"
+          },
+          "recall_count": 0,
+          "last_recalled": null
+        }
+      ]
+    }
+  }
+}
