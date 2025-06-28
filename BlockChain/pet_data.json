@@ -1,0 +1,29 @@
+{
+    "name": "jojo",
+    "species": "sprite_ember",
+    "aura_color": "aura-red",
+    "id": "6980f0f1-2b53-4272-936c-96bbf9eb0617",
+    "hunger": 50,
+    "energy": 90,
+    "happiness": 55,
+    "iq": 10,
+    "charisma": 10,
+    "cleanliness": 80,
+    "social": 50,
+    "mood": "Neutral",
+    "personality_traits": {
+        "playfulness": 50,
+        "curiosity": 50,
+        "sociability": 50,
+        "independence": 50,
+        "loyalty": 50,
+        "adventurousness": 50,
+        "intelligence": 50,
+        "empathy": 50,
+        "calmness": 50,
+        "stubbornness": 50
+    },
+    "creation_timestamp": 1751121105777004890,
+    "last_active_timestamp": 1751121105777036869,
+    "interaction_history": []
+}
