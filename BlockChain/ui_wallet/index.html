@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CritterCraft Wallet</title>
+    <link rel="stylesheet" href="style.css"> <!-- Assuming a style.css might be added later -->
+    <!-- Add this in the <head> or before your app.js script tag -->
+    <script src="https://unpkg.com/@polkadot/api@latest/bundle.js"></script>
+</head>
+<body>
+    <h1>CritterCraft Wallet Dashboard</h1>
+
+    <div id="connection-status">Connecting to CritterChain...</div>
+
+    <div id="wallet-info">
+        <p>Wallet Address: <span id="wallet-address">Loading...</span></p>
+        <p>PTCN Balance: <span id="ptcn-balance">Loading...</span></p>
+    </div>
+
+    <div id="pet-nfts">
+        <h2>My Pet NFTs</h2>
+        <ul id="nft-list">
+            <!-- Pet NFTs will be listed here as <li> items -->
+            <p id="nft-list-placeholder">Loading Pet NFTs...</p>
+        </ul>
+    </div>
+
+    <div id="actions">
+        <h2>Actions</h2>
+        <div id="daily-claim-section">
+            <h3>Daily PTCN Claim</h3>
+            <button id="claimDailyPtcnButton">Claim Daily PTCN</button>
+            <p id="claim-ptcn-status"></p>
+            <p>Next claim available after: <span id="next-claim-time">Calculating...</span></p>
+        </div>
+        <hr>
+        <!-- <button id="createPetButton">Create New Pet (Mint NFT)</button> --> <!-- Replaced by section below -->
+        <div id="mint-nft-section">
+            <h3>Create New Pet NFT</h3>
+            <label for="pet-species">Species:</label>
+            <input type="text" id="pet-species" name="pet-species" value="RoboDog"><br><br>
+            <label for="pet-name">Name:</label>
+            <input type="text" id="pet-name" name="pet-name" value="Sparky"><br><br>
+            <button id="mintNftButton">Mint Pet NFT</button>
+            <p id="mint-status"></p>
+        </div>
+        <hr> <!-- Separator -->
+        <div id="transfer-nft-section">
+            <h3>Transfer Pet NFT</h3>
+            <label for="recipient-address">Recipient Address:</label>
+            <input type="text" id="recipient-address" name="recipient-address" placeholder="Enter recipient's address" style="width: 300px;"><br><br>
+            <label for="pet-id-transfer">Pet ID to Transfer:</label>
+            <input type="number" id="pet-id-transfer" name="pet-id-transfer" placeholder="Enter Pet ID"><br><br>
+            <button id="transferNftButton">Transfer Pet NFT</button>
+            <p id="transfer-status"></p>
+        </div>
+        <hr> <!-- Separator -->
+        <div id="update-pet-section">
+            <h3>Update Pet Details</h3>
+            <label for="update-pet-id">Pet ID to Update:</label>
+            <input type="number" id="update-pet-id" placeholder="Enter Pet ID"><br><br>
+
+            <label for="update-pet-name">New Name (Optional):</label>
+            <input type="text" id="update-pet-name" placeholder="Enter new name"><br><br>
+
+            <label for="update-pet-level">New Level (Optional):</label>
+            <input type="number" id="update-pet-level" placeholder="Enter new level"><br><br>
+
+            <label for="update-pet-xp">New XP (Optional):</label>
+            <input type="number" id="update-pet-xp" placeholder="Enter new XP"><br><br>
+
+            <label for="update-pet-mood">New Mood (0-255, Optional):</label>
+            <input type="number" id="update-pet-mood" placeholder="Enter new mood"><br><br>
+
+            <label for="update-pet-hunger">New Hunger (0-255, Optional):</label>
+            <input type="number" id="update-pet-hunger" placeholder="Enter new hunger"><br><br>
+
+            <label for="update-pet-energy">New Energy (0-255, Optional):</label>
+            <input type="number" id="update-pet-energy" placeholder="Enter new energy"><br><br>
+
+            <label for="update-pet-personality">Personality Traits (comma-separated, Optional):</label>
+            <input type="text" id="update-pet-personality" placeholder="e.g., Brave,Curious,Shy"><br><br>
+
+            <button id="updatePetButton">Update Pet Details</button>
+            <p id="update-pet-status"></p>
+        </div>
+        <!-- More actions like send PTCN, etc. can be added here -->
+    </div>
+
+    <div id="events-section">
+        <h3>Recent Activity</h3>
+        <ul id="event-list">
+            <p id="event-list-placeholder">No recent activity or loading events...</p>
+            <!-- Events will be listed here as <li> items -->
+        </ul>
+    </div>
+
+    <hr>
+    <h2>Marketplace</h2>
+    <div id="marketplace-section">
+        <h3>Listed NFTs for Sale</h3>
+        <ul id="marketplace-nft-list">
+            <p id="marketplace-list-placeholder">Loading marketplace listings...</p>
+            <!-- Listed NFTs will be dynamically added here -->
+        </ul>
+        <hr>
+        <h3>List Your NFT for Sale</h3>
+        <div id="list-nft-form">
+            <label for="list-pet-id">Pet ID to List:</label>
+            <input type="number" id="list-pet-id" placeholder="Enter ID of your Pet"><br><br>
+            <label for="list-price">Price (in PTCN units):</label>
+            <input type="number" id="list-price" placeholder="Enter price"><br><br>
+            <button id="listNftButton">List My NFT</button>
+            <p id="list-nft-status"></p>
+        </div>
+        <hr>
+        <h3>Unlist Your NFT</h3>
+        <div id="unlist-nft-form">
+            <label for="unlist-pet-id">Pet ID to Unlist:</label>
+            <input type="number" id="unlist-pet-id" placeholder="Enter ID of your listed Pet"><br><br>
+            <button id="unlistNftButton">Unlist My NFT</button>
+            <p id="unlist-nft-status"></p>
+        </div>
+    </div>
+
+    <hr>
+    <h2>Battle Arena</h2>
+    <div id="battle-arena-section">
+        <h3>Register Your Pet for Battle</h3>
+        <div id="register-battle-form">
+            <label for="battle-pet-id-select">Select Your Pet:</label>
+            <select id="battle-pet-id-select">
+                <option value="">--Loading your pets--</option>
+            </select><br><br>
+            <button id="registerBattleButton">Register for Battle</button>
+            <p id="register-battle-status"></p>
+        </div>
+        <hr>
+        <h3>Current Battles</h3>
+        <ul id="battle-list">
+            <p id="battle-list-placeholder">Loading battle information...</p>
+            <!-- Battles will be dynamically added here -->
+        </ul>
+    </div>
+
+    <hr>
+    <h2>Quests</h2>
+    <div id="quests-section">
+        <h3>Available Quests</h3>
+        <ul id="available-quests-list">
+            <p id="available-quests-placeholder">Loading available quests...</p>
+            <!-- Available quests will be dynamically added here -->
+        </ul>
+        <hr>
+        <h3>Completed Quests</h3>
+        <ul id="completed-quests-list">
+            <p id="completed-quests-placeholder">Loading completed quests...</p>
+            <!-- Completed quests will be dynamically added here -->
+        </ul>
+        <p id="quest-action-status"></p> <!-- For feedback on complete_quest action -->
+    </div>
+
+    <hr>
+    <h2>Breeding Center</h2>
+    <div id="breeding-center-section">
+        <p>Select two of your compatible Pet NFTs to attempt breeding. Using certain items might improve outcomes!</p>
+
+        <div style="display: flex; justify-content: space-around; margin-bottom: 20px;">
+            <!-- Parent A Selection -->
+            <div id="parent-a-selection" style="width: 45%;">
+                <h3>Select Parent A</h3>
+                <label for="parent-a-select">Choose Pet:</label>
+                <select id="parent-a-select" name="parent-a-select" style="width: 100%;">
+                    <option value="">-- Select one of your pets --</option>
+                    <!-- Options to be dynamically populated by JavaScript -->
+                    <!-- Example: <option value="pet_id_1">Sparky (RoboDog, Lvl 10)</option> -->
+                </select>
+                <div id="parent-a-details" style="margin-top: 10px; padding: 5px; border: 1px solid #eee;">
+                    <p><em>Details for Parent A will appear here.</em></p>
+                    <!-- Example:
+                        <p>Species: RoboDog</p>
+                        <p>Level: 10</p>
+                        <p>Key Trait: High Stamina</p>
+                        <p>Breeding Cooldown: Ready</p>
+                    -->
+                </div>
+            </div>
+
+            <!-- Parent B Selection -->
+            <div id="parent-b-selection" style="width: 45%;">
+                <h3>Select Parent B</h3>
+                <label for="parent-b-select">Choose Pet:</label>
+                <select id="parent-b-select" name="parent-b-select" style="width: 100%;">
+                    <option value="">-- Select one of your pets --</option>
+                    <!-- Options to be dynamically populated by JavaScript -->
+                </select>
+                <div id="parent-b-details" style="margin-top: 10px; padding: 5px; border: 1px solid #eee;">
+                    <p><em>Details for Parent B will appear here.</em></p>
+                </div>
+            </div>
+        </div>
+
+        <div id="breeding-options" style="margin-bottom: 20px;">
+            <h3>Breeding Options</h3>
+            <label for="fertility-item-select">Use Fertility Item (Optional):</label>
+            <select id="fertility-item-select" name="fertility-item-select">
+                <option value="">-- No item --</option>
+                <!-- Placeholder for items, e.g., from a future pallet-items -->
+                <!-- Example: <option value="item_id_1">Fertility Charm (Increases success rate)</option> -->
+            </select>
+            <p><em>Note: Fertility items are conceptual and will be part of a future Items system.</em></p>
+        </div>
+
+        <div id="initiate-breeding-action">
+            <button id="initiateBreedingButton">Initiate Breeding Attempt</button>
+            <p id="breeding-status" style="margin-top: 10px;"></p>
+        </div>
+
+            <!-- Add this new subsection for Offspring/Egg Management -->
+            <hr style="margin-top: 20px; margin-bottom: 20px;">
+            <div id="offspring-management-section">
+                <h3>My Breeding Outcomes (Eggs/Newborns)</h3>
+                <ul id="offspring-list">
+                    <p id="offspring-list-placeholder">No active breeding outcomes (eggs or newborns) at the moment.</p>
+                    <!-- Example of a list item (to be dynamically generated):
+                    <li>
+                        <strong>Egg ID/New Pet ID:</strong> EGG-001 / PET-XYZ <br>
+                        <strong>Parents:</strong> Sparky (ID: 123) & Bolt (ID: 456) <br>
+                        <strong>Status:</strong> Incubating (or Newborn) <br>
+                        <strong>Est. Hatch/Maturity Time:</strong> 2 hours 30 minutes remaining (or Ready to Claim/View) <br>
+                        <button class="claim-newborn-button" data-offspring-id="EGG-001" disabled>Claim Newborn</button>
+                        <! -- Button enabled when ready -->
+                    </li>
+                    -->
+                </ul>
+            </div>
+        <!-- Lineage display will enhance the existing "My Pet NFTs" section -->
+    </div>
+
+    <hr>
+    <h2>Pet Day Care Center</h2>
+    <div id="daycare-center-section">
+        <p>Board your pets for passive development or offer your services as a caregiver!</p>
+
+        <div id="find-daycare-services" style="margin-bottom: 20px;">
+            <h3>Find a Day Care Service</h3>
+            <!-- Filters for daycare services could go here (e.g., by specialty, fee) -->
+            <ul id="daycare-service-list">
+                <p id="daycare-service-list-placeholder">Loading available day care services...</p>
+                <!-- Example of a list item (to be dynamically generated):
+                <li>
+                    <strong>Operator:</strong> CareBearAlice (Pet: NurturerBot ID: 789)<br>
+                    <strong>Specialty:</strong> XP Gain Boost<br>
+                    <strong>Fee:</strong> 5 PTCN per session/day<br>
+                    <strong>Capacity:</strong> 3/5 Pets<br>
+                    <select class="pet-to-enroll-select" data-operator-id="CareBearAlice_ID">
+                        <option value="">--Select your pet to enroll--</option>
+                        <! -- User's eligible pets -->
+                    </select>
+                    <button class="enroll-daycare-button" data-operator-id="CareBearAlice_ID">Enroll Selected Pet</button>
+                </li>
+                -->
+            </ul>
+            <p id="enroll-daycare-status"></p>
+        </div>
+
+        <hr style="margin-top: 20px; margin-bottom: 20px;">
+
+        <div id="my-boarded-pets" style="margin-bottom: 20px;">
+            <h3>My Pets in Day Care</h3>
+            <ul id="boarded-pets-list">
+                <p id="boarded-pets-placeholder">You have no pets currently in day care.</p>
+                <!-- Example of a list item:
+                <li>
+                    <strong>Pet:</strong> MySparky (ID: 123) at CareBearAlice's Day Care<br>
+                    <strong>Status:</strong> Gaining XP (2 days remaining)<br>
+                    <strong>Expected Benefits:</strong> +500 XP, +1 Mood Point<br>
+                    <button class="retrieve-from-daycare-button" data-pet-id="123">Retrieve Pet</button>
+                </li>
+                -->
+            </ul>
+            <p id="retrieve-daycare-status"></p>
+        </div>
+
+        <hr style="margin-top: 20px; margin-bottom: 20px;">
+
+        <div id="manage-my-daycare" style="margin-bottom: 20px;">
+            <h3>Manage My Day Care Service (For Operators/Caregivers)</h3>
+            <div id="my-daycare-status-display">
+                <p><em>You are not currently operating a day care service.</em></p>
+                <!-- Or display details if operating:
+                <p><strong>My Day Care Status:</strong> Active</p>
+                <p><strong>Caregiver Pet:</strong> MyNurturer (ID: 999)</p>
+                <p><strong>Specialty:</strong> Mood Boost</p>
+                <p><strong>Fee:</strong> 10 PTCN / session</p>
+                <p><strong>Capacity:</strong> 2/3</p>
+                <p><strong>Boarded Pets:</strong> PetX (Owner: ...), PetY (Owner: ...)</p>
+                <p><strong>Accumulated Earnings:</strong> 120 PTCN <button id="withdrawDaycareEarnings">Withdraw Earnings</button></p>
+                -->
+            </div>
+            <div id="setup-daycare-form" style="margin-top:10px;">
+                 <!-- Placeholder for form to register/update daycare service -->
+                <button id="setupMyDaycareButton">Setup/Update My Day Care Service (Conceptual)</button>
+            </div>
+            <p id="manage-daycare-status"></p>
+        </div>
+    </div>
+
+    <hr>
+    <h2>User Shops District</h2>
+    <div id="user-shops-section">
+        <p>Explore shops created by other players or set up your own storefront!</p>
+
+        <div id="browse-user-shops" style="margin-bottom: 20px;">
+            <h3>Browse Shops</h3>
+            <input type="text" id="search-shops-input" placeholder="Search by shop name or owner...">
+            <button id="searchShopsButton">Search</button>
+            <ul id="user-shop-list">
+                <p id="user-shop-list-placeholder">Loading available user shops...</p>
+                <!-- Example of a shop list item (dynamically generated):
+                <li>
+                    <strong>Shop: Sparky's Emporium</strong> (Owner: Alice)<br>
+                    <em>Sells rare pet treats and training manuals.</em><br>
+                    <button class="view-shop-button" data-shop-id="alice_shop_id">Visit Shop</button>
+                </li>
+                -->
+            </ul>
+        </div>
+
+        <hr style="margin-top: 20px; margin-bottom: 20px;">
+
+        <div id="view-individual-shop" style="margin-bottom: 20px; display: none;"> <!-- Initially hidden -->
+            <h3 id="shop-name-display">Shop Name</h3>
+            <p>Owner: <span id="shop-owner-display"></span></p>
+            <p id="shop-description-display">Shop description goes here.</p>
+            <h4>Items for Sale:</h4>
+            <ul id="shop-item-list">
+                <p id="shop-item-list-placeholder">This shop has no items listed or is loading...</p>
+                <!-- Example of an item for sale:
+                <li>
+                    <strong>Item:</strong> Mega Treat (Pet NFT ID: 777 if it's an NFT, or Item Name if fungible/non-NFT item) <br>
+                    <strong>Price:</strong> 50 PTCN <br>
+                    <button class="buy-from-shop-button" data-item-id="item_xyz" data-shop-id="alice_shop_id">Buy Item</button>
+                </li>
+                -->
+            </ul>
+            <button id="backToShopBrowserButton">Back to Shop Browser</button>
+            <p id="buy-from-shop-status"></p>
+        </div>
+
+        <hr style="margin-top: 20px; margin-bottom: 20px;">
+
+        <div id="manage-my-shop" style="margin-bottom: 20px;">
+            <h3>Manage My Shop</h3>
+            <div id="my-shop-status-display">
+                <p><em>You do not have a shop yet.</em> <button id="createMyShopButton">Create My Shop!</button></p>
+                <!-- Or display details if shop exists:
+                <p><strong>My Shop:</strong> Sparky's Emporium</p>
+                <button id="customizeMyShopButton">Customize Shop</button>
+                <button id="manageShopInventoryButton">Manage Inventory</button>
+                <p>Total Sales (Conceptual): 500 PTCN</p>
+                -->
+            </div>
+
+            <!-- Forms for creating/customizing shop and managing inventory would be shown conditionally by JS -->
+            <div id="create-customize-shop-form" style="display: none; margin-top:10px;">
+                <h4>Create/Customize Shop</h4>
+                <label for="my-shop-name">Shop Name:</label>
+                <input type="text" id="my-shop-name"><br><br>
+                <label for="my-shop-description">Shop Description:</label>
+                <textarea id="my-shop-description" rows="3"></textarea><br><br>
+                <!-- Conceptual: <label for="my-shop-banner">Shop Banner URL:</label> <input type="text" id="my-shop-banner"><br><br> -->
+                <button id="saveShopDetailsButton">Save Shop Details</button>
+                <p id="save-shop-details-status"></p>
+            </div>
+
+            <div id="manage-inventory-form" style="display: none; margin-top:10px;">
+                <h4>Manage Shop Inventory</h4>
+                <label for="item-to-list-select">Select Item/Pet NFT to List:</label>
+                <select id="item-to-list-select">
+                    <!-- User's ownable NFTs and items (from future pallet-items) -->
+                    <option value="">-- Select from your inventory --</option>
+                </select><br><br>
+                <label for="item-list-price">Set Price (PTCN):</label>
+                <input type="number" id="item-list-price"><br><br>
+                <button id="addItemToShopButton">Add Item to Shop</button>
+                <p id="add-item-status"></p>
+                <h5>Currently Listed in My Shop:</h5>
+                <ul id="my-shop-inventory-list">
+                    <!-- Items listed by the user in their shop -->
+                </ul>
+            </div>
+            <p id="manage-my-shop-status"></p>
+        </div>
+    </div>
+
+    <hr>
+    <h2>Jobs Board</h2>
+    <div id="jobs-board-section">
+        <p>Contribute to the CritterCraft ecosystem and earn rewards by completing available jobs!</p>
+
+        <div id="available-jobs" style="margin-bottom: 20px;">
+            <h3>Available Jobs</h3>
+            <!-- Filters for jobs could go here (e.g., by type, reward) -->
+            <ul id="job-list">
+                <p id="job-list-placeholder">Loading available jobs...</p>
+                <!-- Example of a job list item (dynamically generated):
+                <li>
+                    <strong>Job Title:</strong> Community Content Moderator - Sector Alpha (ID: JOB001)<br>
+                    <strong>Description:</strong> Review and moderate user-generated content for appropriateness in Sector Alpha forums for 1 week.<br>
+                    <strong>Requirements:</strong> Account age > 3 months, Staked PTCN > 500, Passed Moderator Quiz (off-chain for now).<br>
+                    <strong>Reward:</strong> 250 PTCN + Rare Community Badge NFT<br>
+                    <strong>Expiry:</strong> In 5 days<br>
+                    <button class="view-job-details-button" data-job-id="JOB001">View Details & Apply</button>
+                </li>
+                <li>
+                    <strong>Job Title:</strong> Data Curation: Tag New Pet Species Images (ID: JOB002)<br>
+                    <strong>Description:</strong> Help tag a batch of 100 new pet images with appropriate keywords for our AI training.<br>
+                    <strong>Requirements:</strong> Attention to detail. Access to image viewing tool.<br>
+                    <strong>Reward:</strong> 100 PTCN per batch.<br>
+                    <strong>Expiry:</strong> Ongoing (batches released weekly)<br>
+                    <button class="view-job-details-button" data-job-id="JOB002">View Details & Apply</button>
+                </li>
+                -->
+            </ul>
+        </div>
+
+        <hr style="margin-top: 20px; margin-bottom: 20px;">
+
+        <div id="job-details-view" style="margin-bottom: 20px; display: none;"> <!-- Initially hidden -->
+            <h3 id="job-title-details">Job Title Details</h3>
+            <p><strong>Description:</strong> <span id="job-description-details"></span></p>
+            <p><strong>Requirements:</strong> <span id="job-requirements-details"></span></p>
+            <p><strong>Reward:</strong> <span id="job-reward-details"></span></p>
+            <p><strong>Expiry:</strong> <span id="job-expiry-details"></span></p>
+            <div id="job-actions">
+                <!-- Conditional buttons based on job status for the user -->
+                <button id="applyForJobButton" data-job-id="">Apply for this Job</button>
+                <!-- Or if applied/accepted: -->
+                <!-- <p><strong>My Status:</strong> Applied / In Progress</p> -->
+                <!-- <label for="job-proof-submission">Submit Proof of Completion:</label> -->
+                <!-- <textarea id="job-proof-submission" rows="3" placeholder="Link to work, description of completion..."></textarea><br> -->
+                <!-- <button id="submitJobProofButton" data-job-id="">Submit Proof</button> -->
+            </div>
+            <button id="backToJobBoardButton">Back to Jobs List</button>
+            <p id="job-action-status"></p>
+        </div>
+
+        <hr style="margin-top: 20px; margin-bottom: 20px;">
+
+        <div id="my-accepted-jobs" style="margin-bottom: 20px;">
+            <h3>My Accepted/In-Progress Jobs</h3>
+            <ul id="my-jobs-list">
+                <p id="my-jobs-list-placeholder">You have no accepted jobs currently.</p>
+                <!-- Example:
+                <li>
+                    <strong>Job:</strong> Data Curation Batch #5 (ID: JOB002-BATCH5)<br>
+                    <strong>Status:</strong> In Progress - Proof due in 3 days.<br>
+                    <button class="submit-my-job-button" data-my-job-id="JOB002-BATCH5">Submit/Update Proof</button>
+                </li>
+                -->
+            </ul>
+        </div>
+    </div>
+
+    <hr>
+    <h2>Treasure Hunts</h2>
+    <div id="treasure-hunts-section">
+        <p>Embark on thrilling treasure hunts, solve puzzles, and discover rare rewards!</p>
+
+        <div id="available-hunts" style="margin-bottom: 20px;">
+            <h3>Available Treasure Hunts</h3>
+            <ul id="hunt-list">
+                <p id="hunt-list-placeholder">Loading available treasure hunts...</p>
+                <!-- Example of a hunt list item (dynamically generated):
+                <li>
+                    <strong>Hunt:</strong> The Lost Artifact of CritterTopia (ID: HUNT001)<br>
+                    <strong>Description:</strong> Uncover the secrets of an ancient civilization. Involves on-chain puzzles and off-chain riddles.<br>
+                    <strong>Est. Difficulty:</strong> Hard<br>
+                    <strong>Potential Rewards:</strong> Unique Ancient Pet NFT, 1000 PTCN<br>
+                    <button class="view-hunt-details-button" data-hunt-id="HUNT001">View Details / Start Hunt</button>
+                </li>
+                -->
+            </ul>
+        </div>
+
+        <hr style="margin-top: 20px; margin-bottom: 20px;">
+
+        <div id="my-active-hunt-details" style="margin-bottom: 20px; display: none;"> <!-- Initially hidden -->
+            <h3 id="active-hunt-title">My Active Hunt: [Hunt Name]</h3>
+            <p><strong>Current Stage/Clue:</strong> <span id="hunt-current-stage-clue"></span></p>
+            <p><strong>Progress:</strong> Stage X of Y</p>
+            <div id="hunt-solution-submission">
+                <label for="hunt-solution-input">Submit Solution/Proof for Current Stage:</label><br>
+                <textarea id="hunt-solution-input" rows="3" placeholder="Enter your answer, transaction hash, or link to proof..."></textarea><br>
+                <!-- Conceptual: <input type="file" id="hunt-proof-upload"><br> -->
+                <button id="submitHuntSolutionButton" data-hunt-id="" data-stage-id="">Submit Solution</button>
+            </div>
+            <button id="backToHuntsListButton">Back to Hunts List</button>
+            <p id="hunt-action-status"></p>
+        </div>
+
+        <hr style="margin-top: 20px; margin-bottom: 20px;">
+
+        <div id="completed-hunts-section" style="margin-bottom: 20px;">
+            <h3>My Completed Treasure Hunts</h3>
+            <ul id="completed-hunts-list">
+                <p id="completed-hunts-placeholder">You have not completed any treasure hunts yet.</p>
+                <!-- Example:
+                <li>
+                    <strong>Hunt:</strong> The Secret of the Whispering Cave (ID: HUNT000)<br>
+                    <strong>Completed:</strong> 2023-10-26<br>
+                    <strong>Rewards Claimed:</strong> 500 PTCN, Explorer's Badge NFT
+                </li>
+                -->
+            </ul>
+        </div>
+    </div>
+
+    <hr>
+    <h2>Arcade & Mini-Games</h2>
+    <div id="arcade-section">
+        <p>Play fun mini-games, compete on leaderboards, and earn rewards!</p>
+
+        <div id="game-gallery" style="margin-bottom: 20px;">
+            <h3>Available Games</h3>
+            <ul id="game-list">
+                <p id="game-list-placeholder">Loading available games...</p>
+                <!-- Example of a game list item (dynamically generated):
+                <li>
+                    <strong>Game:</strong> Critter-Rock-Paper-Scissors<br>
+                    <strong>Type:</strong> On-Chain Turn-Based<br>
+                    <strong>Entry Fee:</strong> 1 PTCN (Optional)<br>
+                    <strong>Potential Rewards:</strong> PTCN Prize Pool, Arcade Tickets<br>
+                    <button class="play-game-button" data-game-id="RPS001">Play Game</button>
+                </li>
+                <li>
+                    <strong>Game:</strong> Pet Jumper (Web Game)<br>
+                    <strong>Type:</strong> Off-Chain Skill-Based (Score Reported)<br>
+                    <strong>Entry Fee:</strong> None<br>
+                    <strong>Potential Rewards:</strong> Weekly PTCN for Top Scores<br>
+                    <button class="play-external-game-button" data-game-url="http://example.com/petjumper">Play Game (External Link)</button>
+                </li>
+                -->
+            </ul>
+        </div>
+
+        <hr style="margin-top: 20px; margin-bottom: 20px;">
+
+        <div id="active-game-area" style="margin-bottom: 20px; display: none;"> <!-- Initially hidden -->
+            <h3 id="active-game-title">Now Playing: [Game Name]</h3>
+            <div id="game-content-host">
+                <!-- For on-chain games, UI elements for game interaction would go here -->
+                <!-- Example for Rock-Paper-Scissors:
+                <p>Choose your move:</p>
+                <button class="rps-choice-button" data-choice="rock">Rock</button>
+                <button class="rps-choice-button" data-choice="paper">Paper</button>
+                <button class="rps-choice-button" data-choice="scissors">Scissors</button>
+                <p id="rps-game-status"></p>
+                -->
+                <!-- For off-chain games, this might be an iframe or instructions -->
+                <p><em>Game interface or link will appear here.</em></p>
+            </div>
+            <button id="backToGamesListButton">Back to Games List</button>
+            <p id="game-action-status"></p>
+        </div>
+
+        <hr style="margin-top: 20px; margin-bottom: 20px;">
+
+        <div id="leaderboards-section" style="margin-bottom: 20px;">
+            <h3>Leaderboards</h3>
+            <select id="leaderboard-game-select">
+                <option value="">-- Select Game for Leaderboard --</option>
+                <!-- Options populated with game IDs/names -->
+            </select>
+            <ul id="leaderboard-list">
+                <p id="leaderboard-list-placeholder">Select a game to view its leaderboard.</p>
+                <!-- Example:
+                <li>1. PlayerAlice - Score: 5000</li>
+                <li>2. PlayerBob - Score: 4500</li>
+                -->
+            </ul>
+        </div>
+
+        <div id="arcade-rewards-section" style="margin-bottom: 20px;">
+            <h3>My Arcade Rewards</h3>
+            <p id="my-arcade-rewards-status">Loading rewards or no rewards to claim...</p>
+            <!-- Example: <p>Claimable Arcade Tickets: 150 <button id="claimArcadeTickets">Claim Tickets</button></p> -->
+            <button id="claimMiniGameRewardsButton" disabled>Claim All Mini-Game Rewards (Conceptual)</button>
+        </div>
+    </div>
+
+        <hr>
+        <h2>My Item Inventory</h2>
+        <div id="item-inventory-section">
+            <p>View and manage your collected items.</p>
+            <ul id="item-inventory-list">
+                <p id="item-inventory-placeholder">Your inventory is empty or loading...</p>
+                <!-- Example of an item list item (dynamically generated):
+                <li>
+                    <strong>Item:</strong> Health Potion (ID: ITEM001) x3 <br>
+                    <strong>Category:</strong> Consumable<br>
+                    <strong>Description:</strong> Restores a small amount of a pet's energy.<br>
+                    <strong>Effects:</strong> +20 Energy (Temporary or Permanent)<br>
+                    <label for="item-target-pet-ITEM001">Use on Pet:</label>
+                    <select class="item-target-pet-select" data-item-id="ITEM001">
+                        <option value="">-- Select your pet --</option>
+                        <! -- User's pets populated here -->
+                    </select>
+                    <button class="use-item-button" data-item-id="ITEM001">Use Item</button>
+                </li>
+                <li>
+                    <strong>Item:</strong> Basic Strength Charm (ID: EQUIP001) x1 <br>
+                    <strong>Category:</strong> Equipment<br>
+                    <strong>Description:</strong> A charm that slightly boosts a pet's base strength.<br>
+                    <strong>Effects:</strong> +2 Base Strength (while equipped - conceptual equipping UI needed later)<br>
+                    <! -- For equipment, "Use" might mean "Equip" which is more complex -->
+                    <button disabled>Equip (Conceptual)</button>
+                </li>
+                -->
+            </ul>
+            <p id="item-action-status"></p>
+        </div>
+
+        <hr>
+        <h2>My Profile & Achievements</h2>
+        <div id="user-profile-section">
+            <p>Your progress and scores within the CritterCraft ecosystem.</p>
+            <div id="profile-scores-display">
+                <p><strong>Overall Progress Score:</strong> <span id="profile-overall-score">Loading...</span></p>
+                <p><strong>Total Pet Levels Sum:</strong> <span id="profile-pet-levels-sum">Loading...</span></p>
+                <p><strong>Quests Completed:</strong> <span id="profile-quests-completed">Loading...</span></p>
+                <p><strong>Battles Won:</strong> <span id="profile-battles-won">Loading...</span></p>
+                <p><strong>Successful Trades:</strong> <span id="profile-successful-trades">Loading...</span></p>
+                <p><strong>Community Contributions Score:</strong> <span id="profile-community-contributions">Loading...</span></p>
+                <p><strong>Trade Reputation Score:</strong> <span id="profile-trade-reputation">Loading...</span></p>
+                <p><strong>Last Active Block:</strong> <span id="profile-last-active">Loading...</span></p>
+            </div>
+            <!-- Conceptual: Could add display for badges or titles earned based on scores -->
+        </div>
+
+    <hr>
+    <h2>Governance</h2>
+    <div id="governance-section">
+            <p>Participate in the decentralized governance of CritterCraft! Your voice matters. Review proposals, vote on referenda, and see how the community shapes the future.
+            (Refer to <a href="../../GOVERNANCE.md" target="_blank">GOVERNANCE.md</a> for full details on the governance model.)</p>
+
+            <!-- Democracy: Referenda & Proposals -->
+            <div id="democracy-module" style="margin-bottom: 20px; padding:10px; border: 1px solid #cce;">
+                <h3>Public Referenda & Proposals (`pallet-democracy`)</h3>
+                <div id="active-referenda">
+                    <h4>Active Referenda</h4>
+                    <ul id="referenda-list">
+                        <p id="referenda-list-placeholder">Loading active referenda...</p>
+                        <!-- Example Referendum Item (Dynamically Generated):
+                        <li>
+                            <strong>Referendum #15:</strong> Adjust Marketplace Fee to 0.5%<br>
+                            <em>Proposed by: Council / AccountId...</em><br>
+                            Ends in: 3 days, 4 hours (Block #XXXXXX)<br>
+                            Current Tally: Yes: 60% (VoteAmount), No: 30% (VoteAmount), Turnout: Y% <br>
+                            <button class="vote-referendum-button" data-referendum-id="15" data-vote="aye">Vote YES</button>
+                            <button class="vote-referendum-button" data-referendum-id="15" data-vote="nay">Vote NO</button>
+                            <a href="#referendum-details-15" class="view-referendum-details">View Details</a>
+                        </li>
+                        -->
+                    </ul>
+                </div>
+                <div id="submit-proposal-area" style="margin-top: 15px;">
+                    <button id="submitProposalButton">Submit New Proposal (Conceptual)</button>
+                    <p id="proposal-submit-status"></p>
+                </div>
+            </div>
+
+            <!-- Council Information -->
+            <div id="council-module" style="margin-bottom: 20px; padding:10px; border: 1px solid #cec;">
+                <h3>CritterCraft Council (`pallet-collective`)</h3>
+                <div id="council-members">
+                    <h4>Current Council Members</h4>
+                    <ul id="council-members-list">
+                        <p id="council-members-placeholder">Loading council members...</p>
+                        <!-- Example Member: <li>CouncilMemberAddr1 (IdentityName)</li> -->
+                    </ul>
+                </div>
+                <div id="council-proposals" style="margin-top: 10px;">
+                    <h4>Recent Council Motions/Proposals</h4>
+                    <ul id="council-motions-list">
+                        <p id="council-motions-placeholder">Loading council motions...</p>
+                        <!-- Example Motion: <li>Motion #8: Fast-track Referendum #15 - Passed</li> -->
+                    </ul>
+                </div>
+                <button id="viewCouncilInfoButton">More Council Info (Conceptual)</button>
+            </div>
+
+            <!-- Treasury Information -->
+            <div id="treasury-module" style="padding:10px; border: 1px solid #ecc;">
+                <h3>Ecosystem Treasury (`pallet-treasury`)</h3>
+                <p>Treasury Balance: <span id="treasury-balance">Loading...</span> PTCN</p>
+                <div id="treasury-proposals">
+                    <h4>Active Spending Proposals</h4>
+                    <ul id="treasury-proposals-list">
+                        <p id="treasury-proposals-placeholder">Loading treasury proposals...</p>
+                        <!-- Example Proposal:
+                        <li>
+                            <strong>Proposal #3:</strong> Fund Community Art Contest (ID: TP003)<br>
+                            <em>Proposed by: CouncilMemberAddr1</em><br>
+                            Amount Requested: 5000 PTCN<br>
+                            Beneficiary: CommunityWalletAddr<br>
+                            Status: In Voting / Approved / Awarded<br>
+                            <button class="support-treasury-proposal" data-proposal-id="TP003">Endorse Proposal (Conceptual)</button>
+                        </li>
+                        -->
+                    </ul>
+                </div>
+                <button id="submitTreasuryProposalButton">Submit Treasury Proposal (Conceptual)</button>
+            </div>
+            <p id="governance-action-status" style="margin-top: 15px;"></p>
+    </div>
+
+    <hr>
+    <h2>Network Participation (Staking)</h2>
+    <div id="staking-section">
+            <!-- Existing introductory paragraph if any -->
+
+            <div id="staking-overview-info" style="margin-bottom:15px; padding:10px; background-color:#f0f0f0;">
+                <h4>Network Overview</h4>
+                <p>Current Era: <span id="current-era-info">Loading...</span> (Progress: <span id="era-progress-info">--%</span>, Ends in: <span id="next-era-eta">Calculating...</span>)</p>
+                <p>Current Session: <span id="current-session-info">X</span> of Y (Ends in: <span id="next-session-eta">Calculating...</span>)</p>
+                <p>Total PTCN Staked on Network: <span id="total-network-stake">Loading...</span></p>
+                <p>Active Validators: <span id="active-validator-count">Loading...</span> / <span id="max-validator-count-const">Y</span></p> <!-- Changed ID for clarity -->
+            </div>
+
+            <h3>Your Staking Dashboard</h3>
+            <div id="my-staking-info" style="margin-bottom:15px; padding:10px; border: 1px solid #ddd;">
+                <p>Total Staked: <span id="my-staked-amount">Loading...</span> PTCN</p>
+                <div style="margin-bottom:10px;">
+                    <label for="bond-extra-amount">Bond More PTCN:</label>
+                    <input type="number" id="bond-extra-amount" placeholder="Amount to bond">
+                    <button id="bondExtraButton">Bond Extra</button>
+                </div>
+                <p>My Nominations (<span id="nomination-count-display">0</span>/<span id="max-nominations-const-display">16</span>): <span id="my-nominations-display">Loading...</span> <!-- Changed IDs for clarity -->
+                    <button id="changeNominationsButton">Change/Set Nominations</button>
+                    <button id="chillNominationsButton" style="margin-left:5px;">Stop Nominating (Chill)</button>
+                </p>
+                <div id="nomination-management-area" style="display:none; margin-left:20px; margin-bottom:10px; padding:10px; background-color:#f9f9f9;">
+                    <p><em>Select up to <span id="max-nominations-const-form-display">16</span> validators to nominate:</em></p> <!-- Changed ID -->
+                    <div id="nomination-validator-list-area" style="max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 5px; margin-bottom: 10px;">
+                        <p><em>Validator list for nomination will appear here... (e.g., checkboxes next to validator names)</em></p>
+                    </div>
+                    <button id="submitNewNominationsButton">Submit New Nominations</button>
+                    <button id="cancelNominationChangeButton">Cancel</button>
+                </div>
+
+                <h4>Rewards & Payouts</h4>
+                <p>Estimated Next Payout In (for current era): <span id="next-payout-eta-display">Calculating...</span></p> <!-- Changed ID -->
+                <p>Claimable Payouts (for past eras): <span id="claimable-rewards-display">Querying...</span> <!-- Changed ID -->
+                    <button id="claimPayoutsButton" disabled>Claim All My Payouts</button>
+                </p>
+                <p><small><em>Note: Rewards are typically distributed per validator for each past era. You or anyone can trigger payouts for validators you've nominated if they haven't been paid out yet. Some validators may pay out automatically.</em></small></p>
+                <div id="historical-rewards-list" style="max-height:150px; overflow-y:auto; border:1px solid #eee; padding:5px; margin-bottom:10px;">
+                    <p><em>Historical reward payouts (last 5-10) will appear here...</em></p>
+                    <!-- Example: <li>Era 123 - Validator Alice - Rewarded X PTCN</li> -->
+                </div>
+            </div>
+
+            <div id="unbonding-info" style="padding:10px; border: 1px solid #ddd;">
+                <h4>Manage Unbonding PTCN</h4>
+                <p>Bonding Duration: <span id="bonding-duration-info-display">~X Eras (Y Days)</span></p> <!-- Changed ID -->
+                <div style="margin-bottom:10px;">
+                    <label for="unbond-amount">Amount to Unbond:</label>
+                    <input type="number" id="unbond-amount" placeholder="Amount in PTCN"> <!-- Kept original ID as it's unique -->
+                    <button id="unbondButton">Start Unbonding</button>
+                </div>
+                <h5>Currently Unbonding PTCN:</h5>
+                <ul id="unbonding-chunks-list">
+                    <p id="unbonding-chunks-placeholder">No PTCN currently unbonding.</p>
+                </ul>
+                <div style="margin-bottom:10px;">
+                    <label for="rebond-amount">Rebond Amount (from unbonding):</label>
+                    <input type="number" id="rebond-amount" placeholder="Amount to rebond">
+                    <button id="rebondButton">Rebond This Amount</button>
+                </div>
+                <button id="withdrawUnbondedButton" disabled>Withdraw All Unlockable PTCN</button>
+                <p id="unbond-status"></p>
+                <p style="color:red;"><em>Slashing Warning: Staked PTCN can be slashed if your nominated validators misbehave. Choose validators carefully. <span id="view-slashing-incidents-link" style="text-decoration:underline; cursor:pointer;">View potential slashing incidents.</span></em></p> <!-- Changed ID -->
+            </div>
+
+            <div id="slashing-info-display" style="margin-top:15px; padding:10px; border:1px dashed red; display:none;">
+                <h4>Slashing Incidents Affecting You (Conceptual)</h4>
+                <p><em>If any of your nominated validators were slashed, or if you were slashed as a validator, details would appear here.</em></p>
+            </div>
+            <hr>
+            <h3>Available Validators</h3>
+            <ul id="validator-list"> <!-- Ensured this ul exists for clarity, was implied before -->
+                 <p id="validator-list-placeholder">Loading validator information...</p>
+            </ul>
+            <p id="staking-action-status"></p>
+    </div>
+
+    <hr>
+    <div id="network-info-section">
+        <h3>Network Architecture & Future</h3>
+        <p>CritterChain is designed with future scalability in mind. (See <a href="../../SCALABILITY_PLAN.md" target="_blank">SCALABILITY_PLAN.md</a> for details on our parachain and sharding strategy).</p>
+        <p>Future interoperability with other blockchains is planned. (See <a href="../../INTEROPERABILITY.md" target="_blank">INTEROPERABILITY.md</a> for details on XCM and bridging).</p>
+    </div>
+
+    <hr>
+    <h2>Bridge Assets</h2>
+    <div id="bridge-section">
+        <p>Cross-chain asset bridging is planned for future updates, allowing you to move PTCN and Pet NFTs to other networks.</p>
+        <p><strong>Status:</strong> Coming Soon!</p>
+    </div>
+
+    <hr>
+    <h2>Coming Soon: Advanced Features!</h2>
+    <p><em>(Refer to ADVANCED_FEATURES.md in the project root for more conceptual details.)</em></p>
+    <br>
+
+    <div id="user-shops-placeholder-section">
+        <h3>User Shops</h3>
+        <p>Create your own shop and trade with other players! (Coming in a future update)</p>
+    </div>
+    <br>
+
+    <div id="advanced-jobs-placeholder-section">
+        <h3>Advanced Blockchain Jobs</h3>
+        <p>Take on new roles and contribute to the ecosystem for greater rewards! (Coming in a future update)</p>
+    </div>
+    <br>
+
+    <div id="treasure-hunts-placeholder-section">
+        <h3>Treasure Hunts & Exploration</h3>
+        <p>Embark on exciting adventures and discover rare rewards! (Coming in a future update)</p>
+    </div>
+    <br>
+
+    <div id="minigames-placeholder-section">
+        <h3>Arcade & Mini-Games</h3>
+        <p>Play fun mini-games and compete for prizes! (Coming in a future update)</p>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
