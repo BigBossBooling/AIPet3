@@ -1,48 +1,51 @@
-from pet.pet import Pet
+# prometheus_protocol/core/config.py (Conceptual Path)
+# Centralized configuration for CritterCraft MVP.
 
-def main():
-    print("Welcome to Virtual Pet!")
-    pet_name = input("What would you like to name your pet? ")
-    pet_species = input(f"What species is {pet_name}? (e.g., cat, dog, dragon) ")
+from typing import Dict, Any
 
-    player_pet = Pet(name=pet_name, species=pet_species)
-    print(f"\nCongratulations! You've adopted {player_pet.name} the {player_pet.species}.")
-    player_pet.status()
+# --- Pet Core Attributes ---
+MAX_STAT: int = 100
+STAT_DECAY_RATE: int = 2        # Hunger/Energy decay per game tick
+HAPPINESS_DECAY_RATE: int = 3   # Happiness decay per game tick
+MOOD_THRESHOLD_HAPPY: int = 70  # Happiness above this is 'Happy'
+MOOD_THRESHOLD_SAD: int = 30    # Happiness below this is 'Sad'
 
-    while True:
-        print("\nWhat would you like to do?")
-        print("1. Feed")
-        print("2. Play")
-        print("3. Check status")
-        print("4. Do nothing (let time pass)")
-        print("5. Exit")
+# --- Game Loop & Persistence ---
+GAME_INTERVAL_SECONDS: int = 7 # How often the pet's state ticks (e.g., hunger increases)
+LOCAL_STORAGE_KEY: str = "critterCraftPetMVP_v3" # Key for local persistence (increment version for new state structures)
 
-        choice = input("Enter your choice (1-5): ")
+# --- Interaction Values ---
+FEED_HUNGER_RESTORE: int = 20
+PLAY_HAPPINESS_BOOST: int = 25
+PLAY_ENERGY_COST: int = 10
 
-        action_taken = True # Assume an action will lead to a tick by default
-        if choice == '1':
-            player_pet.feed()
-        elif choice == '2':
-            player_pet.play()
-        elif choice == '3':
-            player_pet.status()
-            action_taken = False # Checking status doesn't pass time
-        elif choice == '4':
-            print(f"You decided to do nothing with {player_pet.name}.")
-            # Tick will be called, action_taken remains true
-        elif choice == '5':
-            print(f"Goodbye! Hope you and {player_pet.name} had fun!")
-            break
-        else:
-            print("Invalid choice. Please enter a number between 1 and 5.")
-            action_taken = False # Invalid choice doesn't pass time
+# --- Pet Archetype & Aura Definitions (Conceptual, for future modularity) ---
+# In a real app, these would come from a database or asset bundle
+PET_ARCHETYPES: Dict[str, Dict[str, Any]] = {
+    "sprite_glow": {"display_name": "Glow Sprite", "base_mood": "Curious", "base_stats": {"strength": 50, "agility": 60}},
+    "sprite_crystal": {"display_name": "Crystal Sprite", "base_mood": "Calm", "base_stats": {"strength": 40, "agility": 70}},
+    "sprite_bio": {"display_name": "Bio-Lume", "base_mood": "Playful", "base_stats": {"strength": 55, "agility": 55}},
+}
 
-        # Call tick if an action was taken that should result in time passing
-        if action_taken:
-             print("A moment passes...")
-             player_pet.tick()
-             # Display a brief update after tick
-             print(f"{player_pet.name}'s mood is now {player_pet.mood}, Hunger: {player_pet.hunger}/100, Energy: {player_pet.energy}/100.")
+PET_AURA_COLORS: Dict[str, str] = {
+    "aura-blue": "#00aaff",
+    "aura-green": "#00cc88",
+    "aura-pink": "#ff66aa",
+    "aura-gold": "#ffcc00",
+}
 
-if __name__ == "__main__":
-    main()
+# --- AI Integration (Conceptual Placeholders) ---
+# For future integration with Gemini, etc.
+AI_PERSONALITY_TRAITS: Dict[str, Any] = {
+    "playfulness": {"min": 0, "max": 100, "default": 50},
+    "curiosity": {"min": 0, "max": 100, "default": 50},
+    # ... other conceptual traits
+}
+
+# --- Blockchain Migration (Conceptual) ---
+MIGRATION_READINESS_THRESHOLDS: Dict[str, int] = {
+    "min_happiness": 60,
+    "min_hunger": 40, # Not too hungry
+    "min_energy": 30,
+    "min_interactions": 10, # Needs some history
+}
