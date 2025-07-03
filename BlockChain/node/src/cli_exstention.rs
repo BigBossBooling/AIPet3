@@ -1,152 +1,225 @@
-//! CritterChain Node CLI Extensions
+//! CritterChain Node CLI Extensions: The Architect's Toolkit
 //!
-//! This module defines custom command-line utilities and subcommands for CritterChain.
-//! These tools enable node operators and developers to perform specific operational,
-//! debugging, and administrative tasks beyond standard Substrate CLI commands.
+//! # Strategic Vision
 //!
-//! Meticulously crafted to align with The Architect's vision for
-//! modularity, scalability, and robust operation of the CritterCraft digital ecosystem.
+//! This module defines the command-line interface for CritterChain, applying the
+//! Expanded KISS Principle to create a tool that is both powerful and clear. It
+//! separates standard node operations from a dedicated suite of custom,
+//! game-specific utilities designed for administration, debugging, and ecosystem management.
+//!
+//! This is the primary interface for node operators and the core development team
+//! to interact with and maintain the Critter-Craft Universe at its deepest level.
 
-#![warn(missing_docs)] // Ensure all public API are documented
+#![warn(missing_docs)]
 
-use clap::{Parser, Subcommand}; // CLI argument parsing traits
-use sc_cli::{CliConfiguration, RunCmd, SubstrateCli}; // Standard Substrate CLI components
-use std::fmt::Debug; // For Debug trait derivation
-use std::path::PathBuf; // For file path arguments
+use clap::{Parser, Subcommand};
+use sc_cli::{CliConfiguration, RunCmd, SubstrateCli};
+use std::path::PathBuf;
+use crate::chain_spec; // Assuming chain_spec is in the same crate root
 
-/// The main CLI struct for CritterChain, extending standard Substrate CLI.
-/// This struct acts as the top-level command for all node operations.
+/// The main CLI entry point for the CritterChain node.
 #[derive(Debug, Parser)]
-#[clap(name = "CritterChain Node")] // The main executable name
-#[clap(version = env!("CARGO_PKG_VERSION"))] // Use Cargo.toml version
-#[clap(about = "CritterChain: A next-generation blockchain for digital pets and games.", long_about = None)] // Description from Cargo.toml or custom
-#[clap(author = env!("CARGO_PKG_AUTHORS"))] // Authors from Cargo.toml
+#[clap(
+    name = "CritterChain Node",
+    version = env!("CARGO_PKG_VERSION"),
+    author = env!("CARGO_PKG_AUTHORS"),
+    about = "The core node for the Critter-Craft digital ecosystem."
+)]
 pub struct Cli {
-    #[clap(subcommand)]
-    pub subcommand: Option<Subcommand>, // Use the unified `Subcommand` enum
+    #[command(subcommand)]
+    /// The subcommand to execute.
+    pub subcommand: Option<Subcommand>,
 
-    #[clap(flatten)]
-    pub run: RunCmd, // Standard Substrate `run` command
+    #[command(flatten)]
+    /// Standard node running options.
+    pub run: RunCmd,
 }
 
-/// A unified enum for all Substrate's default subcommands and our custom ones.
-/// This centralizes all CLI functionality into a single entry point.
+/// A unified enum for all available subcommands.
+/// It cleanly separates standard Substrate tools from our custom `critter-admin` suite.
 #[derive(Debug, Subcommand)]
 pub enum Subcommand {
-    /// Standard key management CLI utilities.
+    /// Standard key management utilities.
     #[command(flatten)]
     Key(sc_cli::KeySubcommand),
+
     /// Build a chain specification.
     #[command(flatten)]
     BuildSpec(sc_cli::BuildSpecCmd),
+
     /// Validate blocks.
     #[command(flatten)]
     CheckBlock(sc_cli::CheckBlockCmd),
+
     /// Export blocks.
     #[command(flatten)]
     ExportBlocks(sc_cli::ExportBlocksCmd),
-    /// Export the state of a genesis block.
-    #[command(flatten)]
-    ExportState(sc_cli::ExportStateCmd),
-    /// Import blocks.
-    #[command(flatten)]
-    ImportBlocks(sc_cli::ImportBlocksCmd),
-    /// Remove the whole chain.
-    #[command(flatten)]
-    PurgeChain(sc_cli::PurgeChainCmd),
-    /// Revert the chain to a previous state.
-    #[command(flatten)]
-    Revert(sc_cli::RevertCmd),
-    /// Sub-commands concerned with benchmarking.
-    #[command(flatten)]
-    Benchmark(frame_benchmarking_cli::BenchmarkCmd),
-    /// Try some command against runtime state.
-    #[command(flatten)]
-    TryRuntime(sc_cli::TryRuntimeCmd),
-    /// Db subcommands.
+
+    /// Database management commands.
     #[command(flatten)]
     Db(sc_cli::DbCmd),
 
-    // --- CritterChain Custom Subcommands ---
-    /// Example: Manipulate genesis data for CritterChain.
-    /// This could be used for specific testnet setups or debugging.
-    #[command(name = "genesis-tool", about = "Custom utility for genesis manipulation.")]
-    GenesisTool {
-        /// Path to the genesis file to operate on.
-        #[clap(long, value_name = "FILE")]
-        file: PathBuf, // Use PathBuf for file paths
-        /// Optional: New output file for modified genesis.
-        #[clap(long, value_name = "OUTPUT_FILE")]
-        output: Option<PathBuf>,
-        // Add more specific options for the genesis tool
-    },
+    /// Import blocks.
+    #[command(flatten)]
+    ImportBlocks(sc_cli::ImportBlocksCmd),
 
-    /// Example: Perform a custom runtime upgrade.
-    /// This would typically involve submitting an unsigned extrinsic for a `set_code` call.
-    #[command(name = "custom-upgrade", about = "Perform a custom runtime upgrade via WASM blob.")]
-    CustomUpgrade {
-        /// Path to the new runtime Wasm blob.
-        #[clap(long, value_name = "WASM_FILE")]
-        wasm: PathBuf, // Use PathBuf for file paths
-        /// Sudo key URI to sign the upgrade extrinsic (e.g., //Alice).
-        #[clap(long, value_name = "SUDO_URI")]
-        sudo_key: String,
-        /// RPC endpoint to connect to (e.g., ws://127.0.0.1:9944).
-        #[clap(long, value_name = "RPC_URL")]
-        rpc_url: String,
-    },
+    /// Remove the whole chain.
+    #[command(flatten)]
+    PurgeChain(sc_cli::PurgeChainCmd),
 
-    // Add more custom subcommands as needed for CritterChain specific operations.
-    // E.g., `set-pet-dna`, `admin-mint-critter`, `query-marketplace` (if not exposed via RPC)
-    // #[command(name = "admin-mint-critter", about = "Admin utility to mint a new critter to an account.")]
-    // AdminMintCritter {
-    //     #[clap(long, value_name = "ACCOUNT_ID")]
-    //     to: String,
-    //     #[clap(long, value_name = "SPECIES")]
-    //     species: String,
-    //     #[clap(long, value_name = "NAME")]
-    //     name: String,
-    // },
+    /// Revert the chain to a previous state.
+    #[command(flatten)]
+    Revert(sc_cli::RevertCmd),
+
+    /// Sub-commands concerned with benchmarking.
+    #[command(flatten)]
+    Benchmark(frame_benchmarking_cli::BenchmarkCmd),
+
+    /// Try-runtime utilities.
+    #[command(flatten)]
+    TryRuntime(sc_cli::TryRuntimeCmd),
+
+    /// (K) A dedicated suite of custom commands for managing the Critter-Craft ecosystem.
+    #[command(subcommand, name = "critter-admin", about = "Critter-Craft specific administration and debugging tools.")]
+    CritterAdmin(CritterAdminCmds),
 }
 
-/// Implement the `SubstrateCli` trait for our custom `Cli` struct.
-/// This provides the meta-information about the CLI application.
+/// (S) Defines the set of custom commands for Critter-Craft administration.
+/// Each variant is a self-contained command struct with its own logic.
+#[derive(Debug, Subcommand)]
+pub enum CritterAdminCmds {
+    /// (I) Mint a new Genesis Pet NFT to a specified account. Requires Sudo privileges.
+    AdminMint(AdminMintCmd),
+
+    /// (I) A powerful debugging tool to query raw storage values from a live node.
+    QueryStorage(QueryStorageCmd),
+
+    /// (S) Validate a new runtime WASM blob before submitting a `set_code` upgrade.
+    ValidateRuntime(ValidateRuntimeCmd),
+}
+
+/// Command to mint a new Genesis Pet.
+#[derive(Debug, Parser)]
+pub struct AdminMintCmd {
+    /// The AccountId (in SS58 format) of the new owner.
+    #[arg(long)]
+    pub owner: String,
+
+    /// The species archetype key (e.g., 'sprite_glow').
+    #[arg(long)]
+    pub species: String,
+
+    /// The aura color key (e.g., 'aura-blue').
+    #[arg(long)]
+    pub aura: String,
+
+    #[command(flatten)]
+    pub run_cmd: RunCmd, // Reuse run command for node connection details
+}
+
+/// Command to query on-chain storage.
+#[derive(Debug, Parser)]
+pub struct QueryStorageCmd {
+    /// The hexadecimal key of the storage item to query.
+    pub key: String,
+
+    #[command(flatten)]
+    pub run_cmd: RunCmd,
+}
+
+/// Command to validate a runtime WASM file.
+#[derive(Debug, Parser)]
+pub struct ValidateRuntimeCmd {
+    /// The file path to the runtime WASM blob.
+    pub wasm_path: PathBuf,
+}
+
+// --- Command Execution Logic (S - Systematize for Scalability) ---
+
+impl CritterAdminCmds {
+    /// Runs the selected admin command. This systematizes execution.
+    pub fn run(&self) -> sc_cli::Result<()> {
+        match self {
+            CritterAdminCmds::AdminMint(cmd) => cmd.run(),
+            CritterAdminCmds::QueryStorage(cmd) => cmd.run(),
+            CritterAdminCmds::ValidateRuntime(cmd) => cmd.run(),
+        }
+    }
+}
+
+impl AdminMintCmd {
+    /// Executes the logic for minting a pet.
+    fn run(&self) -> sc_cli::Result<()> {
+        println!("Connecting to node to execute admin-mint...");
+        println!("  Owner: {}", self.owner);
+        println!("  Species: {}", self.species);
+        println!("  Aura: {}", self.aura);
+        // In a real implementation, this would connect to the node via RPC,
+        // construct an `unsubmittable_extrinsic`, and submit it with the
+        // appropriate sudo key.
+        println!("✅ (Simulation) Extrinsic to mint pet has been submitted.");
+        Ok(())
+    }
+}
+
+impl QueryStorageCmd {
+    /// Executes the logic for querying storage.
+    fn run(&self) -> sc_cli::Result<()> {
+        println!("Connecting to node to query storage...");
+        println!("  Storage Key: {}", self.key);
+        // In a real implementation, this would use an RPC client to call
+        // `state_getStorage` with the provided key.
+        println!("✅ (Simulation) Query successful. Value: 0x... (data placeholder)");
+        Ok(())
+    }
+}
+
+impl ValidateRuntimeCmd {
+    /// Executes the logic for validating a WASM blob.
+    fn run(&self) -> sc_cli::Result<()> {
+        println!("Validating runtime at: {:?}", self.wasm_path);
+        // In a real implementation, this would load the WASM file and perform
+        // checks, such as verifying its metadata and API versions.
+        if !self.wasm_path.exists() {
+            return Err("WASM file not found at the specified path.".into());
+        }
+        println!("✅ (Simulation) Runtime WASM appears valid and well-formed.");
+        Ok(())
+    }
+}
+
+// --- Substrate CLI Trait Implementation ---
+
 impl SubstrateCli for Cli {
-    /// The name of the implementation (e.g., "CritterChain Node").
-    fn impl_name() -> &'static str {
-        "CritterChain Node"
+    fn impl_name() -> String {
+        "CritterChain Node".into()
     }
-    /// The version of the implementation (read from Cargo.toml).
-    fn impl_version() -> &'static str {
-        env!("CARGO_PKG_VERSION")
-    }
-    /// A short description of the CLI application.
-    fn description() -> &'static str {
-        "CritterChain: A next-generation blockchain for digital pets and games."
-    }
-    /// The author(s) of the implementation (read from Cargo.toml).
-    fn author() -> &'static str {
-        env!("CARGO_PKG_AUTHORS")
-    }
-    /// The support URL for the project.
-    fn support_url() -> &'static str {
-        "https://github.com/BigBossBooling/AIPet3" // Updated to actual GitHub repo
-    }
-    /// The year copyright began.
-    fn copyright_start_year() -> i32 {
-        2024 // Updated to 2024 for project year
-    }
-    // No need to implement `chain_spec` here if it's handled in `main.rs` directly
-    // or by custom `build_chain_spec` in the `service` module.
-    // Also `chain_spec` requires `ChainSpec` trait, so direct impl is for basic CLI.
 
-    /// Get a run command instance from the top-level `Cli` struct.
-    fn run_cmd(&self) -> &RunCmd {
-        &self.run
+    fn impl_version() -> String {
+        env!("CARGO_PKG_VERSION").into()
     }
-}
-    /// Get the configuration for the CLI application.
-    fn cli_configuration(&self) -> &dyn CliConfiguration {
-        &self.run
+
+    fn description() -> String {
+        "CritterChain: A next-generation blockchain for digital pets and games.".into()
+    }
+
+    fn author() -> String {
+        env!("CARGO_PKG_AUTHORS").into()
+    }
+
+    fn support_url() -> String {
+        "https://github.com/BigBossBooling/AIPet3".into()
+    }
+
+    fn copyright_start_year() -> i32 {
+        2024
+    }
+
+    fn load_spec(&self, id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
+        Ok(match id {
+            "dev" => Box::new(chain_spec::development_config()?),
+            "" | "local" => Box::new(chain_spec::local_testnet_config()?),
+            path => Box::new(chain_spec::GenericChainSpec::from_json_file(path.into())?),
+        })
     }
 }

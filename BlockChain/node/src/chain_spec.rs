@@ -96,6 +96,11 @@ use critterchain_runtime::{
     pallet_breeding::GenesisConfig as BreedingConfig, // Assuming a pallet for breeding
     pallet_battles::GenesisConfig as BattlesConfig, // Assuming a pallet for battles
     
+    // --- New Governance and Blockchain Functionality Pallets ---
+    pallet_critter_governance::GenesisConfig as GovernanceConfig,
+    pallet_critter_node_rewards::GenesisConfig as NodeRewardsConfig,
+    pallet_critter_treasury::GenesisConfig as TreasuryConfig,
+    
     // The aggregate RuntimeGenesisConfig for the runtime
     RuntimeGenesisConfig,
     // The compiled Wasm blob of the runtime (usually from `build.rs` or `#[no_link]` attribute)
@@ -257,6 +262,26 @@ fn critterchain_properties() -> sc_service::Properties {
                 (1, b"Craft your first Healing Salve".to_vec()),
             ],
             ..Default::default()
+        };
+        
+        // Initialize governance with default parameters
+        self.config.governance = GovernanceConfig {
+            voting_period: 50400, // ~1 week at 12-second blocks
+            proposal_bond: 1000,
+            voting_bond: 100,
+            min_proposal_deposit: 100,
+            ..Default::default()
+        };
+        
+        // Initialize node rewards with default parameters
+        self.config.node_rewards = NodeRewardsConfig {
+            reward_parameters: Default::default(),
+        };
+        
+        // Initialize treasury with default parameters and initial funds
+        self.config.treasury = TreasuryConfig {
+            treasury_params: Default::default(),
+            initial_balance: 1_000_000,
         };
 
         self
