@@ -202,6 +202,7 @@ INTERACTION_EFFECTS = {
         'happiness': 8,
         'energy': -5, # Chatting costs minimal energy
         'social': 10,
+        'charisma': 2, # Chatting improves charisma
         'min_energy_cost': 5, # Minimum energy required to engage in chat
         'messages': {
             'success': "{pet_name} chirps thoughtfully in response to your words.",
@@ -263,49 +264,9 @@ STATUS_ALERTS = {
 # --- Pet Archetypes (Species Definitions) ---
 # ==============================================================================
 
-# Update GenesisPetConfig with archetypes
-GenesisPetConfig.Archetypes = type('Archetypes', (), {})
-GenesisPetConfig.Archetypes.DEFINITIONS = {
-    'sprite_glow': {
-        'display_name': 'Glowing Sprite',
-        'description': 'A luminous, ethereal creature that radiates gentle light. Often curious and energetic.',
-        'traits': ['curious', 'playful', 'energetic'],
-        'rarity': 'Common',
-        'stat_modifiers': {Stat.ENERGY: 10, Stat.IQ: 5}, # Start with more energy and intelligence
-    },
-    'sprite_crystal': {
-        'display_name': 'Crystal Sprite',
-        'description': 'A crystalline entity with a faceted body that refracts light beautifully. Calm and patient.',
-        'traits': ['calm', 'wise', 'patient'],
-        'rarity': 'Uncommon',
-        'stat_modifiers': {Stat.HAPPINESS: 5, Stat.SOCIAL: -10}, # Slightly happier, less social
-    },
-    'sprite_shadow': {
-        'display_name': 'Shadow Sprite',
-        'description': 'A mysterious being composed of shifting shadows and dark energy. Independent and observant.',
-        'traits': ['mysterious', 'independent', 'observant'],
-        'rarity': 'Rare',
-        'stat_modifiers': {Stat.SOCIAL: -20, Stat.CHARISMA: 10}, # Very independent, charming in a dark way
-        'decay_modifiers': {Stat.SOCIAL: -0.2}, # Social stat decays 20% slower
-    },
-    'sprite_ember': {
-        'display_name': 'Ember Sprite',
-        'description': 'A warm, fiery creature with a passionate spirit. Brave and protective.',
-        'traits': ['passionate', 'brave', 'protective'],
-        'rarity': 'Uncommon',
-        'stat_modifiers': {Stat.ENERGY: 20, Stat.HAPPINESS: -5}, # More energetic, slightly moodier
-        'decay_modifiers': {Stat.ENERGY: -0.1} # Energy decays 10% slower
-    },
-    'sprite_aqua': {
-        'display_name': 'Aqua Sprite',
-        'description': 'A fluid, water-like being that flows with grace and adaptability. Peaceful and creative.',
-        'traits': ['adaptable', 'peaceful', 'creative'],
-        'rarity': 'Uncommon',
-        'stat_modifiers': {Stat.CLEANLINESS: 10, Stat.IQ: 5}, # Naturally cleaner and smarter
-    }
-}
-
-# For backward compatibility
+# Defines distinct pet species with their unique characteristics and starting stat modifiers.
+# `base_stats_modifier`: Changes to DEFAULT_INITIAL_PET_STATS.
+# `trait_modifiers`: Future concept for affecting stat decay/gain or interaction outcomes.
 PET_ARCHETYPES = {
     'sprite_glow': {
         'display_name': 'Glowing Sprite',
@@ -313,7 +274,9 @@ PET_ARCHETYPES = {
         'traits': ['curious', 'playful', 'energetic'],
         'rarity': 'Common',
         'base_stats_modifier': {'energy': 10, 'iq': 5}, # Start with more energy and intelligence
-        'aura_effect_modifier': {'energy': 0.1, 'happiness': 0.05}, # Aura effects are 10% more potent for this species
+        'aura_effect_modifier': {'energy': 0.1, 'happiness': 0.05},,, # Aura effects are 10% more potent for this species
+        'aging_rate': 6  # Ages 6x faster than humans after first year
+        'aging_rate': 6  # Ages 6x faster than humans after first year
         'aging_rate': 6  # Ages 6x faster than humans after first year
     },
     'sprite_crystal': {
@@ -322,7 +285,9 @@ PET_ARCHETYPES = {
         'traits': ['calm', 'wise', 'patient'],
         'rarity': 'Uncommon',
         'base_stats_modifier': {'happiness': 5, 'social': -10}, # Slightly happier, less social
-        'trait_modifiers': {'playfulness': -0.1, 'curiosity': 0.05}, # 10% less playful, 5% more curious over time
+        'trait_modifiers': {'playfulness': -0.1, 'curiosity': 0.05},,, # 10% less playful, 5% more curious over time
+        'aging_rate': 4  # Ages 4x faster than humans after first year
+        'aging_rate': 4  # Ages 4x faster than humans after first year
         'aging_rate': 4  # Ages 4x faster than humans after first year
     },
     'sprite_shadow': {
@@ -357,42 +322,8 @@ PET_ARCHETYPES = {
 # --- Pet Aura Colors & Effects ---
 # ==============================================================================
 
-# Update GenesisPetConfig with auras
-GenesisPetConfig.Auras = type('Auras', (), {})
-GenesisPetConfig.Auras.DEFINITIONS = {
-    'aura-blue': {
-        'display_name': 'Sapphire Blue',
-        'description': 'A calming blue aura that soothes the mind.',
-        'effect': 'Increases wisdom and patience.',
-        'stat_boosts': {Stat.IQ: 0.05, Stat.HAPPINESS: 0.02}, # 5% IQ boost, 2% happiness boost
-    },
-    'aura-gold': {
-        'display_name': 'Radiant Gold',
-        'description': 'A brilliant golden aura that inspires confidence.',
-        'effect': 'Boosts charisma and leadership.',
-        'stat_boosts': {Stat.CHARISMA: 0.10, Stat.SOCIAL: 0.05},
-    },
-    'aura-green': {
-        'display_name': 'Emerald Green',
-        'description': 'A nurturing green aura connected to growth and healing.',
-        'effect': 'Enhances growth and recovery rates.',
-        'stat_boosts': {Stat.ENERGY: 0.03, Stat.CLEANLINESS: 0.05},
-    },
-    'aura-purple': {
-        'display_name': 'Mystic Purple',
-        'description': 'A mysterious purple aura linked to psychic abilities.',
-        'effect': 'Improves intuition and perception.',
-        'stat_boosts': {Stat.IQ: 0.08, Stat.SOCIAL: -0.01}, # IQ boost, slight social reduction
-    },
-    'aura-red': {
-        'display_name': 'Passionate Red',
-        'description': 'An energetic red aura full of vitality.',
-        'effect': 'Increases energy and determination.',
-        'stat_boosts': {Stat.ENERGY: 0.12},
-    }
-}
-
-# For backward compatibility
+# Defines different aura colors and their passive effects on pet stats.
+# Effects are applied as a percentage boost or direct modification.
 PET_AURA_COLORS = {
     'aura-blue': {
         'display_name': 'Sapphire Blue',
@@ -434,13 +365,8 @@ PET_AURA_COLORS = {
 # --- AI Personality Traits (for EchoSphere integration) ---
 # ==============================================================================
 
-# Update GenesisPetConfig with personality traits
-GenesisPetConfig.Personality = type('Personality', (), {})
-GenesisPetConfig.Personality.TRAITS = {
-    trait: {'min': 0, 'max': 100, 'default': 50} for trait in PersonalityTrait
-}
-
-# For backward compatibility
+# Defines base personality dimensions for AI interaction,
+# likely to be mapped to LLM parameters or conversation style.
 AI_PERSONALITY_TRAITS = {
     'playfulness': {
         'description': 'Influences the pet\'s playful and energetic responses.',
@@ -479,16 +405,8 @@ AI_PERSONALITY_TRAITS = {
 # --- Progression & Migration Thresholds ---
 # ==============================================================================
 
-# Update GenesisPetConfig with migration readiness thresholds
-GenesisPetConfig.Progression = type('Progression', (), {})
-GenesisPetConfig.Progression.MIGRATION_READINESS = {
-    'min_stats': {Stat.HAPPINESS: 75, Stat.ENERGY: 65, Stat.IQ: 20, Stat.CHARISMA: 15},
-    'max_stats': {Stat.HUNGER: 25},
-    'min_interactions': 30,
-    'min_days_owned': 7
-}
-
-# For backward compatibility
+# Defines the conditions a pet must meet to be considered "ready" for blockchain migration.
+# This could represent a transition from local prototype to a persistent, NFT-like asset.
 MIGRATION_READINESS_THRESHOLDS = {
     'min_happiness': 75,
     'min_energy': 65,
@@ -510,78 +428,6 @@ ALL_PET_STATS = list(DEFAULT_INITIAL_PET_STATS.keys())
 for stat in ALL_PET_STATS:
     if stat not in DECAY_RATES:
         DECAY_RATES[stat] = 0 # Default to no decay if not explicitly defined
-
-# ==============================================================================
-# --- CONVERSATION CONFIGURATION ---
-# ==============================================================================
-
-CONVERSATION_TOPICS_CONFIG = {
-    Topic.GREETING: {'keywords': ['hello', 'hi', 'hey'], 'importance': 3},
-    Topic.WELL_BEING: {'keywords': ['how are you', 'feeling'], 'importance': 3},
-    Topic.PLAY: {'keywords': ['play', 'game', 'fun'], 'importance': 2},
-    Topic.FOOD: {'keywords': ['food', 'hungry', 'eat'], 'importance': 2},
-    Topic.LEARNING: {'keywords': ['learn', 'teach', 'knowledge'], 'importance': 2},
-    Topic.COMPLIMENT: {'keywords': ['good job', 'well done', 'great'], 'importance': 3},
-    Topic.ENVIRONMENT: {'keywords': ['weather', 'outside', 'nature'], 'importance': 2},
-    Topic.ADVENTURE: {'keywords': ['explore', 'adventure', 'journey'], 'importance': 1},
-    Topic.FRIENDSHIP: {'keywords': ['friend', 'buddy', 'pal'], 'importance': 3},
-    Topic.EMOTIONS: {'keywords': ['happy', 'sad', 'angry'], 'importance': 3},
-}
-
-MOOD_RESPONSE_MODIFIERS = {
-    Mood.ECSTATIC: "Your pet is thrilled and ready for anything!",
-    Mood.HAPPY: "Your pet seems cheerful and playful.",
-    Mood.NEUTRAL: "Your pet is calm and relaxed.",
-    Mood.GRUMPY: "Your pet is not in the best mood; approach with care.",
-    Mood.SAD: "Your pet seems a bit down; maybe some playtime will help.",
-    Mood.MISERABLE: "Your pet is feeling very low; comfort it gently.",
-    Mood.ANXIOUS: "Your pet appears uneasy; try to reassure it.",
-    Mood.EXCITED: "Your pet is buzzing with energy!",
-    Mood.BORED: "Your pet looks like it needs something fun to do.",
-    Mood.FRUSTRATED: "Your pet is feeling annoyed; give it some space.",
-    Mood.CONTENT: "Your pet is satisfied and enjoying the moment.",
-}
-
-PERSONALITY_RESPONSE_MODIFIERS = {
-    PersonalityTrait.PLAYFULNESS: "Your pet loves to play and will enjoy games.",
-    PersonalityTrait.CURIOSITY: "Your pet is eager to explore new things.",
-    PersonalityTrait.SOCIABILITY: "Your pet enjoys being around others.",
-    PersonalityTrait.INDEPENDENCE: "Your pet likes to do things on its own.",
-    PersonalityTrait.LOYALTY: "Your pet is very loyal and protective.",
-    PersonalityTrait.ADVENTUROUSNESS: "Your pet is always up for an adventure!",
-    PersonalityTrait.INTELLIGENCE: "Your pet can solve problems quickly.",
-    PersonalityTrait.EMPATHY: "Your pet understands your feelings well.",
-    PersonalityTrait.CALMNESS: "Your pet remains composed in stressful situations.",
-    PersonalityTrait.STUBBORNNESS: "Your pet can be quite headstrong at times.",
-}
-
-# ==============================================================================
-# --- CONFIGURATION VALIDATION ---
-# ==============================================================================
-def _validate_config():
-    """(I) Internal function to validate configuration consistency on import."""
-    all_stats = set(Stat)
-    
-    # Validate that all stat keys in the config are valid Stat Enum members
-    for data in GenesisPetConfig.Archetypes.DEFINITIONS.values():
-        for stat_key in data.get('stat_modifiers', {}):
-            if stat_key not in all_stats:
-                raise ValueError(f"Invalid stat key: {stat_key}")
-    
-    # Validate aura definitions
-    for data in GenesisPetConfig.Auras.DEFINITIONS.values():
-        for stat_key in data.get('stat_boosts', {}):
-            if stat_key not in all_stats:
-                raise ValueError(f"Invalid stat key: {stat_key}")
-    
-    # Validate interaction effects
-    for interaction, effects in GenesisPetConfig.Interactions.EFFECTS.items():
-        for stat_key in effects.get('stat_changes', {}):
-            if stat_key not in all_stats:
-                raise ValueError(f"Invalid stat key: {stat_key} in {interaction}")
-
-# Run validation on import
-_validate_config()
 
 # ==============================================================================
 # --- Critter-Craft: Animal-Inspired Critters ---
@@ -722,6 +568,22 @@ ADAPTATIONS = {
         'examples': ['mole claws', 'gecko feet', 'penguin flippers'],
         'simulation_effect': 'Enhances mobility in specific environments'
     }
+}
+
+# ==============================================================================
+# --- Progression & Migration Thresholds ---
+# ==============================================================================
+
+# Defines the conditions a pet must meet to be considered "ready" for blockchain migration.
+# This could represent a transition from local prototype to a persistent, NFT-like asset.
+MIGRATION_READINESS_THRESHOLDS = {
+    'min_happiness': 75,
+    'min_energy': 65,
+    'max_hunger': 25,
+    'min_interactions': 30,  # Minimum number of successful interactions
+    'min_days_owned': 7,     # Minimum days of actual ownership (real-world time)
+    'min_iq': 20,            # New: Minimum intelligence
+    'min_charisma': 15,      # New: Minimum charisma
 }
 
 # ==============================================================================
