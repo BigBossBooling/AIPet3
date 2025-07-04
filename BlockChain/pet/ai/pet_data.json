@@ -1,0 +1,20 @@
+{
+    "name": "JimmyBob",
+    "species": "sprite_shadow",
+    "aura_color": "aura-purple",
+    "id": "0e71de53-e64e-42e9-ab25-f86af51d73e9",
+    "hunger": 50,
+    "happiness": 50,
+    "energy": 50,
+    "mood": "Neutral",
+    "personality_traits": {
+        "playfulness": 50,
+        "curiosity": 50,
+        "sociability": 50,
+        "independence": 50,
+        "loyalty": 50
+    },
+    "creation_timestamp": 1751043178150628566,
+    "last_active_timestamp": 1751043178150631372,
+    "interaction_history": []
+}
