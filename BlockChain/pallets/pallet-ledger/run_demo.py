@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script to run the Dual-Layer Economy System demo.
+Script to run the Zoologist's Ledger demo.
 """
 
 import sys

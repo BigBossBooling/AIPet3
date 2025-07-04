@@ -1,0 +1,74 @@
+# [package] - The crate's identity and metadata.
+# This section is enhanced with keywords and categories for better discoverability
+# and professionalism, aligning with a high-quality open-source project.
+[package]
+name = "crittercraft-traits"
+version = "0.1.0"
+edition = "2021"
+authors = ["The CritterCraft Architects <dev@crittercraft.io>"]
+description = "A clear, modular, and robust set of shared traits for the CritterCraft blockchain ecosystem."
+license = "Apache-2.0"
+homepage = "https://github.com/BigBossBooling/AIPet3"
+repository = "https://github.com/BigBossBooling/AIPet3"
+readme = "README.md"
+keywords = ["substrate", "blockchain", "nft", "gaming", "crittercraft"]
+categories = ["blockchain", "no-std", "game-development"]
+
+# [lib] - Specifies that this crate is a library.
+[lib]
+name = "crittercraft_traits"
+crate-type = ["rlib"]
+
+# [dependencies] - (K) Core dependencies, clearly grouped by function.
+# The `default-features = false` flag is CRITICAL for ensuring `no_std`
+# compatibility, which is required for code that runs in the Substrate runtime.
+[dependencies]
+# Substrate FRAME Pallets
+frame-support = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" }
+frame-system = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" }
+
+# Substrate Primitives (sp-*)
+sp-runtime = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" }
+sp-core = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" }
+sp-std = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" }
+
+# Serialization and Type Info Utilities
+codec = { package = "parity-scale-codec", version = "3.6.5", default-features = false, features = ["derive"] }
+scale-info = { version = "2.11.1", default-features = false, features = ["derive"] }
+
+# [dev-dependencies] - (S) Dependencies required only for running tests.
+# This systematizes the testing environment, keeping it separate from runtime code.
+[dev-dependencies]
+sp-io = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" }
+
+# [features] - Defines conditional compilation flags.
+# This structure is essential for building a versatile crate that works in both
+# `std` (for testing) and `no_std` (for the runtime) environments.
+[features]
+default = ["std"]
+
+# The `std` feature enables standard library support for off-chain tooling and testing.
+std = [
+    "codec/std",
+    "scale-info/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-runtime/std",
+    "sp-core/std",
+    "sp-std/std",
+    "sp-io/std", # Enable std for dev dependencies as well
+]
+
+# The `runtime-benchmarks` feature is required for benchmarking pallets.
+runtime-benchmarks = [
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+    "sp-runtime/runtime-benchmarks",
+]
+
+# The `try-runtime` feature is required for runtime upgrade checks.
+try-runtime = [
+    "frame-support/try-runtime",
+    "frame-system/try-runtime",
+    "sp-runtime/try-runtime",
+]
