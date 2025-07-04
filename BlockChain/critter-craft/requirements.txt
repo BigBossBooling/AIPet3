@@ -1,11 +1,11 @@
-Flask==2.3.3
+Flask==3.1.1
 Flask-RESTful==0.3.10
 Flask-Cors==4.0.0
 SQLAlchemy==2.0.23
 pytest==7.4.3
 pytest-cov==4.1.0
-requests==2.31.0
-numpy==1.26.1
+requests==2.32.4
+numpy==2.0.2
 pandas==2.1.2
 pydantic==2.5.1
 fastapi==0.104.1
