@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  # Backend service
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend
+    container_name: crittercraft-backend
+    restart: unless-stopped
+    environment:
+      - FLASK_APP=main.py
+      - FLASK_ENV=production
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/crittercraft
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+    volumes:
+      - ./blockchain_core:/app/blockchain_core
+      - ./pet_data:/app/pet_data
+    depends_on:
+      - db
+    networks:
+      - crittercraft-network
+
+  # Frontend service
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: crittercraft-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - crittercraft-network
+
+  # Database service
+  db:
+    image: postgres:15-alpine
+    container_name: crittercraft-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=crittercraft
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - crittercraft-network
+
+  # Blockchain node service
+  blockchain-node:
+    image: parity/substrate:latest
+    container_name: crittercraft-node
+    restart: unless-stopped
+    ports:
+      - "9944:9944"
+    command: --dev --ws-external
+    networks:
+      - crittercraft-network
+
+  # Redis for caching
+  redis:
+    image: redis:alpine
+    container_name: crittercraft-redis
+    restart: unless-stopped
+    networks:
+      - crittercraft-network
+
+volumes:
+  postgres_data:
+
+networks:
+  crittercraft-network:
+    driver: bridge

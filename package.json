@@ -1,0 +1,17 @@
+{
+  "name": "aipet3-jules-wip",
+  "version": "1.0.0",
+  "description": "AIPet3 Jules WIP - Blockchain pet game with advanced features and frontend integration.",
+  "main": "index.js",
+  "scripts": {
+    "start": "vite",
+    "build": "vite build",
+    "dev": "vite",
+    "test": "echo \"No test specified\" && exit 0"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "vite": "^7.0.2"
+  }
+}
