@@ -1,0 +1,111 @@
+# pallets/critter_nfts_pallet/Cargo.toml
+
+[package]
+name = "pallet-critter-nfts" # The name of your pallet crate
+version = "0.1.0"           # Current version, follow SemVer
+edition = "2021"            # Rust edition to use
+
+authors = ["Josephis K. Wade <josephiskwade@example.com>", "CritterCraft Dev Team"] # The Architect and team
+homepage = "https://github.com/BigBossBooling/AIPet3" # Project homepage
+repository = "https://github.com/BigBossBooling/AIPet3" # Git repository URL
+license = "Apache-2.0"      # Or your chosen license (e.g., AGPLv3 for EmPower1, but Apache 2.0 is common for Substrate pallets)
+description = "Substrate pallet for managing CritterCraft Pet NFTs and their lifecycle." # Short description
+readme = "README.md"        # Path to pallet's README
+
+[lib]
+name = "pallet_critter_nfts" # The Rust crate name (snake_case)
+crate-type = ["cdylib", "rlib"] # `cdylib` for WASM, `rlib` for native compilation
+
+[dependencies]
+# Substrate FRAME Dependencies
+# Use consistent versions from your Substrate workspace (e.g., `polkadot-v1.0.0` or `polkadot-sdk-X.Y.Z`).
+# Replace "polkadot-sdk/master" with your specific tag/branch or local path if part of a monorepo.
+# Ensure `default-features = false` for no_std compatibility.
+
+# Core FRAME dependencies for every pallet
+frame-support = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" }
+frame-system = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" }
+sp-runtime = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" }
+sp-core = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" }
+sp-std = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" }
+scale-info = { version = "2.1.1", default-features = false, features = ["derive"] } # For TypeInfo derive
+codec = { package = "parity-scale-codec", version = "3.2.2", default-features = false, features = ["derive"] } # For Encode/Decode derive
+
+# Pallet-specific FRAME dependencies
+pallet-balances = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" }
+pallet-session = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" }
+pallet-staking = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" }
+pallet-babe = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" }
+pallet-grandpa = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" }
+pallet-im-online = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" }
+# For `pallet::log` macro
+frame-support-procedural = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" }
+# For SHA256 hashing
+sp-io = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" }
+# For traits.rs to access constants from runtime (e.g., MaxSpeciesNameLen)
+# You might need to add `frame-support::traits::Get` feature if not enabled by default.
+
+# CritterCraft-specific shared traits (local path within your workspace)
+crittercraft-traits = { default-features = false, path = "../../traits/crittercraft-traits" }
+# Assuming pallet-items is also in a sibling directory to critter_nfts_pallet
+# pallet-items = { default-features = false, path = "../pallet-items" }
+
+
+[dev-dependencies]
+# Dependencies specifically for development and testing (e.g., mock runtime)
+sp-io = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" } # For sp_io::TestRandomness in mock
+sp-core = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" } # For H256 type in mock
+sp-api = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" } # For RuntimeApi in mock
+sp-std = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" } # For Vec in mock
+
+[features]
+default = ["std"] # Default feature for standard library support
+std = [
+    "codec/std",
+    "scale-info/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-runtime/std",
+    "sp-core/std",
+    "sp-std/std",
+    "pallet-balances/std",
+    "pallet-session/std",
+    "pallet-staking/std",
+    "pallet-babe/std",
+    "pallet-grandpa/std",
+    "pallet-im-online/std",
+    "crittercraft-traits/std",
+    "sp-io/std",
+    # "pallet-items/std", # Uncomment if pallet-items is a direct dependency of critter_nfts_pallet
+]
+runtime-benchmarks = [
+    "frame-benchmarking/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+    "sp-runtime/runtime-benchmarks",
+    # Add other pallets for benchmarking context if needed
+    "pallet-balances/runtime-benchmarks",
+    "pallet-session/runtime-benchmarks",
+    "pallet-staking/runtime-benchmarks",
+    "pallet-babe/runtime-benchmarks",
+    "pallet-grandpa/runtime-benchmarks",
+    "pallet-im-online/runtime-benchmarks",
+    "crittercraft-traits/runtime-benchmarks",
+    "sp-io/runtime-benchmarks",
+    # "pallet-items/runtime-benchmarks",
+]
+try-runtime = [
+    "frame-support/try-runtime",
+    "frame-system/try-runtime",
+    "sp-runtime/try-runtime",
+    # Add other pallets for try-runtime context if needed
+    "pallet-balances/try-runtime",
+    "pallet-session/try-runtime",
+    "pallet-staking/try-runtime",
+    "pallet-babe/try-runtime",
+    "pallet-grandpa/try-runtime",
+    "pallet-im-online/try-runtime",
+    "crittercraft-traits/try-runtime",
+    "sp-io/try-runtime",
+    # "pallet-items/try-runtime",
+]

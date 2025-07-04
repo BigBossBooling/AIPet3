@@ -1,0 +1,57 @@
+[package]
+name = "pallet-critter-daycare"
+version = "0.1.0"
+description = "Daycare system pallet for CritterCraft"
+authors = ["CritterCraft Team"]
+edition = "2021"
+license = "MIT"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
+scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
+
+# Substrate dependencies
+frame-benchmarking = { version = "4.0.0-dev", default-features = false, optional = true }
+frame-support = { version = "4.0.0-dev", default-features = false }
+frame-system = { version = "4.0.0-dev", default-features = false }
+sp-runtime = { version = "7.0.0", default-features = false }
+sp-std = { version = "5.0.0", default-features = false }
+sp-io = { version = "7.0.0", default-features = false }
+sp-core = { version = "7.0.0", default-features = false }
+
+# Optional dependencies for testing
+pallet-balances = { version = "4.0.0-dev", default-features = false, optional = true }
+
+[dev-dependencies]
+pallet-balances = { version = "4.0.0-dev" }
+sp-core = { version = "7.0.0" }
+sp-io = { version = "7.0.0" }
+
+[features]
+default = ["std"]
+std = [
+    "codec/std",
+    "scale-info/std",
+    "frame-benchmarking/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-runtime/std",
+    "sp-std/std",
+    "sp-io/std",
+    "sp-core/std",
+    "pallet-balances/std",
+]
+runtime-benchmarks = [
+    "frame-benchmarking/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+    "sp-runtime/runtime-benchmarks",
+]
+try-runtime = [
+    "frame-support/try-runtime",
+    "frame-system/try-runtime",
+    "sp-runtime/try-runtime",
+]

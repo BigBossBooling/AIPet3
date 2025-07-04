@@ -1,0 +1,55 @@
+[package]
+name = "pallet-critter-battle"
+version = "0.1.0"
+edition = "2021"
+authors = ["Josephis K. Wade <josephiskwade@example.com>", "CritterCraft Dev Team"]
+homepage = "https://github.com/BigBossBooling/AIPet3"
+repository = "https://github.com/BigBossBooling/AIPet3"
+license = "Apache-2.0"
+description = "Substrate pallet for CritterCraft pet battles"
+readme = "README.md"
+
+[lib]
+name = "pallet_critter_battle"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Core FRAME dependencies
+frame-support = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" }
+frame-system = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" }
+sp-runtime = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" }
+sp-core = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" }
+sp-std = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" }
+scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "3.2.2", default-features = false, features = ["derive"] }
+
+# CritterCraft-specific shared traits
+crittercraft-traits = { default-features = false, path = "../../traits/crittercraft-traits" }
+
+[dev-dependencies]
+sp-io = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "polkadot-v1.0.0" }
+
+[features]
+default = ["std"]
+std = [
+    "codec/std",
+    "scale-info/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-runtime/std",
+    "sp-core/std",
+    "sp-std/std",
+    "crittercraft-traits/std",
+]
+runtime-benchmarks = [
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+    "sp-runtime/runtime-benchmarks",
+    "crittercraft-traits/runtime-benchmarks",
+]
+try-runtime = [
+    "frame-support/try-runtime",
+    "frame-system/try-runtime",
+    "sp-runtime/try-runtime",
+    "crittercraft-traits/try-runtime",
+]
