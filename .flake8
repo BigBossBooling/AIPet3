@@ -1,0 +1,22 @@
+[flake8]
+ignore =
+    # E203: whitespace before ':' (conflicts with black)
+    E203,
+    # W503: line break before binary operator (conflicts with black)
+    W503,
+    # E501: line too long (black will handle this)
+    E501,
+    # H301, H306: import not sorted (handled by isort, often used with black)
+    H301,
+    H306
+max-line-length = 88
+exclude =
+    .git,
+    __pycache__,
+    build,
+    dist,
+    *.egg-info,
+    .venv,
+    .tox
+select = C,E,F,W,B,B950 # B for bugbear, B950 for bugbear opinions
+# Consider adding plugins like flake8-bugbear, flake8-comprehensions, flake8-isort if desired.

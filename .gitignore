@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.env
+*.log
+pip-wheel-metadata/
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Node / Frontend
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json # Optional: some teams commit this, some don't. For now, let's ignore it.
+# Vite
+.vite/
+dist/ # Vite build output
+
+# General
+.DS_Store
+*.bak
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.iml
+
+# Specific to this project (based on observed files)
+performance-optimization.bundle
+performance-optimization.patch
+performance-optimizations-complete.bundle
+performance-optimizations-complete.patch
+comprehensive-caching-optimization.bundle
+comprehensive-caching-optimization.patch
+performance-optimization (1).patch
