@@ -10,6 +10,7 @@ import (
 	"digisocialblock/pkg/dds/chunking"
 	"digisocialblock/pkg/dds/storage"
 	"digisocialblock/pkg/dds/originator"
+	"digisocialblock/pkg/dds/retriever" // Added for ContentRetriever
 )
 
 func main() {
@@ -94,5 +95,57 @@ func main() {
 		}
 	}
 
-	fmt.Println("\n--- DDS-Ledger Integration Test Complete ---")
+	// --- Steps for Content Retrieval ---
+	fmt.Println("\n--- Testing Content Retrieval from DDS via Ledger CID ---")
+
+	// 12. Initialize MockRetriever and ContentRetriever
+	// We need to make the InMemoryStorage accessible to seed the MockRetriever,
+	// or the MockRetriever needs a way to access the data stored by the publisher.
+	// For this test, let's assume InMemoryStorage can be accessed or we manually populate MockRetriever.
+
+	// Get the stored manifest and chunks from inMemoryStorage (used by publisher)
+	// This simulates the retriever having access to the same underlying storage for this test.
+	manifest, err := inMemoryStorage.GetManifest(contentCID)
+	if err != nil {
+		log.Fatalf("Failed to get manifest %s from inMemoryStorage for retriever setup: %v", contentCID, err)
+	}
+
+	mockRetriever := retriever.NewMockRetriever()
+	mockRetriever.AddManifest(manifest) // Seed manifest
+
+	for _, chunkID := range manifest.ChunkIDs {
+		chunk, err := inMemoryStorage.GetChunk(chunkID)
+		if err != nil {
+			log.Fatalf("Failed to get chunk %s from inMemoryStorage for retriever setup: %v", chunkID, err)
+		}
+		mockRetriever.AddChunk(chunk) // Seed chunks
+	}
+
+	contentRetriever := content.NewContentRetriever(mockRetriever)
+
+	// 13. Retrieve content using the CID from the blockchain transaction
+	if len(latestBlock.Transactions) > 0 {
+		retrievedTx := latestBlock.Transactions[0]
+		cidFromLedger := string(retrievedTx.Payload)
+
+		fmt.Printf("Attempting to retrieve content from DDS using CID from ledger: %s\n", cidFromLedger)
+		retrievedPostContentBytes, err := contentRetriever.RetrieveContent(cidFromLedger)
+		if err != nil {
+			log.Fatalf("Failed to retrieve content from DDS: %v", err)
+		}
+		retrievedPostContent := string(retrievedPostContentBytes)
+		fmt.Printf("Content retrieved from DDS: \"%s\"\n", retrievedPostContent)
+
+		// 14. Verify retrieved content matches original
+		if retrievedPostContent == samplePostContent {
+			fmt.Println("SUCCESS: Retrieved content matches original sample post content!")
+		} else {
+			fmt.Println("ERROR: Retrieved content DOES NOT MATCH original sample post content.")
+			log.Fatalf("Mismatch: \nOriginal: %s\nRetrieved: %s", samplePostContent, retrievedPostContent)
+		}
+	} else {
+		log.Println("No transactions found in the latest block to test retrieval.")
+	}
+
+	fmt.Println("\n--- DDS-Ledger Integration Test Complete (including retrieval) ---")
 }
