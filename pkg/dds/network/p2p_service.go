@@ -183,3 +183,92 @@ func (mps *MockP2PService) GetLocalNodeAdvertisedContent() []string {
 	copy(content, mps.LocalNode.KnownContent)
 	return content
 }
+
+// --- Methods to implement retriever.Retriever ---
+
+// FetchManifest implements the retriever.Retriever interface.
+// It attempts to get the manifest, potentially via its P2P request logic.
+// For this mock, it will try its LocalNode's content first, then the first peer in NetworkView.
+func (mps *MockP2PService) FetchManifest(manifestID string) (*chunking.Manifest, error) {
+	mps.mu.RLock()
+	defer mps.mu.RUnlock()
+
+	// Check if the local node itself has this content advertised
+	for _, knownCID := range mps.LocalNode.KnownContent {
+		if knownCID == manifestID {
+			// If LocalNode has it, ideally it should be able to serve it.
+			// This mock's RequestManifest needs a peer. Let's use LocalNode as peer.
+			// This part is a bit circular for a pure P2P mock but makes it usable as a Retriever.
+			// A more sophisticated mock might have its own internal storage.
+			// For now, let's assume if LocalNode knows it, it can "request" from itself conceptually.
+			// Or, if RequestHandlerFunc is set, it might handle it.
+			if mps.RequestHandlerFunc != nil {
+				// The handler might be configured to respond for LocalNode
+				res, err := mps.RequestHandlerFunc(*mps.LocalNode, "manifest", manifestID)
+				if err == nil {
+					if manifest, ok := res.(*chunking.Manifest); ok {
+						return manifest, nil
+					}
+				}
+				// Fall through if handler doesn't cover it or errors
+			}
+			// Fallback: if local node advertises it, return a dummy/placeholder or error if not findable by RequestHandler
+			// This indicates a gap in the mock's ability to serve its own advertised content directly via this interface.
+			// For the test_user_profiles, RequestHandlerFunc will be set up to bridge this.
+			// If no handler, and we are trying to retrieve what LocalNode has, we need a mechanism.
+			// For now, if it's in LocalNode.KnownContent, assume RequestHandlerFunc will provide it.
+			// If not, it means this mock needs a more direct way to serve its own content.
+			// This is a limitation of using P2PService directly as a general Retriever without a backing store.
+		}
+	}
+
+
+	// If not found locally (or local check is not the primary role of P2P as retriever),
+	// try the first peer in NetworkView as a fallback for the mock.
+	if len(mps.NetworkView) > 0 {
+		for _, peer := range mps.NetworkView { // Get an arbitrary peer
+			fmt.Printf("MockP2PService (as Retriever): Attempting FetchManifest %s from peer %s\n", manifestID, peer.ID)
+			return mps.RequestManifest(*peer, manifestID) // Use existing P2P request
+		}
+	}
+
+	// If RequestHandlerFunc is defined, it might handle cases even if NetworkView is empty or peer doesn't have it
+	if mps.RequestHandlerFunc != nil && mps.LocalNode != nil {
+		 res, err := mps.RequestHandlerFunc(*mps.LocalNode, "manifest", manifestID) // Default to asking local node via handler
+		 if err == nil {
+			 if manifest, ok := res.(*chunking.Manifest); ok {
+				 return manifest, nil
+			 }
+		 }
+	}
+
+
+	return nil, fmt.Errorf("mock p2p (as retriever): cannot fetch manifest %s, no suitable peer or handler", manifestID)
+}
+
+// FetchChunk implements the retriever.Retriever interface.
+// Similar logic to FetchManifest for selecting a peer.
+func (mps *MockP2PService) FetchChunk(chunkID string) (chunking.Chunk, error) {
+	mps.mu.RLock()
+	defer mps.mu.RUnlock()
+
+	// This mock implementation is simplified. A real retriever would have more sophisticated peer selection.
+	// Try the first peer in NetworkView.
+	if len(mps.NetworkView) > 0 {
+		for _, peer := range mps.NetworkView { // Get an arbitrary peer
+			fmt.Printf("MockP2PService (as Retriever): Attempting FetchChunk %s from peer %s\n", chunkID, peer.ID)
+			return mps.RequestChunk(*peer, chunkID) // Use existing P2P request
+		}
+	}
+
+	if mps.RequestHandlerFunc != nil && mps.LocalNode != nil {
+		 res, err := mps.RequestHandlerFunc(*mps.LocalNode, "chunk", chunkID) // Default to asking local node via handler
+		 if err == nil {
+			 if chunk, ok := res.(chunking.Chunk); ok {
+				 return chunk, nil
+			 }
+		 }
+	}
+
+	return chunking.Chunk{}, fmt.Errorf("mock p2p (as retriever): cannot fetch chunk %s, no suitable peer or handler", chunkID)
+}

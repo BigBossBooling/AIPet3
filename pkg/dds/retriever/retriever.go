@@ -3,8 +3,12 @@ package retriever
 
 import (
 	"digisocialblock/pkg/dds/chunking" // Assuming Manifest is defined here
+	"errors"                           // Added for predefined error
 	"fmt"
 )
+
+// ErrSimulatedRetriever is a predefined error for mock retriever simulations.
+var ErrSimulatedRetriever = errors.New("simulated retriever error")
 
 // Retriever defines the interface for components responsible for
 // fetching content manifests and chunks from the DDS network (or a local cache).
@@ -46,7 +50,7 @@ func (mr *MockRetriever) FetchManifest(manifestCID string) (*chunking.Manifest, 
 		if mr.ErrorToReturn != nil {
 			return nil, mr.ErrorToReturn
 		}
-		return nil, fmt.Errorf("mock retriever: simulated error fetching manifest %s", manifestCID)
+		return nil, ErrSimulatedRetriever // Use predefined error
 	}
 	manifest, ok := mr.KnownManifests[manifestCID]
 	if !ok {
@@ -64,7 +68,7 @@ func (mr *MockRetriever) FetchChunk(chunkCID string) (chunking.Chunk, error) {
 		if mr.ErrorToReturn != nil {
 			return chunking.Chunk{}, mr.ErrorToReturn
 		}
-		return chunking.Chunk{}, fmt.Errorf("mock retriever: simulated error fetching chunk %s", chunkCID)
+		return chunking.Chunk{}, ErrSimulatedRetriever // Use predefined error
 	}
 	chunk, ok := mr.KnownChunks[chunkCID]
 	if !ok {

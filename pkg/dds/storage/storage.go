@@ -98,81 +98,62 @@ type MockStorage struct {
 
 // NewMockStorage creates a new MockStorage.
 func NewMockStorage() *MockStorage {
-	return &MockStorage{
+	ms := &MockStorage{
 		StoredChunks:    make(map[string]chunking.Chunk),
 		StoredManifests: make(map[string]*chunking.Manifest),
-		// Default mock behavior
-		StoreChunkFunc: func(chunk chunking.Chunk) error {
-			// Access StoredChunks from the outer scope if needed or handle internally
-			// For now, just a placeholder for successful storage
-			return nil
-		},
-		GetChunkFunc: func(chunkID string) (chunking.Chunk, error) {
-			return chunking.Chunk{ID: chunkID, Data: []byte("mock_chunk_data")}, nil
-		},
-		StoreManifestFunc: func(manifest *chunking.Manifest) error {
-			return nil
-		},
-		GetManifestFunc: func(manifestID string) (*chunking.Manifest, error) {
-			return &chunking.Manifest{ID: manifestID, ChunkIDs: []string{"mock_cid1"}}, nil
-		},
 	}
+	// Default mock behavior:
+	// Store functions will just store in the maps if not overridden by a test.
+	// Get functions will retrieve from the maps if not overridden by a test.
+	ms.StoreChunkFunc = func(chunk chunking.Chunk) error {
+		// Removed ms.mu.Lock() and ms.mu.Unlock()
+		if ms.StoredChunks == nil {
+			ms.StoredChunks = make(map[string]chunking.Chunk)
+		}
+		ms.StoredChunks[chunk.ID] = chunk
+		return nil
+	}
+	ms.GetChunkFunc = func(chunkID string) (chunking.Chunk, error) {
+		// Removed ms.mu.RLock() and ms.mu.RUnlock()
+		if chunk, ok := ms.StoredChunks[chunkID]; ok {
+			return chunk, nil
+		}
+		return chunking.Chunk{}, fmt.Errorf("mock storage: GetChunkFunc: chunk %s not found", chunkID)
+	}
+	ms.StoreManifestFunc = func(manifest *chunking.Manifest) error {
+		// Removed ms.mu.Lock() and ms.mu.Unlock()
+		if ms.StoredManifests == nil {
+			ms.StoredManifests = make(map[string]*chunking.Manifest)
+		}
+		ms.StoredManifests[manifest.ID] = manifest
+		return nil
+	}
+	ms.GetManifestFunc = func(manifestID string) (*chunking.Manifest, error) {
+		// Removed ms.mu.RLock() and ms.mu.RUnlock()
+		if manifest, ok := ms.StoredManifests[manifestID]; ok {
+			return manifest, nil
+		}
+		return nil, fmt.Errorf("mock storage: GetManifestFunc: manifest %s not found", manifestID)
+	}
+	return ms
 }
 
+// StoreChunk calls the configured StoreChunkFunc.
 func (m *MockStorage) StoreChunk(chunk chunking.Chunk) error {
-	if m.StoreChunkFunc != nil {
-		err := m.StoreChunkFunc(chunk)
-		if err == nil { // If the custom func doesn't error, record the chunk
-			if m.StoredChunks == nil { // Ensure map is initialized
-				m.StoredChunks = make(map[string]chunking.Chunk)
-			}
-			m.StoredChunks[chunk.ID] = chunk
-		}
-		return err
-	}
-	// Fallback to default (and record) if specific func not set by test
-	if m.StoredChunks == nil {
-		m.StoredChunks = make(map[string]chunking.Chunk)
-	}
-	m.StoredChunks[chunk.ID] = chunk
-	return nil
+	return m.StoreChunkFunc(chunk)
 }
 
+// GetChunk calls the configured GetChunkFunc.
 func (m *MockStorage) GetChunk(chunkID string) (chunking.Chunk, error) {
-	if m.GetChunkFunc != nil {
-		return m.GetChunkFunc(chunkID)
-	}
-	// Fallback to default if specific func not set by test
-	if chunk, ok := m.StoredChunks[chunkID]; ok {
-		return chunk, nil
-	}
-	return chunking.Chunk{}, fmt.Errorf("mock: chunk %s not found", chunkID)
+	return m.GetChunkFunc(chunkID)
 }
 
+// StoreManifest calls the configured StoreManifestFunc.
 func (m *MockStorage) StoreManifest(manifest *chunking.Manifest) error {
-	if m.StoreManifestFunc != nil {
-		err := m.StoreManifestFunc(manifest)
-		if err == nil {
-			if m.StoredManifests == nil {
-				m.StoredManifests = make(map[string]*chunking.Manifest)
-			}
-			m.StoredManifests[manifest.ID] = manifest
-		}
-		return err
-	}
-	if m.StoredManifests == nil {
-		m.StoredManifests = make(map[string]*chunking.Manifest)
-	}
-	m.StoredManifests[manifest.ID] = manifest
-	return nil
+	return m.StoreManifestFunc(manifest)
 }
 
+// GetManifest calls the configured GetManifestFunc.
 func (m *MockStorage) GetManifest(manifestID string) (*chunking.Manifest, error) {
-	if m.GetManifestFunc != nil {
-		return m.GetManifestFunc(manifestID)
-	}
-	if manifest, ok := m.StoredManifests[manifestID]; ok {
-		return manifest, nil
-	}
-	return nil, fmt.Errorf("mock: manifest %s not found", manifestID)
+	return m.GetManifestFunc(manifestID)
 }

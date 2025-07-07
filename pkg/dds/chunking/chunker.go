@@ -107,61 +107,104 @@ type MockChunker struct {
 
 // NewMockChunker creates a new MockChunker.
 func NewMockChunker() *MockChunker {
+	// Default mock behavior using hashData for consistency
+	defaultChunkContentFunc := func(content []byte) ([]Chunk, error) {
+		if len(content) == 0 {
+			return nil, fmt.Errorf("mock chunker: content cannot be empty")
+		}
+		// Simulate BasicChunker logic with a fixed mock chunk size for testing
+		mockChunkSize := 10 // Can be parameterized if needed for more complex tests
+		var mockChunks []Chunk
+		for i := 0; i < len(content); i += mockChunkSize {
+			end := i + mockChunkSize
+			if end > len(content) {
+				end = len(content)
+			}
+			chunkData := content[i:end]
+			// Use actual hashData for ID, consistent with BasicChunker and retriever's expectations
+			chunkID := hashData(chunkData)
+			mockChunks = append(mockChunks, Chunk{ID: chunkID, Data: chunkData, Size: len(chunkData)})
+		}
+		return mockChunks, nil
+	}
+
+	defaultGenerateManifestFunc := func(chunks []Chunk, originalContent []byte) (*Manifest, error) {
+		if len(chunks) == 0 {
+			return nil, fmt.Errorf("mock chunker: no chunks provided for manifest")
+		}
+		var chunkIDs []string
+		var totalSize int64
+		for _, ch := range chunks {
+			chunkIDs = append(chunkIDs, ch.ID)
+			totalSize += int64(ch.Size)
+		}
+
+		contentID := hashData(originalContent)
+
+		manifestDataStr := contentID
+		for _, id := range chunkIDs {
+			manifestDataStr += id
+		}
+		manifestID := hashData([]byte(manifestDataStr))
+
+		return &Manifest{
+			ID:        manifestID,
+			ContentID: contentID,
+			ChunkIDs:  chunkIDs,
+			TotalSize: totalSize,
+		}, nil
+	}
+
 	return &MockChunker{
-		// Default mock behavior
-		ChunkContentFunc: func(content []byte) ([]Chunk, error) {
-			// Simulate creating one or two chunks based on content length for basic testing
-			if len(content) == 0 {
-				return nil, fmt.Errorf("mock: content cannot be empty")
-			}
-			numChunks := 1
-			if len(content) > 10 { // Arbitrary threshold for multiple chunks
-				numChunks = 2
-			}
-			mockChunks := make([]Chunk, numChunks)
-			for i := 0; i < numChunks; i++ {
-				mockChunks[i] = Chunk{ID: fmt.Sprintf("mock_chunk_id_%d_for_%x", i+1, content[:min(5, len(content))]), Data: []byte(fmt.Sprintf("mock_data_part_%d", i+1)), Size: 10}
-			}
-			return mockChunks, nil
-		},
-		GenerateManifestFunc: func(chunks []Chunk, originalContent []byte) (*Manifest, error) {
-			if len(chunks) == 0 {
-				return nil, fmt.Errorf("mock: no chunks provided for manifest")
-			}
-			chunkIDs := make([]string, len(chunks))
-			for i, c := range chunks {
-				chunkIDs[i] = c.ID
-			}
-			return &Manifest{
-				ID:        fmt.Sprintf("mock_manifest_cid_for_%x", originalContent[:min(5, len(originalContent))]),
-				ContentID: fmt.Sprintf("mock_content_id_for_%x", originalContent[:min(5, len(originalContent))]),
-				ChunkIDs:  chunkIDs,
-				TotalSize: int64(len(originalContent)),
-			}, nil
-		},
+		ChunkContentFunc:     defaultChunkContentFunc,
+		GenerateManifestFunc: defaultGenerateManifestFunc,
 	}
 }
 
-
 func (m *MockChunker) ChunkContent(content []byte) ([]Chunk, error) {
-	if m.ChunkContentFunc != nil {
+	if m.ChunkContentFunc != nil { // Allow overriding default mock behavior in specific tests
 		return m.ChunkContentFunc(content)
 	}
-	// Fallback to default if specific func not set by test
-	return NewMockChunker().ChunkContentFunc(content)
+	// This recursive call to NewMockChunker().ChunkContentFunc was problematic.
+	// The default funcs should be assigned at construction and called directly.
+	// However, the current structure of MockChunker already stores these functions.
+	// So, if ChunkContentFunc is not overridden by a test, it *is* the default one.
+	// The issue was if a test set it to nil, it would infinitely recurse.
+	// The fix is to ensure NewMockChunker assigns non-nil default functions.
+	// And if a test wants to disable it, it should provide a func that returns an error.
+	return m.ChunkContentFunc(content) // Call the stored function (default or overridden)
 }
 
 func (m *MockChunker) GenerateManifest(chunks []Chunk, originalContent []byte) (*Manifest, error) {
-	if m.GenerateManifestFunc != nil {
+	if m.GenerateManifestFunc != nil { // Allow overriding
 		return m.GenerateManifestFunc(chunks, originalContent)
 	}
-	// Fallback to default if specific func not set by test
-	return NewMockChunker().GenerateManifestFunc(chunks, originalContent)
+	return m.GenerateManifestFunc(chunks, originalContent) // Call the stored function
 }
 
+// min function was here, ensure it's either kept if used by other parts of this file
+// or removed if it was only for the old mock logic.
+// It seems it was only for the old mock logic's fmt.Sprintf.
+// func min(a, b int) int {
+// 	if a < b {
+// 		return a
+// 	}
+// 	return b
+// }
+
+// min function, if needed, should be defined or imported properly.
+// For now, removing it as the new mock logic doesn't use it.
+// If hashData or other parts of this package need it, it should be reinstated or handled.
+// The hashData function does not use min. The BasicChunker does not use min.
+// It was solely for the old mock's fmt.Sprintf.
+
+// Helper min function if it were needed elsewhere (it's not for current code)
+/*
 func min(a, b int) int {
 	if a < b {
 		return a
 	}
 	return b
 }
+*/
+// Removed unused min function from the end of the file
