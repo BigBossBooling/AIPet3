@@ -6,7 +6,7 @@ This file isolates game content from game logic, allowing for easy balancing,
 addition, and modification of activities without changing the core engine.
 It serves as the single source of truth for what activities exist in the game.
 """
-from .activities import ActivityType, StatType
+from activities import ActivityType, StatType # Direct import for sibling module
 
 # (K) - A clear, centralized definition of all game activities.
 # Adding a new mini-game is as simple as adding a new dictionary to this list.

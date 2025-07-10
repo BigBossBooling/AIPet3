@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import sys
+print(f"DEBUG: sys.path in run_test.py: {sys.path}")
 """
 Test script for the Activities and Zoologist's Lodge systems.
 

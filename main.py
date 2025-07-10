@@ -2,6 +2,8 @@
 import time
 import os
 import sys
+import json
+from typing import Optional
 
 # Add parent directory to path to allow import if running directly from this folder
 # This setup is for local testing structure, might differ in actual app
@@ -10,7 +12,16 @@ if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
 from .pet_core import Pet, InteractionRecord # Import Pet class and InteractionRecord
-from .config import LOCAL_STORAGE_KEY, GAME_INTERVAL_SECONDS, PET_ARCHETYPES, PET_AURA_COLORS # Import configs
+from .config import (
+    LOCAL_STORAGE_KEY,
+    GAME_INTERVAL_SECONDS,
+    PET_ARCHETYPES,
+    PET_AURA_COLORS,
+    MOOD_THRESHOLD_HAPPY,
+    MAX_STAT,
+    FEED_HUNGER_RESTORE,
+    MIGRATION_READINESS_THRESHOLDS
+) # Import configs
 
 # --- Persistence Manager (Simplified for CLI) ---
 # In a real app, this would be a dedicated module or integrated with state management.

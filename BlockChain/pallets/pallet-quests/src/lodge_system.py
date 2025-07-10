@@ -9,7 +9,7 @@ as temporary Caregivers.
 import time
 from typing import Dict, List, Optional, Tuple
 
-from .lodge import (
+from lodge import ( # Direct import for sibling module
     PersonalityTrait,
     CareActivityType,
     PetState,

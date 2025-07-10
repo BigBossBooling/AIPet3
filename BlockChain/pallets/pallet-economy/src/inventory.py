@@ -7,7 +7,7 @@ This module implements the player inventory in the Critter-Craft economy.
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Tuple, Union, Any
 
-from .items import Item, ItemType
+from items import Item, ItemType # Changed from relative to direct import
 
 
 @dataclass

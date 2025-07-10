@@ -23,7 +23,11 @@ from pathlib import Path
 # Using pathlib for more robust path handling
 PARENT_DIR = Path(__file__).parent.parent.parent
 ECONOMY_PATH = PARENT_DIR / "pallet-economy" / "src"
+OWN_SRC_DIR = Path(__file__).parent # This is BlockChain/pallets/pallet-quests/src/
 sys.path.insert(0, str(ECONOMY_PATH))
+if str(OWN_SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(OWN_SRC_DIR))
+
 
 # Import from economy system
 from currencies import Bits, Aura
@@ -31,7 +35,7 @@ from items import Item, ItemType, ItemRarity, Material, Consumable
 from inventory import Inventory
 
 # Import from activities module
-from .activities import ActivityType, StatType
+from activities import ActivityType, StatType # Direct import for sibling module
 
 # Type variables for better type hinting
 T = TypeVar('T')

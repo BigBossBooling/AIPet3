@@ -25,10 +25,10 @@ class Pet:
     Represents a CritterCraft Genesis Pet.
     This is the core data model for our AI digital companion.
     """
-    id: str = field(default_factory=lambda: str(uuid.uuid4())) # Unique ID for potential blockchain migration
     name: str
     species: str            # e.g., 'sprite_glow', 'sprite_crystal'
     aura_color: str         # e.g., 'aura-blue', 'aura-gold'
+    id: str = field(default_factory=lambda: str(uuid.uuid4())) # Unique ID for potential blockchain migration
     
     # Core Vitals (0-MAX_STAT)
     hunger: int = 50
